@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Edit, Mail, Trash } from "lucide-react";
+import { ChevronLeft, Edit, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DeleteFrotaButton } from "@/components/frotas/delete-frota-button";
 import { FrotaInfo } from "@/components/frotas/frota-info";
 import { HistoricoTimeline } from "@/components/frotas/historico-timeline";
 import { KmEvolutionChart } from "@/components/frotas/km-evolution-chart";
@@ -57,12 +58,7 @@ export default async function FrotaDetailPage({
               Enviar e-mail
             </Link>
           </Button>
-          <Button asChild variant="destructive">
-            <Link href={`/frotas/${frota.id}/excluir`}>
-              <Trash className="mr-2 h-4 w-4" aria-hidden="true" />
-              Excluir
-            </Link>
-          </Button>
+          <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
         </div>
       </div>
       <FrotaInfo frota={frota} />
