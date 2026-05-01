@@ -49,7 +49,7 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
         </TableHeader>
         <TableBody>
           {rows.map((f) => (
-            <TableRow key={f.id} className="hover:bg-muted/50">
+            <TableRow key={f.id} className="transition-colors hover:bg-muted/50">
               <TableCell className="font-medium">
                 <Link className="hover:underline" href={`/frotas/${f.id}`}>
                   {f.frota_geral ?? <EmptyValue />}
