@@ -8,7 +8,15 @@ const NAV = [
   { href: "/frotas/vendidos", label: "Vendidos", icon: ShoppingCart },
 ];
 
-export function AppShell({ email, children }: { email: string; children: React.ReactNode }) {
+export function AppShell({
+  email,
+  name,
+  children,
+}: {
+  email: string;
+  name: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="border-b bg-primary text-primary-foreground lg:border-b-0 lg:border-r">
@@ -33,7 +41,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
       </aside>
       <div className="flex min-w-0 flex-col">
         <header className="flex h-14 items-center justify-end border-b bg-background px-4 lg:px-6">
-          <UserMenu email={email} />
+          <UserMenu email={email} name={name} />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8">{children}</main>
       </div>

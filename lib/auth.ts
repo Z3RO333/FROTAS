@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import { normalizeUserDisplayName } from "@/lib/user";
 
 const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 
@@ -30,11 +31,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, profile }) {
       const email = profileEmail(user, profile);
       if (email) token.email = email;
+      token.name = normalizeUserDisplayName(user.name ?? token.name, token.email);
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.email) {
         session.user.email = token.email;
+        session.user.name = normalizeUserDisplayName(token.name, token.email);
       }
       return session;
     },
