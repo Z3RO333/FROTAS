@@ -19,7 +19,7 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="border-b bg-primary text-primary-foreground lg:border-b-0 lg:border-r">
+      <aside className="border-b bg-primary text-primary-foreground lg:border-b-0 lg:border-r lg:border-blue-950/20">
         <div className="flex h-16 items-center gap-3 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white/10">
             <Truck className="h-5 w-5" aria-hidden="true" />
@@ -40,7 +40,7 @@ export function AppShell({
         </nav>
       </aside>
       <div className="flex min-w-0 flex-col">
-        <header className="flex h-14 items-center justify-end border-b bg-background px-4 lg:px-6">
+        <header className="flex h-14 items-center justify-end border-b bg-white px-4 lg:px-6">
           <UserMenu email={email} name={name} />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8">{children}</main>

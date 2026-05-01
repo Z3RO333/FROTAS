@@ -1,5 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
+import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -8,82 +20,419 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BemolTruck } from "@/components/frotas/bemol-truck";
 import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import type { Frota } from "@/lib/repos/frotas";
-import { formatNumber } from "@/lib/utils";
+import { calcularIdade } from "@/lib/rules";
+import {
+  CONDICAO_LABELS,
+  STATUS_OPERACIONAL_LABELS,
+  cadastroIncompleto,
+  condicaoFrota,
+  frotaTitle,
+  motivosAtencao,
+  statusOperacional,
+  type CondicaoFrota,
+  type StatusOperacional,
+} from "@/lib/frota-derived";
+import { formatDate, formatNumber } from "@/lib/utils";
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_CLASS: Record<StatusOperacional, string> = {
   disponivel: "border-transparent bg-emerald-600 text-white hover:bg-emerald-600/90",
   manutencao: "border-transparent bg-amber-500 text-white hover:bg-amber-500/90",
-  atencao: "border-transparent bg-orange-500 text-white hover:bg-orange-500/90",
-  critico: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
+  indisponivel: "border-transparent bg-red-600 text-white hover:bg-red-600/90",
+  baixado: "border-transparent bg-slate-600 text-white hover:bg-slate-600/90",
 };
+
+const CONDITION_CLASS: Record<CondicaoFrota, string> = {
+  normal: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50",
+  atencao: "border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-50",
+  critico: "border-red-200 bg-red-50 text-red-800 hover:bg-red-50",
+};
+
+const TABS = [
+  "Resumo",
+  "Cadastro",
+  "KM",
+  "Historico",
+  "Alertas",
+  "Documentos",
+] as const;
+
+type Tab = (typeof TABS)[number];
 
 function EmptyValue() {
   return <span className="text-muted-foreground">&mdash;</span>;
 }
 
 export function FrotasTable({ rows }: { rows: Frota[] }) {
+  const [selected, setSelected] = useState<Frota | null>(null);
+  const [tab, setTab] = useState<Tab>("Resumo");
+
+  function openDrawer(frota: Frota) {
+    setSelected(frota);
+    setTab("Resumo");
+  }
+
   if (rows.length === 0) {
     return (
-      <div className="rounded-md border p-8 text-center text-sm text-muted-foreground">
-        Nenhuma frota encontrada.
+      <div className="grid gap-4 rounded-lg border bg-white p-8 text-center shadow-sm md:grid-cols-[220px_1fr] md:text-left">
+        <BemolTruck className="mx-auto max-w-[220px]" />
+        <div className="flex flex-col justify-center">
+          <h2 className="text-lg font-semibold">Nenhuma frota encontrada</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ajuste os filtros ou limpe a busca para voltar a visualizar a operacao completa.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Frota</TableHead>
-            <TableHead>Placa</TableHead>
-            <TableHead>Chassi</TableHead>
-            <TableHead>Modelo</TableHead>
-            <TableHead>Ano</TableHead>
-            <TableHead>Localizacao</TableHead>
-            <TableHead className="text-right">Km</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((f) => (
-            <TableRow key={f.id} className="transition-colors hover:bg-muted/50">
-              <TableCell className="font-medium">
-                <Link className="hover:underline" href={`/frotas/${f.id}`}>
-                  {f.frota_geral ?? <EmptyValue />}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Link className="hover:underline" href={`/frotas/${f.id}`}>
-                  {f.placa ?? <EmptyValue />}
-                </Link>
-              </TableCell>
-              <TableCell>
-                {f.chassi ? (
-                  <Link className="hover:underline" href={`/frotas/${f.id}`}>
-                    {f.chassi}
-                  </Link>
-                ) : (
-                  <MissingInfoBadge />
-                )}
-              </TableCell>
-              <TableCell>{f.modelo ?? <EmptyValue />}</TableCell>
-              <TableCell>{f.ano_fabricacao ?? <EmptyValue />}</TableCell>
-              <TableCell>{f.localizacao ?? <EmptyValue />}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatNumber(f.km_atual)}</TableCell>
-              <TableCell>
-                {f.status ? (
-                  <Badge className={STATUS_CLASS[f.status] ?? ""}>{f.status}</Badge>
-                ) : (
-                  <EmptyValue />
-                )}
-              </TableCell>
+    <>
+      <div className="grid gap-3 md:hidden">
+        {rows.map((f) => (
+          <MobileFrotaCard key={f.id} frota={f} onOpen={() => openDrawer(f)} />
+        ))}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-lg border bg-white shadow-sm md:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-slate-50 hover:bg-slate-50">
+              <TableHead>Frota</TableHead>
+              <TableHead>Placa</TableHead>
+              <TableHead>Chassi</TableHead>
+              <TableHead>Modelo</TableHead>
+              <TableHead>Ano / Idade</TableHead>
+              <TableHead>Localizacao</TableHead>
+              <TableHead className="text-right">KM</TableHead>
+              <TableHead>Status operacional</TableHead>
+              <TableHead>Condicao</TableHead>
+              <TableHead>Atualizacao</TableHead>
+              <TableHead className="text-right">Acoes</TableHead>
             </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((f) => (
+              <FrotaRow key={f.id} frota={f} onOpen={() => openDrawer(f)} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
+        {selected ? <FrotaDrawer frota={selected} tab={tab} onTabChange={setTab} /> : null}
+      </Sheet>
+    </>
+  );
+}
+
+function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
+  const idade = calcularIdade(frota.ano_fabricacao);
+  const status = statusOperacional(frota);
+  const condicao = condicaoFrota(frota);
+
+  return (
+    <TableRow
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onOpen();
+      }}
+      className="cursor-pointer focus:bg-blue-50 focus:outline-none"
+    >
+      <TableCell className="font-medium">
+        <button type="button" className="text-left hover:underline" onClick={onOpen}>
+          {frota.frota_geral ?? <EmptyValue />}
+        </button>
+      </TableCell>
+      <TableCell>{frota.placa ?? <EmptyValue />}</TableCell>
+      <TableCell>{frota.chassi ? frota.chassi : <MissingInfoBadge />}</TableCell>
+      <TableCell className="max-w-[220px] truncate">{frota.modelo ?? <EmptyValue />}</TableCell>
+      <TableCell>
+        <div className="space-y-0.5">
+          <div>{frota.ano_fabricacao ?? <EmptyValue />}</div>
+          <div className="text-xs text-muted-foreground">{idade != null ? `${idade} ano(s)` : "Sem ano"}</div>
+        </div>
+      </TableCell>
+      <TableCell className="max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</TableCell>
+      <TableCell className="text-right tabular-nums">{formatNumber(frota.km_atual)}</TableCell>
+      <TableCell>
+        <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
+          {CONDICAO_LABELS[condicao]}
+        </Badge>
+      </TableCell>
+      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{formatDate(frota.atualizado_em)}</TableCell>
+      <TableCell>
+        <div className="flex justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Ver detalhes"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen();
+            }}
+          >
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            aria-label="Editar frota"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Link href={`/frotas/${frota.id}/editar`}>
+              <Edit className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
+  const status = statusOperacional(frota);
+  const condicao = condicaoFrota(frota);
+  const idade = calcularIdade(frota.ano_fabricacao);
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="rounded-lg border bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-semibold">{frotaTitle(frota)}</div>
+          <div className="mt-1 truncate text-sm text-muted-foreground">
+            {frota.placa ?? "Sem placa"} · {frota.modelo ?? "Sem modelo"}
+          </div>
+        </div>
+        <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
+          {CONDICAO_LABELS[condicao]}
+        </Badge>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <MiniMetric icon={<MapPin className="h-4 w-4" />} label="Local" value={frota.localizacao ?? "-"} />
+        <MiniMetric icon={<Gauge className="h-4 w-4" />} label="KM" value={formatNumber(frota.km_atual)} />
+        <MiniMetric icon={<CalendarClock className="h-4 w-4" />} label="Idade" value={idade != null ? `${idade} ano(s)` : "-"} />
+        <MiniMetric icon={<FileText className="h-4 w-4" />} label="Status" value={STATUS_OPERACIONAL_LABELS[status]} />
+      </div>
+    </button>
+  );
+}
+
+function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTabChange: (tab: Tab) => void }) {
+  const status = statusOperacional(frota);
+  const condicao = condicaoFrota(frota);
+  const idade = calcularIdade(frota.ano_fabricacao);
+
+  return (
+    <SheetContent>
+      <div className="border-b p-5 pr-12">
+        <SheetHeader>
+          <SheetTitle>{frotaTitle(frota)}</SheetTitle>
+          <SheetDescription>
+            {frota.placa ?? "Sem placa"} · {frota.modelo ?? "Modelo nao informado"}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
+          <BemolTruck frota={frota.frota_geral ?? frota.id} className="max-w-[200px]" />
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+              <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
+                {CONDICAO_LABELS[condicao]}
+              </Badge>
+              {cadastroIncompleto(frota) ? <MissingInfoBadge /> : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <MiniMetric icon={<CalendarClock className="h-4 w-4" />} label="Idade" value={idade != null ? `${idade} ano(s)` : "-"} />
+              <MiniMetric icon={<Gauge className="h-4 w-4" />} label="KM" value={formatNumber(frota.km_atual)} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b bg-white px-5 py-3">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {TABS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onTabChange(item)}
+              className={`rounded-md px-2 py-2 text-xs font-medium transition-colors ${
+                tab === item ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {item}
+            </button>
           ))}
-        </TableBody>
-      </Table>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5">
+        {tab === "Resumo" ? <ResumoTab frota={frota} /> : null}
+        {tab === "Cadastro" ? <CadastroTab frota={frota} /> : null}
+        {tab === "KM" ? <KmTab frota={frota} /> : null}
+        {tab === "Historico" ? <HistoricoTab frota={frota} /> : null}
+        {tab === "Alertas" ? <AlertasTab frota={frota} /> : null}
+        {tab === "Documentos" ? <DocumentosTab /> : null}
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href={`/frotas/${frota.id}/editar`}>
+              <Edit className="h-4 w-4" aria-hidden="true" />
+              Editar cadastro
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={`/frotas/${frota.id}`}>
+              <History className="h-4 w-4" aria-hidden="true" />
+              Historico completo
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </SheetContent>
+  );
+}
+
+function ResumoTab({ frota }: { frota: Frota }) {
+  const motivos = motivosAtencao(frota);
+
+  return (
+    <div className="space-y-5">
+      <InfoGrid>
+        <Field label="Localizacao" value={frota.localizacao} />
+        <Field label="Status operacional" value={STATUS_OPERACIONAL_LABELS[statusOperacional(frota)]} />
+        <Field label="Condicao" value={CONDICAO_LABELS[condicaoFrota(frota)]} />
+        <Field label="Ultima atualizacao" value={formatDate(frota.atualizado_em)} />
+      </InfoGrid>
+      <div>
+        <h3 className="text-sm font-semibold">Motivo da atencao</h3>
+        {motivos.length > 0 ? (
+          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+            {motivos.map((motivo) => (
+              <li key={motivo} className="rounded-md border bg-slate-50 px-3 py-2">
+                {motivo}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 rounded-md border bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Sem motivos automaticos de atencao.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CadastroTab({ frota }: { frota: Frota }) {
+  return (
+    <InfoGrid>
+      <Field label="Frota geral" value={frota.frota_geral} />
+      <Field label="Placa" value={frota.placa} />
+      <Field label="Chassi" value={frota.chassi} />
+      <Field label="Renavam" value={frota.renavam} />
+      <Field label="Modelo / Marca" value={frota.modelo} />
+      <Field label="Ano de fabricacao" value={frota.ano_fabricacao} />
+      <Field label="Cadastro" value={cadastroIncompleto(frota) ? "Incompleto" : "Completo"} />
+      <Field label="Atualizado por" value={frota.atualizado_por} />
+    </InfoGrid>
+  );
+}
+
+function KmTab({ frota }: { frota: Frota }) {
+  return (
+    <div className="space-y-4">
+      <InfoGrid>
+        <Field label="KM atual" value={formatNumber(frota.km_atual)} />
+        <Field label="Ultima atualizacao" value={formatDate(frota.atualizado_em)} />
+      </InfoGrid>
+      <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
+        Para registrar KM agora, use a edicao da frota. A proxima etapa natural e separar um fluxo rapido so para KM.
+      </p>
+    </div>
+  );
+}
+
+function HistoricoTab({ frota }: { frota: Frota }) {
+  return (
+    <div className="space-y-3">
+      <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
+        O historico completo continua na pagina da frota, com alteracoes rastreadas de KM, status, localizacao,
+        chassi e observacoes.
+      </p>
+      <Button variant="outline" asChild>
+        <Link href={`/frotas/${frota.id}`}>Abrir historico completo</Link>
+      </Button>
+    </div>
+  );
+}
+
+function AlertasTab({ frota }: { frota: Frota }) {
+  const motivos = motivosAtencao(frota);
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">Alertas automaticos</h3>
+      {motivos.length > 0 ? (
+        <ul className="space-y-2 text-sm text-muted-foreground">
+          {motivos.map((motivo) => (
+            <li key={motivo} className="rounded-md border bg-orange-50 px-3 py-2 text-orange-900">
+              {motivo}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-md border bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          Nenhum alerta automatico para esta frota.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DocumentosTab() {
+  return (
+    <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
+      Documentos ainda nao existem no schema atual. O drawer ja reserva o espaco para anexos e vencimentos quando
+      essa tabela entrar.
+    </p>
+  );
+}
+
+function InfoGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
+}
+
+function Field({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="rounded-md border bg-white px-3 py-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 break-words text-sm font-medium">{value ?? <EmptyValue />}</div>
+    </div>
+  );
+}
+
+function MiniMetric({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-md bg-slate-50 px-2 py-2">
+      <span className="text-blue-700">{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="block truncate font-medium">{value}</span>
+      </span>
     </div>
   );
 }

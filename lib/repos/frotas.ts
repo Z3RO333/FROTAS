@@ -28,6 +28,11 @@ export type FrotaFilters = {
   localizacao?: string;
   ano?: number;
   status?: StatusFrota;
+  operacional?: "disponivel" | "manutencao" | "indisponivel" | "baixado";
+  condicao?: "normal" | "atencao" | "critico";
+  cadastro?: "incompleto";
+  semKm?: boolean;
+  idadeMin?: number;
   vendidos?: boolean;
   page?: number;
   pageSize?: number;
@@ -35,9 +40,14 @@ export type FrotaFilters = {
 
 export type Kpis = {
   total_ativos: number;
+  total_disponiveis: number;
+  total_indisponiveis: number;
   total_atencao: number;
   total_critico: number;
   total_manutencao: number;
+  total_sem_km: number;
+  total_acima_7: number;
+  total_cadastro_incompleto: number;
   idade_media: number | null;
   km_medio: number | null;
 };
@@ -56,6 +66,17 @@ export type FrotaInput = {
 };
 
 const T = "manutencao.cd.frotas";
+const AGE_SQL = "(year(current_date()) - ano_fabricacao)";
+const EMPTY_PLACA_SQL = "(placa IS NULL OR TRIM(placa) = '')";
+const EMPTY_CHASSI_SQL = "(chassi IS NULL OR TRIM(chassi) = '')";
+const CADASTRO_INCOMPLETO_SQL = `(${EMPTY_PLACA_SQL} OR ${EMPTY_CHASSI_SQL} OR km_atual IS NULL)`;
+const CRITICAL_CONDITION_SQL = `(status = 'critico' OR ${AGE_SQL} >= 10)`;
+const ATTENTION_CONDITION_SQL = `(status IN ('atencao', 'manutencao') OR ${AGE_SQL} >= 7 OR ${CADASTRO_INCOMPLETO_SQL})`;
+const CONDITION_SQL = `(CASE
+  WHEN ${CRITICAL_CONDITION_SQL} THEN 'critico'
+  WHEN ${ATTENTION_CONDITION_SQL} THEN 'atencao'
+  ELSE 'normal'
+END)`;
 const TRACKED_FIELDS = ["chassi", "km_atual", "status", "observacoes", "localizacao"] as const;
 const WRITABLE_FIELDS = [
   "frota_geral",
@@ -74,14 +95,14 @@ function buildWhere(f: FrotaFilters): { sql: string; params: unknown[] } {
   const wh: string[] = ["ativo = TRUE"];
   const params: unknown[] = [];
 
-  wh.push(f.vendidos ? "vendido = TRUE" : "vendido = FALSE");
+  wh.push(f.vendidos || f.operacional === "baixado" ? "vendido = TRUE" : "vendido = FALSE");
 
   if (f.search) {
     wh.push(
-      "(LOWER(placa) LIKE ? OR LOWER(COALESCE(chassi, 'sem informacoes sem informações')) LIKE ? OR LOWER(modelo) LIKE ?)"
+      "(LOWER(COALESCE(frota_geral, '')) LIKE ? OR LOWER(COALESCE(placa, '')) LIKE ? OR LOWER(COALESCE(chassi, '')) LIKE ? OR LOWER(COALESCE(modelo, '')) LIKE ? OR LOWER(COALESCE(localizacao, '')) LIKE ?)"
     );
     const q = `%${f.search.toLowerCase()}%`;
-    params.push(q, q, q);
+    params.push(q, q, q, q, q);
   }
   if (f.modelo) {
     wh.push("modelo = ?");
@@ -98,6 +119,26 @@ function buildWhere(f: FrotaFilters): { sql: string; params: unknown[] } {
   if (f.status) {
     wh.push("status = ?");
     params.push(f.status);
+  }
+  if (f.operacional) {
+    if (f.operacional === "disponivel") wh.push("(status IS NULL OR status NOT IN ('manutencao', 'critico', 'vendido'))");
+    if (f.operacional === "manutencao") wh.push("status = 'manutencao'");
+    if (f.operacional === "indisponivel") wh.push("status = 'critico'");
+    if (f.operacional === "baixado") wh.push("(vendido = TRUE OR status = 'vendido')");
+  }
+  if (f.condicao) {
+    wh.push(`${CONDITION_SQL} = ?`);
+    params.push(f.condicao);
+  }
+  if (f.cadastro === "incompleto") {
+    wh.push(CADASTRO_INCOMPLETO_SQL);
+  }
+  if (f.semKm) {
+    wh.push("km_atual IS NULL");
+  }
+  if (f.idadeMin) {
+    wh.push(`${AGE_SQL} >= ?`);
+    params.push(f.idadeMin);
   }
 
   return { sql: wh.join(" AND "), params };
@@ -131,17 +172,27 @@ export async function getFrota(id: number): Promise<Frota | null> {
 export async function kpis(): Promise<Kpis> {
   const r = await query<{
     total_ativos: number | null;
+    total_disponiveis: number | null;
+    total_indisponiveis: number | null;
     total_atencao: number | null;
     total_critico: number | null;
     total_manutencao: number | null;
+    total_sem_km: number | null;
+    total_acima_7: number | null;
+    total_cadastro_incompleto: number | null;
     idade_media: number | null;
     km_medio: number | null;
   }>(
     `SELECT
       SUM(CASE WHEN ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_ativos,
-      SUM(CASE WHEN status = 'atencao' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_atencao,
-      SUM(CASE WHEN status = 'critico' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_critico,
+      SUM(CASE WHEN (status IS NULL OR status NOT IN ('manutencao', 'critico', 'vendido')) AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_disponiveis,
+      SUM(CASE WHEN status IN ('manutencao', 'critico') AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_indisponiveis,
+      SUM(CASE WHEN ${CONDITION_SQL} = 'atencao' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_atencao,
+      SUM(CASE WHEN ${CONDITION_SQL} = 'critico' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_critico,
       SUM(CASE WHEN status = 'manutencao' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_manutencao,
+      SUM(CASE WHEN km_atual IS NULL AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_sem_km,
+      SUM(CASE WHEN ${AGE_SQL} >= 7 AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_acima_7,
+      SUM(CASE WHEN ${CADASTRO_INCOMPLETO_SQL} AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_cadastro_incompleto,
       AVG(CASE WHEN ativo AND NOT vendido THEN year(current_date()) - ano_fabricacao ELSE NULL END) AS idade_media,
       AVG(CASE WHEN ativo AND NOT vendido THEN km_atual ELSE NULL END) AS km_medio
     FROM ${T}`
@@ -150,9 +201,14 @@ export async function kpis(): Promise<Kpis> {
 
   return {
     total_ativos: Number(row?.total_ativos ?? 0),
+    total_disponiveis: Number(row?.total_disponiveis ?? 0),
+    total_indisponiveis: Number(row?.total_indisponiveis ?? 0),
     total_atencao: Number(row?.total_atencao ?? 0),
     total_critico: Number(row?.total_critico ?? 0),
     total_manutencao: Number(row?.total_manutencao ?? 0),
+    total_sem_km: Number(row?.total_sem_km ?? 0),
+    total_acima_7: Number(row?.total_acima_7 ?? 0),
+    total_cadastro_incompleto: Number(row?.total_cadastro_incompleto ?? 0),
     idade_media: row?.idade_media != null ? Number(row.idade_media) : null,
     km_medio: row?.km_medio != null ? Number(row.km_medio) : null,
   };
@@ -175,8 +231,31 @@ export async function localizacoesDistintas(): Promise<string[]> {
 export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {
   const r = await query<{ status: string; total: number }>(
     `SELECT status, COUNT(*) AS total
+     FROM (
+       SELECT
+        CASE
+          WHEN status = 'manutencao' THEN 'manutencao'
+          WHEN status = 'critico' THEN 'indisponivel'
+          WHEN status = 'vendido' THEN 'baixado'
+          ELSE 'disponivel'
+        END AS status
      FROM ${T}
-     WHERE ativo = TRUE AND vendido = FALSE
+       WHERE ativo = TRUE AND vendido = FALSE
+     ) grouped
+     GROUP BY status
+     ORDER BY status`
+  );
+  return r.map((x) => ({ status: x.status, total: Number(x.total) }));
+}
+
+export async function conditionBreakdown(): Promise<{ status: string; total: number }[]> {
+  const r = await query<{ status: string; total: number }>(
+    `SELECT status, COUNT(*) AS total
+     FROM (
+       SELECT ${CONDITION_SQL} AS status
+       FROM ${T}
+       WHERE ativo = TRUE AND vendido = FALSE
+     ) grouped
      GROUP BY status
      ORDER BY status`
   );
