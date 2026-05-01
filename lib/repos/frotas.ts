@@ -46,7 +46,7 @@ export type FrotaInput = {
   frota_geral?: string | null;
   placa?: string | null;
   modelo?: string | null;
-  chassi: string;
+  chassi?: string | null;
   renavam?: string | null;
   ano_fabricacao?: number | null;
   localizacao?: string | null;
@@ -56,7 +56,7 @@ export type FrotaInput = {
 };
 
 const T = "manutencao.cd.frotas";
-const TRACKED_FIELDS = ["km_atual", "status", "observacoes", "localizacao"] as const;
+const TRACKED_FIELDS = ["chassi", "km_atual", "status", "observacoes", "localizacao"] as const;
 const WRITABLE_FIELDS = [
   "frota_geral",
   "placa",
@@ -77,7 +77,9 @@ function buildWhere(f: FrotaFilters): { sql: string; params: unknown[] } {
   wh.push(f.vendidos ? "vendido = TRUE" : "vendido = FALSE");
 
   if (f.search) {
-    wh.push("(LOWER(placa) LIKE ? OR LOWER(chassi) LIKE ? OR LOWER(modelo) LIKE ?)");
+    wh.push(
+      "(LOWER(placa) LIKE ? OR LOWER(COALESCE(chassi, 'sem informacoes sem informações')) LIKE ? OR LOWER(modelo) LIKE ?)"
+    );
     const q = `%${f.search.toLowerCase()}%`;
     params.push(q, q, q);
   }
@@ -190,7 +192,7 @@ export async function createFrota(input: FrotaInput, userEmail: string): Promise
       input.frota_geral ?? null,
       input.placa ?? null,
       input.modelo ?? null,
-      input.chassi,
+      input.chassi ?? null,
       input.renavam ?? null,
       input.ano_fabricacao ?? null,
       input.localizacao ?? null,
@@ -201,10 +203,7 @@ export async function createFrota(input: FrotaInput, userEmail: string): Promise
     ]
   );
 
-  const r = await query<{ id: number }>(
-    `SELECT id FROM ${T} WHERE chassi = ? ORDER BY id DESC LIMIT 1`,
-    [input.chassi]
-  );
+  const r = await findCreatedFrota(input, userEmail);
   return Number(r[0].id);
 }
 
@@ -251,5 +250,27 @@ export async function softDeleteFrota(id: number, userEmail: string): Promise<vo
   await query(
     `UPDATE ${T} SET ativo = FALSE, atualizado_em = current_timestamp(), atualizado_por = ? WHERE id = ?`,
     [userEmail, id]
+  );
+}
+
+async function findCreatedFrota(input: FrotaInput, userEmail: string): Promise<{ id: number }[]> {
+  if (input.chassi) {
+    return query<{ id: number }>(`SELECT id FROM ${T} WHERE chassi = ? ORDER BY id DESC LIMIT 1`, [
+      input.chassi,
+    ]);
+  }
+  if (input.renavam) {
+    return query<{ id: number }>(`SELECT id FROM ${T} WHERE renavam = ? ORDER BY id DESC LIMIT 1`, [
+      input.renavam,
+    ]);
+  }
+  if (input.placa) {
+    return query<{ id: number }>(`SELECT id FROM ${T} WHERE placa = ? ORDER BY id DESC LIMIT 1`, [
+      input.placa,
+    ]);
+  }
+  return query<{ id: number }>(
+    `SELECT id FROM ${T} WHERE atualizado_por = ? ORDER BY id DESC LIMIT 1`,
+    [userEmail]
   );
 }

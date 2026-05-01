@@ -3,8 +3,10 @@ import { Mail, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
+import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { listFrotas, localizacoesDistintas, modelosDistintos } from "@/lib/repos/frotas";
 import type { StatusFrota } from "@/lib/rules";
+import { enviarRelatorioGeralAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -51,12 +53,16 @@ export default async function FrotasPage({
           <p className="text-sm text-muted-foreground">{total} frota(s) ativa(s)</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href="/frotas/relatorio">
+          <EnviarRelatorioDialog
+            title="Enviar relatorio geral"
+            action={enviarRelatorioGeralAction}
+            trigger={
+              <Button variant="outline">
               <Mail className="mr-2 h-4 w-4" aria-hidden="true" />
               Enviar relatorio
-            </Link>
-          </Button>
+              </Button>
+            }
+          />
           <Button asChild>
             <Link href="/frotas/novo">
               <Plus className="mr-2 h-4 w-4" aria-hidden="true" />

@@ -34,11 +34,11 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       <Field label="Placa" name="placa" defaultValue={initial?.placa ?? ""} />
       <Field label="Modelo / Marca *" name="modelo" required defaultValue={initial?.modelo ?? ""} />
       <Field
-        label="Chassi *"
+        label="Chassi"
         name="chassi"
-        required
+        placeholder="SEM INFORMAÇÕES - preencha quando souber"
         defaultValue={initial?.chassi ?? ""}
-        disabled={Boolean(initial?.id)}
+        disabled={Boolean(initial?.id && initial.chassi)}
       />
       <Field label="Renavam" name="renavam" defaultValue={initial?.renavam ?? ""} />
       <Field

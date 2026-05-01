@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import type { Frota } from "@/lib/repos/frotas";
 import { calcularIdade } from "@/lib/rules";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -39,7 +40,7 @@ export function FrotaInfo({ frota }: { frota: Frota }) {
           }
         />
         <Field label="Modelo / Marca" value={frota.modelo} />
-        <Field label="Chassi" value={frota.chassi} />
+        <Field label="Chassi" value={frota.chassi ?? <MissingInfoBadge />} />
         <Field label="Renavam" value={frota.renavam} />
         <Field label="Ano de fabricacao" value={frota.ano_fabricacao} />
         <Field label="Idade" value={idade != null ? `${idade} ano(s)` : null} />

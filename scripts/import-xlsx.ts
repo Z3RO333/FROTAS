@@ -45,22 +45,11 @@ function getLocalizacao(row: Row): string | number | null | undefined {
 
   for (const r of rows) {
     const chassi = s(r.CHASSI);
-    if (!chassi) {
-      skipped++;
-      continue;
-    }
-
     const localizacao = s(getLocalizacao(r));
     const { vendido, anoVenda } = parseVenda(localizacao);
     const ano = n(r.ANO);
     const idade = calcularIdade(ano, ano_atual);
     const status = vendido ? "vendido" : calcularStatus(idade, null);
-
-    const existing = await query<{ id: number }>(
-      `SELECT id FROM manutencao.cd.frotas WHERE chassi = ?`,
-      [chassi]
-    );
-
     const cols = {
       frota_geral: r["Frota Geral"] != null ? String(r["Frota Geral"]) : null,
       placa: s(r.PLACA),
@@ -78,16 +67,23 @@ function getLocalizacao(row: Row): string | number | null | undefined {
       atualizado_por: "import-script",
     };
 
+    const existing = await findExisting(cols.chassi, cols.renavam, cols.placa);
+    if (!cols.chassi && !cols.renavam && !cols.placa) {
+      skipped++;
+      continue;
+    }
+
     if (existing.length > 0) {
       await execute(
         `UPDATE manutencao.cd.frotas SET
-          frota_geral=?, placa=?, modelo=?, renavam=?, ano_fabricacao=?, localizacao=?,
+          frota_geral=?, placa=?, modelo=?, chassi=COALESCE(?, chassi), renavam=?, ano_fabricacao=?, localizacao=?,
           status=?, vendido=?, ano_venda=?, ativo=?, atualizado_em=current_timestamp(), atualizado_por=?
-         WHERE chassi=?`,
+         WHERE id=?`,
         [
           cols.frota_geral,
           cols.placa,
           cols.modelo,
+          cols.chassi,
           cols.renavam,
           cols.ano_fabricacao,
           cols.localizacao,
@@ -96,7 +92,7 @@ function getLocalizacao(row: Row): string | number | null | undefined {
           cols.ano_venda,
           cols.ativo,
           cols.atualizado_por,
-          chassi,
+          existing[0].id,
         ]
       );
       updated++;
@@ -126,9 +122,26 @@ function getLocalizacao(row: Row): string | number | null | undefined {
     }
   }
 
-  console.log(`OK Inseridas: ${inserted}, atualizadas: ${updated}, ignoradas (sem chassi): ${skipped}`);
+  console.log(`OK Inseridas: ${inserted}, atualizadas: ${updated}, ignoradas: ${skipped}`);
   process.exit(0);
 })().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+async function findExisting(
+  chassi: string | null,
+  renavam: string | null,
+  placa: string | null
+): Promise<{ id: number }[]> {
+  if (chassi) {
+    return query<{ id: number }>(`SELECT id FROM manutencao.cd.frotas WHERE chassi = ?`, [chassi]);
+  }
+  if (renavam) {
+    return query<{ id: number }>(`SELECT id FROM manutencao.cd.frotas WHERE renavam = ?`, [renavam]);
+  }
+  if (placa) {
+    return query<{ id: number }>(`SELECT id FROM manutencao.cd.frotas WHERE placa = ?`, [placa]);
+  }
+  return [];
+}

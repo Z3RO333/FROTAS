@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
 
@@ -38,6 +39,7 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
           <TableRow>
             <TableHead>Frota</TableHead>
             <TableHead>Placa</TableHead>
+            <TableHead>Chassi</TableHead>
             <TableHead>Modelo</TableHead>
             <TableHead>Ano</TableHead>
             <TableHead>Localizacao</TableHead>
@@ -57,6 +59,15 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
                 <Link className="hover:underline" href={`/frotas/${f.id}`}>
                   {f.placa ?? <EmptyValue />}
                 </Link>
+              </TableCell>
+              <TableCell>
+                {f.chassi ? (
+                  <Link className="hover:underline" href={`/frotas/${f.id}`}>
+                    {f.chassi}
+                  </Link>
+                ) : (
+                  <MissingInfoBadge />
+                )}
               </TableCell>
               <TableCell>{f.modelo ?? <EmptyValue />}</TableCell>
               <TableCell>{f.ano_fabricacao ?? <EmptyValue />}</TableCell>

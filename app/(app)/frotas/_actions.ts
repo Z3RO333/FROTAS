@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { createFrota, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
+import { sendRelatorioGeral, sendRelatorioIndividual } from "@/lib/email";
+import { createFrota, getFrota, listFrotas, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
 
@@ -12,7 +13,7 @@ const FrotaSchema = z.object({
   frota_geral: z.string().trim().optional().nullable(),
   placa: z.string().trim().min(1).max(20).optional().nullable(),
   modelo: z.string().trim().min(1).max(100),
-  chassi: z.string().trim().min(5).max(40),
+  chassi: z.string().trim().min(5).max(40).optional().nullable(),
   renavam: z.string().trim().optional().nullable(),
   ano_fabricacao: z.coerce.number().int().min(1900).max(2100).optional().nullable(),
   localizacao: z.string().trim().optional().nullable(),
@@ -20,6 +21,19 @@ const FrotaSchema = z.object({
   status: StatusEnum.optional().nullable(),
   observacoes: z.string().trim().optional().nullable(),
 });
+
+const EmailListSchema = z
+  .string()
+  .transform((s) =>
+    s
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+  )
+  .refine(
+    (emails) => emails.length > 0 && emails.every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)),
+    { message: "E-mails invalidos" }
+  );
 
 async function requireUser(): Promise<string> {
   const session = await auth();
@@ -57,4 +71,25 @@ export async function excluirFrotaAction(id: number) {
   await softDeleteFrota(id, email);
   revalidatePath("/frotas");
   redirect("/frotas");
+}
+
+export async function enviarRelatorioGeralAction(formData: FormData) {
+  const email = await requireUser();
+  const raw = formData.get("destinatarios");
+  if (typeof raw !== "string") throw new Error("Destinatarios obrigatorios");
+  const destinatarios = EmailListSchema.parse(raw);
+  const { rows } = await listFrotas({ pageSize: 1000 });
+  const result = await sendRelatorioGeral({ destinatarios, frotas: rows, enviadoPor: email });
+  if (!result.ok) throw new Error(result.error);
+}
+
+export async function enviarRelatorioIndividualAction(frotaId: number, formData: FormData) {
+  const email = await requireUser();
+  const raw = formData.get("destinatarios");
+  if (typeof raw !== "string") throw new Error("Destinatarios obrigatorios");
+  const destinatarios = EmailListSchema.parse(raw);
+  const frota = await getFrota(frotaId);
+  if (!frota) throw new Error("Frota nao encontrada");
+  const result = await sendRelatorioIndividual({ destinatarios, frota, enviadoPor: email });
+  if (!result.ok) throw new Error(result.error);
 }
