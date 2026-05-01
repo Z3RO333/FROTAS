@@ -259,7 +259,7 @@ c:\frotas\
 
 - [ ] Login Bemol funciona e bloqueia e-mails externos
 - [ ] Schema `manutencao.cd` criado com as 3 tabelas
-- [ ] Import da planilha popula 246 frotas (idempotente)
+- [ ] Import da planilha popula todas as frotas válidas encontradas na base, sem duplicar registros (idempotente)
 - [ ] Dashboard mostra KPIs e donut chart
 - [ ] Lista permite buscar/filtrar/paginar e abrir detalhe
 - [ ] Edição de frota grava histórico nas mudanças de km/status/observacoes/localizacao
