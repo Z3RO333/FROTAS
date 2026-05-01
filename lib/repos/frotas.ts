@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import type { StatusFrota } from "@/lib/rules";
+import { appendHistorico } from "@/lib/repos/historico";
 
 export type Frota = {
   id: number;
@@ -41,7 +42,33 @@ export type Kpis = {
   km_medio: number | null;
 };
 
+export type FrotaInput = {
+  frota_geral?: string | null;
+  placa?: string | null;
+  modelo?: string | null;
+  chassi: string;
+  renavam?: string | null;
+  ano_fabricacao?: number | null;
+  localizacao?: string | null;
+  km_atual?: number | null;
+  status?: StatusFrota | null;
+  observacoes?: string | null;
+};
+
 const T = "manutencao.cd.frotas";
+const TRACKED_FIELDS = ["km_atual", "status", "observacoes", "localizacao"] as const;
+const WRITABLE_FIELDS = [
+  "frota_geral",
+  "placa",
+  "modelo",
+  "chassi",
+  "renavam",
+  "ano_fabricacao",
+  "localizacao",
+  "km_atual",
+  "status",
+  "observacoes",
+] as const satisfies readonly (keyof FrotaInput)[];
 
 function buildWhere(f: FrotaFilters): { sql: string; params: unknown[] } {
   const wh: string[] = ["ativo = TRUE"];
@@ -141,4 +168,77 @@ export async function localizacoesDistintas(): Promise<string[]> {
     `SELECT DISTINCT localizacao FROM ${T} WHERE ativo = TRUE AND localizacao IS NOT NULL ORDER BY localizacao`
   );
   return r.map((x) => x.localizacao);
+}
+
+export async function createFrota(input: FrotaInput, userEmail: string): Promise<number> {
+  await query(
+    `INSERT INTO ${T}
+      (frota_geral, placa, modelo, chassi, renavam, ano_fabricacao, localizacao, km_atual, status, observacoes, vendido, ano_venda, ativo, criado_em, atualizado_em, atualizado_por)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, NULL, TRUE, current_timestamp(), current_timestamp(), ?)`,
+    [
+      input.frota_geral ?? null,
+      input.placa ?? null,
+      input.modelo ?? null,
+      input.chassi,
+      input.renavam ?? null,
+      input.ano_fabricacao ?? null,
+      input.localizacao ?? null,
+      input.km_atual ?? null,
+      input.status ?? "disponivel",
+      input.observacoes ?? null,
+      userEmail,
+    ]
+  );
+
+  const r = await query<{ id: number }>(
+    `SELECT id FROM ${T} WHERE chassi = ? ORDER BY id DESC LIMIT 1`,
+    [input.chassi]
+  );
+  return Number(r[0].id);
+}
+
+export async function updateFrota(
+  id: number,
+  input: Partial<FrotaInput>,
+  userEmail: string
+): Promise<void> {
+  const current = await getFrota(id);
+  if (!current) throw new Error(`Frota ${id} nao encontrada`);
+
+  for (const field of TRACKED_FIELDS) {
+    if (field in input) {
+      const novo = input[field];
+      const antigo = current[field];
+      if (String(novo ?? "") !== String(antigo ?? "")) {
+        await appendHistorico(
+          id,
+          field === "km_atual" ? "km" : field,
+          String(antigo ?? ""),
+          String(novo ?? ""),
+          userEmail
+        );
+      }
+    }
+  }
+
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  for (const field of WRITABLE_FIELDS) {
+    if (input[field] === undefined) continue;
+    sets.push(`${field} = ?`);
+    params.push(input[field]);
+  }
+
+  if (sets.length === 0) return;
+
+  sets.push("atualizado_em = current_timestamp()", "atualizado_por = ?");
+  params.push(userEmail, id);
+  await query(`UPDATE ${T} SET ${sets.join(", ")} WHERE id = ?`, params);
+}
+
+export async function softDeleteFrota(id: number, userEmail: string): Promise<void> {
+  await query(
+    `UPDATE ${T} SET ativo = FALSE, atualizado_em = current_timestamp(), atualizado_por = ? WHERE id = ?`,
+    [userEmail, id]
+  );
 }
