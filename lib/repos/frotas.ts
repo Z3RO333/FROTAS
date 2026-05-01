@@ -170,6 +170,17 @@ export async function localizacoesDistintas(): Promise<string[]> {
   return r.map((x) => x.localizacao);
 }
 
+export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {
+  const r = await query<{ status: string; total: number }>(
+    `SELECT status, COUNT(*) AS total
+     FROM ${T}
+     WHERE ativo = TRUE AND vendido = FALSE
+     GROUP BY status
+     ORDER BY status`
+  );
+  return r.map((x) => ({ status: x.status, total: Number(x.total) }));
+}
+
 export async function createFrota(input: FrotaInput, userEmail: string): Promise<number> {
   await query(
     `INSERT INTO ${T}
