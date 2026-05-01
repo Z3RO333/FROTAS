@@ -20,7 +20,7 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 function EmptyValue() {
-  return <span className="text-muted-foreground">—</span>;
+  return <span className="text-muted-foreground">&mdash;</span>;
 }
 
 export function FrotasTable({ rows }: { rows: Frota[] }) {
