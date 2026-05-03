@@ -1,18 +1,26 @@
 import {
   CONDICAO_LABELS,
   STATUS_OPERACIONAL_LABELS,
+  cadastroIncompleto,
   condicaoFrota,
   motivosAtencao,
   statusOperacional,
+  type CondicaoFrota,
+  type StatusOperacional,
 } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 import { calcularIdade } from "@/lib/rules";
 
-const HEADER = `
-<div style="background:#0b4aa2;color:#fff;padding:20px 24px;border-radius:8px 8px 0 0;">
-  <div style="font-size:13px;opacity:.86">Cockpit de Frotas</div>
-  <div style="font-size:22px;font-weight:700;margin-top:4px;">Frotas Bemol</div>
-</div>`;
+type ReportOptions = {
+  truckImageSrc?: string;
+};
+
+const BLUE = "#0b3f8e";
+const BLUE_2 = "#0b64c0";
+const INK = "#0f172a";
+const MUTED = "#64748b";
+const BORDER = "#dbe7f5";
+const SURFACE = "#f6f9fd";
 
 function escapeHtml(value: string): string {
   return value
@@ -27,129 +35,294 @@ function display(value: string | number | null | undefined): string {
   return value == null || value === "" ? "&mdash;" : escapeHtml(String(value));
 }
 
-function row(label: string, value: string | number | null | undefined): string {
-  return `<tr><td style="padding:6px 12px;color:#64748b;font-size:12px;">${escapeHtml(
-    label
-  )}</td><td style="padding:6px 12px;font-size:13px;font-weight:500;">${display(value)}</td></tr>`;
+function formatNumber(value: number): string {
+  return value.toLocaleString("pt-BR");
 }
 
-function summaryPill(label: string, value: number, color: string): string {
+function percent(value: number, total: number): string {
+  return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
+}
+
+function row(label: string, value: string | number | null | undefined): string {
+  return `<tr><td style="padding:8px 12px;color:${MUTED};font-size:12px;border-bottom:1px solid #e2e8f0;">${escapeHtml(
+    label
+  )}</td><td style="padding:8px 12px;font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;">${display(
+    value
+  )}</td></tr>`;
+}
+
+function truckImage(src: string | undefined, width: number): string {
+  if (!src) {
+    return `
+      <div style="width:${width}px;height:${Math.round(
+        width * 0.42
+      )}px;border-radius:10px;background:#eaf3ff;color:${BLUE};font-size:13px;font-weight:700;text-align:center;line-height:${Math.round(
+        width * 0.42
+      )}px;">
+        BEMOL
+      </div>`;
+  }
+
+  return `<img src="${escapeHtml(
+    src
+  )}" width="${width}" alt="Caminhao Bemol" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
+}
+
+function statusTone(status: StatusOperacional): { bg: string; color: string; border: string } {
+  if (status === "disponivel") return { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0" };
+  if (status === "manutencao") return { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+  if (status === "indisponivel") return { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+  return { bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" };
+}
+
+function conditionTone(condicao: CondicaoFrota): { bg: string; color: string; border: string } {
+  if (condicao === "normal") return { bg: "#ecfdf5", color: "#047857", border: "#a7f3d0" };
+  if (condicao === "atencao") return { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+  return { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+}
+
+function badge(label: string, tone: { bg: string; color: string; border: string }): string {
+  return `<span style="display:inline-block;border:1px solid ${tone.border};border-radius:999px;background:${tone.bg};color:${tone.color};padding:4px 9px;font-size:11px;font-weight:700;white-space:nowrap;">${escapeHtml(
+    label
+  )}</span>`;
+}
+
+function summaryCell(label: string, value: string, color: string, note?: string): string {
   return `
-    <td style="padding:6px;">
-      <div style="border:1px solid #e2e8f0;border-left:4px solid ${color};border-radius:8px;padding:10px 12px;background:#fff;">
-        <div style="font-size:11px;color:#64748b;text-transform:uppercase;">${escapeHtml(label)}</div>
-        <div style="font-size:20px;font-weight:700;color:#0f172a;">${value.toLocaleString("pt-BR")}</div>
+    <td style="padding:6px;width:20%;vertical-align:top;">
+      <div style="border:1px solid ${BORDER};border-left:4px solid ${color};border-radius:10px;padding:12px 13px;background:#ffffff;">
+        <div style="font-size:10px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;">${escapeHtml(
+          label
+        )}</div>
+        <div style="font-size:23px;line-height:28px;font-weight:800;color:${INK};margin-top:2px;">${escapeHtml(
+          value
+        )}</div>
+        ${note ? `<div style="font-size:11px;color:${MUTED};margin-top:2px;">${escapeHtml(note)}</div>` : ""}
       </div>
     </td>`;
 }
 
-export function renderRelatorioGeral(frotas: Frota[], dataRef: Date): string {
+function shell(content: string): string {
+  return `
+  <div style="margin:0;padding:0;background:${SURFACE};">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:${SURFACE};">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" width="1120" cellspacing="0" cellpadding="0" style="width:1120px;max-width:1120px;border-collapse:collapse;font-family:Arial,sans-serif;color:${INK};">
+            ${content}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+function header(title: string, subtitle: string, options: ReportOptions): string {
+  return `
+    <tr>
+      <td style="background:${BLUE};border-radius:14px 14px 0 0;padding:0;overflow:hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:26px 28px;color:#ffffff;vertical-align:middle;">
+              <div style="display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Operacao em tempo real</div>
+              <div style="font-size:27px;line-height:33px;font-weight:800;margin-top:12px;">${escapeHtml(title)}</div>
+              <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
+            </td>
+            <td align="right" style="width:280px;padding:20px 28px 18px 10px;vertical-align:middle;">
+              <div style="display:inline-block;background:#ffffff;border-radius:16px;padding:10px 16px;">
+                ${truckImage(options.truckImageSrc, 220)}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+}
+
+export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: ReportOptions = {}): string {
+  const total = frotas.length;
   const disponiveis = frotas.filter((f) => statusOperacional(f) === "disponivel").length;
   const indisponiveis = frotas.filter((f) => statusOperacional(f) === "indisponivel").length;
+  const manutencao = frotas.filter((f) => statusOperacional(f) === "manutencao").length;
+  const atencao = frotas.filter((f) => condicaoFrota(f) === "atencao").length;
+  const criticos = frotas.filter((f) => condicaoFrota(f) === "critico").length;
   const acima7 = frotas.filter((f) => {
     const idade = calcularIdade(f.ano_fabricacao);
     return idade != null && idade >= 7;
   }).length;
   const semKm = frotas.filter((f) => f.km_atual == null).length;
+  const cadastro = frotas.filter(cadastroIncompleto).length;
+  const atencaoTotal = atencao + criticos;
 
   const linhas = frotas
-    .map((f) => {
+    .map((f, index) => {
       const idade = calcularIdade(f.ano_fabricacao);
-      const status = STATUS_OPERACIONAL_LABELS[statusOperacional(f)];
-      const condicao = CONDICAO_LABELS[condicaoFrota(f)];
-      const motivo = motivosAtencao(f).join("; ");
+      const status = statusOperacional(f);
+      const condicao = condicaoFrota(f);
+      const motivo = motivosAtencao(f).join("; ") || "Sem alertas automaticos";
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
 
       return `
-    <tr>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(f.frota_geral)}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(f.placa)}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(f.modelo)}</td>
-      <td style="padding:8px;text-align:right;border-bottom:1px solid #e2e8f0;">${display(f.ano_fabricacao)}</td>
-      <td style="padding:8px;text-align:right;border-bottom:1px solid #e2e8f0;">${display(idade)}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(f.localizacao)}</td>
-      <td style="padding:8px;text-align:right;border-bottom:1px solid #e2e8f0;">${display(
-        f.km_atual?.toLocaleString("pt-BR")
-      )}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(status)}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(condicao)}</td>
-      <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${display(motivo)}</td>
-    </tr>`;
+        <tr style="background:${bg};">
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">
+            <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="width:48px;vertical-align:middle;">${truckImage(options.truckImageSrc, 42)}</td>
+                <td style="vertical-align:middle;">
+                  <div style="font-size:13px;font-weight:800;color:${INK};">${display(
+                    f.frota_geral ?? f.id
+                  )}</div>
+                  <div style="font-size:11px;color:${MUTED};margin-top:2px;">Placa ${display(f.placa)}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
+            f.modelo
+          )}</td>
+          <td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
+            f.ano_fabricacao
+          )}<div style="font-size:11px;color:${MUTED};">${idade != null ? `${idade} ano(s)` : "&mdash;"}</div></td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
+            f.localizacao
+          )}</td>
+          <td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
+            f.km_atual?.toLocaleString("pt-BR")
+          )}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(
+            STATUS_OPERACIONAL_LABELS[status],
+            statusTone(status)
+          )}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(
+            CONDICAO_LABELS[condicao],
+            conditionTone(condicao)
+          )}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;">${display(
+            motivo
+          )}</td>
+        </tr>`;
     })
     .join("");
 
-  return `
-  <div style="font-family:Arial,sans-serif;max-width:1120px;margin:0 auto;color:#0f172a;background:#f8fafc;">
-    ${HEADER}
-    <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;">
-      <h2 style="margin:0 0 4px;font-size:18px;">Relatorio geral de frotas</h2>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px;">Data: ${dataRef.toLocaleDateString(
-        "pt-BR"
-      )} &middot; ${frotas.length} frota(s)</div>
-      <table style="width:100%;border-collapse:collapse;margin:0 -6px 18px;">
-        <tr>
-          ${summaryPill("Total", frotas.length, "#0b4aa2")}
-          ${summaryPill("Disponiveis", disponiveis, "#059669")}
-          ${summaryPill("Indisponiveis", indisponiveis, "#dc2626")}
-          ${summaryPill("Acima de 7 anos", acima7, "#ea580c")}
-          ${summaryPill("Sem KM", semKm, "#0284c7")}
-        </tr>
-      </table>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:#0b4aa2;color:#fff;">
-          <th style="padding:8px;text-align:left;">Frota</th>
-          <th style="padding:8px;text-align:left;">Placa</th>
-          <th style="padding:8px;text-align:left;">Modelo</th>
-          <th style="padding:8px;text-align:right;">Ano</th>
-          <th style="padding:8px;text-align:right;">Idade</th>
-          <th style="padding:8px;text-align:left;">Localizacao</th>
-          <th style="padding:8px;text-align:right;">KM</th>
-          <th style="padding:8px;text-align:left;">Status</th>
-          <th style="padding:8px;text-align:left;">Condicao</th>
-          <th style="padding:8px;text-align:left;">Motivo</th>
-        </tr></thead>
-        <tbody>${linhas}</tbody>
-      </table>
-    </div>
-  </div>`;
+  return shell(`
+    ${header(
+      "Relatorio geral de frotas",
+      `${dataRef.toLocaleDateString("pt-BR")} - ${formatNumber(total)} frota(s) em operacao`,
+      options
+    )}
+    <tr>
+      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:14px;">
+          <tr>
+            <td style="background:#f8fbff;border:1px solid ${BORDER};border-radius:12px;padding:16px 18px;">
+              <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:${BLUE};text-transform:uppercase;">Resumo operacional</div>
+              <div style="font-size:30px;line-height:38px;font-weight:800;color:${INK};margin-top:4px;">${formatNumber(
+                disponiveis
+              )} de ${formatNumber(total)} frotas disponiveis</div>
+              <div style="font-size:13px;color:${MUTED};line-height:20px;">${formatNumber(
+                atencaoTotal
+              )} frota(s) exigem atencao operacional por idade, status base ou cadastro incompleto.</div>
+            </td>
+            <td style="width:180px;padding-left:14px;">
+              <div style="background:${BLUE_2};border-radius:12px;padding:16px 18px;color:#ffffff;text-align:center;">
+                <div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#dbeafe;">Disponibilidade</div>
+                <div style="font-size:34px;line-height:40px;font-weight:800;margin-top:2px;">${percent(
+                  disponiveis,
+                  total
+                )}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
+          <tr>
+            ${summaryCell("Total", formatNumber(total), BLUE)}
+            ${summaryCell("Disponiveis", formatNumber(disponiveis), "#059669", percent(disponiveis, total))}
+            ${summaryCell("Indisponiveis", formatNumber(indisponiveis), "#dc2626")}
+            ${summaryCell("Manutencao", formatNumber(manutencao), "#ea580c")}
+            ${summaryCell("Sem KM", formatNumber(semKm), "#0284c7")}
+          </tr>
+          <tr>
+            ${summaryCell("Acima de 7 anos", formatNumber(acima7), "#f97316")}
+            ${summaryCell("Em atencao", formatNumber(atencao), "#f59e0b")}
+            ${summaryCell("Criticas", formatNumber(criticos), "#ef4444")}
+            ${summaryCell("Cadastro incompleto", formatNumber(cadastro), "#334155")}
+            ${summaryCell("Base", "Bemol", BLUE_2, "relatorio automatico")}
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #dbe7f5;border-radius:10px;overflow:hidden;">
+          <thead>
+            <tr style="background:${BLUE};color:#ffffff;">
+              <th style="padding:10px 8px;text-align:left;">Frota</th>
+              <th style="padding:10px 8px;text-align:left;">Modelo</th>
+              <th style="padding:10px 8px;text-align:right;">Ano</th>
+              <th style="padding:10px 8px;text-align:left;">Localizacao</th>
+              <th style="padding:10px 8px;text-align:right;">KM</th>
+              <th style="padding:10px 8px;text-align:left;">Status</th>
+              <th style="padding:10px 8px;text-align:left;">Condicao</th>
+              <th style="padding:10px 8px;text-align:left;">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </td>
+    </tr>`);
 }
 
-export function renderRelatorioIndividual(frota: Frota): string {
+export function renderRelatorioIndividual(frota: Frota, options: ReportOptions = {}): string {
   const idade = calcularIdade(frota.ano_fabricacao);
-  const status = STATUS_OPERACIONAL_LABELS[statusOperacional(frota)];
-  const condicao = CONDICAO_LABELS[condicaoFrota(frota)];
+  const status = statusOperacional(frota);
+  const condicao = condicaoFrota(frota);
   const motivos = motivosAtencao(frota);
   const observacoes = frota.observacoes
-    ? `<div style="margin-top:16px;font-size:13px;"><strong>Observacoes:</strong><br>${escapeHtml(
+    ? `<div style="margin-top:16px;font-size:13px;line-height:19px;color:${INK};"><strong>Observacoes:</strong><br>${escapeHtml(
         frota.observacoes
       ).replace(/\n/g, "<br>")}</div>`
     : "";
 
-  return `
-  <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;color:#0f172a;background:#f8fafc;">
-    ${HEADER}
-    <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;">
-      <h2 style="margin:0 0 4px;font-size:18px;">Detalhes da frota ${display(
-        frota.placa ?? frota.frota_geral ?? frota.id
-      )}</h2>
-      <div style="font-size:12px;color:#64748b;margin-bottom:16px;">${new Date().toLocaleDateString(
-        "pt-BR"
-      )}</div>
-      <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:6px;overflow:hidden;">
-        <tbody>
-          ${row("Frota geral", frota.frota_geral)}
-          ${row("Placa", frota.placa)}
-          ${row("Modelo / Marca", frota.modelo)}
-          ${row("Chassi", frota.chassi)}
-          ${row("Ano de fabricacao", frota.ano_fabricacao)}
-          ${row("Idade", idade != null ? `${idade} ano(s)` : null)}
-          ${row("Localizacao", frota.localizacao)}
-          ${row("Km atual", frota.km_atual?.toLocaleString("pt-BR"))}
-          ${row("Status operacional", status)}
-          ${row("Condicao", condicao)}
-          ${row("Motivo da atencao", motivos.join("; "))}
-        </tbody>
-      </table>
-      ${observacoes}
-    </div>
-  </div>`;
+  return shell(`
+    ${header(
+      `Relatorio da frota ${String(frota.placa ?? frota.frota_geral ?? frota.id)}`,
+      `${new Date().toLocaleDateString("pt-BR")} - acompanhamento individual`,
+      options
+    )}
+    <tr>
+      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;border-radius:0 0 14px 14px;padding:24px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:18px;">
+          <tr>
+            <td style="width:130px;vertical-align:middle;">${truckImage(options.truckImageSrc, 118)}</td>
+            <td style="vertical-align:middle;">
+              <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:${BLUE};text-transform:uppercase;">Detalhe operacional</div>
+              <div style="font-size:24px;line-height:30px;font-weight:800;color:${INK};margin-top:4px;">${display(
+                frota.frota_geral ?? frota.id
+              )}</div>
+              <div style="margin-top:8px;">
+                ${badge(STATUS_OPERACIONAL_LABELS[status], statusTone(status))}
+                ${badge(CONDICAO_LABELS[condicao], conditionTone(condicao))}
+              </div>
+            </td>
+          </tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+          <tbody>
+            ${row("Frota geral", frota.frota_geral)}
+            ${row("Placa", frota.placa)}
+            ${row("Modelo / Marca", frota.modelo)}
+            ${row("Chassi", frota.chassi)}
+            ${row("Ano de fabricacao", frota.ano_fabricacao)}
+            ${row("Idade", idade != null ? `${idade} ano(s)` : null)}
+            ${row("Localizacao", frota.localizacao)}
+            ${row("Km atual", frota.km_atual?.toLocaleString("pt-BR"))}
+            ${row("Status operacional", STATUS_OPERACIONAL_LABELS[status])}
+            ${row("Condicao", CONDICAO_LABELS[condicao])}
+            ${row("Motivo da atencao", motivos.join("; ") || "Sem alertas automaticos")}
+          </tbody>
+        </table>
+        ${observacoes}
+      </td>
+    </tr>`);
 }
