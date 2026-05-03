@@ -18,8 +18,8 @@ export function CockpitSummary({ kpis, reportDialog }: Props) {
     attentionTotal > 0
       ? `${formatNumber(attentionTotal)} de ${formatNumber(
           kpis.total_ativos
-        )} frota(s) exigem atencao operacional por idade, status base ou cadastro incompleto.`
-      : `Nenhuma das ${formatNumber(kpis.total_ativos)} frota(s) exige atencao operacional agora.`;
+        )} frota(s) exigem atenção operacional por idade, status base ou cadastro incompleto.`
+      : `Nenhuma das ${formatNumber(kpis.total_ativos)} frota(s) exige atenção operacional agora.`;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,.55fr)]">
@@ -29,10 +29,10 @@ export function CockpitSummary({ kpis, reportDialog }: Props) {
           <div className="space-y-5">
             <div className="space-y-2">
               <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase text-blue-700">
-                Operacao em tempo real
+                Operação em tempo real
               </div>
               <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                {formatNumber(kpis.total_disponiveis)} de {formatNumber(kpis.total_ativos)} frotas disponiveis
+                {formatNumber(kpis.total_disponiveis)} de {formatNumber(kpis.total_ativos)} frotas disponíveis
               </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
                 {attentionCopy}
@@ -61,7 +61,7 @@ export function CockpitSummary({ kpis, reportDialog }: Props) {
         <CardContent className="space-y-4 p-5">
           <div className="flex items-center gap-2 text-sm font-medium text-blue-100">
             <BarChart3 className="h-4 w-4" aria-hidden="true" />
-            Lista de acao
+            Lista de ação
           </div>
           <div className="space-y-3">
             <ActionLink href="/frotas?semKm=1" label="Sem KM informado" value={kpis.total_sem_km} />

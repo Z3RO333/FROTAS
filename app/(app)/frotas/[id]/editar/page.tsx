@@ -25,7 +25,7 @@ export default async function EditarFrotaPage({
         <h1 className="text-3xl font-semibold tracking-tight">Editar frota</h1>
         <p className="text-sm text-muted-foreground">{frota.placa ?? frota.chassi}</p>
       </div>
-      <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alteracoes" />
+      <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alterações" />
     </div>
   );
 }

@@ -68,16 +68,16 @@ export function FrotaInfo({ frota }: { frota: Frota }) {
           <Field label="Modelo / Marca" value={frota.modelo} />
           <Field label="Chassi" value={frota.chassi ?? <MissingInfoBadge />} />
           <Field label="Renavam" value={frota.renavam} />
-          <Field label="Ano de fabricacao" value={frota.ano_fabricacao} />
+          <Field label="Ano de fabricação" value={frota.ano_fabricacao} />
           <Field label="Idade" value={idade != null ? `${idade} ano(s)` : null} />
-          <Field label="Localizacao" value={frota.localizacao} />
+          <Field label="Localização" value={frota.localizacao} />
           <Field label="Km atual" value={formatNumber(frota.km_atual)} />
-          <Field label="Ultima atualizacao" value={atualizado || null} />
+          <Field label="Última atualização" value={atualizado || null} />
           <div className="md:col-span-3">
-            <Field label="Motivo da atencao" value={motivos.length > 0 ? motivos.join("; ") : "Sem alertas automaticos"} />
+            <Field label="Motivo da atenção" value={motivos.length > 0 ? motivos.join("; ") : "Sem alertas automáticos"} />
           </div>
           <div className="md:col-span-3">
-            <Field label="Observacoes" value={<p className="whitespace-pre-wrap">{frota.observacoes ?? "-"}</p>} />
+            <Field label="Observações" value={<p className="whitespace-pre-wrap">{frota.observacoes ?? "-"}</p>} />
           </div>
         </div>
       </CardContent>

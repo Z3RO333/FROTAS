@@ -54,7 +54,7 @@ const TABS = [
   "Resumo",
   "Cadastro",
   "KM",
-  "Historico",
+  "Histórico",
   "Alertas",
   "Documentos",
 ] as const;
@@ -81,7 +81,7 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
         <div className="flex flex-col justify-center">
           <h2 className="text-lg font-semibold">Nenhuma frota encontrada</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ajuste os filtros ou limpe a busca para voltar a visualizar a operacao completa.
+            Ajuste os filtros ou limpe a busca para voltar a visualizar a operação completa.
           </p>
         </div>
       </div>
@@ -105,12 +105,12 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
               <TableHead>Chassi</TableHead>
               <TableHead>Modelo</TableHead>
               <TableHead>Ano / Idade</TableHead>
-              <TableHead>Localizacao</TableHead>
+              <TableHead>Localização</TableHead>
               <TableHead className="text-right">KM</TableHead>
               <TableHead>Status operacional</TableHead>
-              <TableHead>Condicao</TableHead>
-              <TableHead>Atualizacao</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
+              <TableHead>Condição</TableHead>
+              <TableHead>Atualização</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -241,7 +241,7 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
         <SheetHeader>
           <SheetTitle>{frotaTitle(frota)}</SheetTitle>
           <SheetDescription>
-            {frota.placa ?? "Sem placa"} · {frota.modelo ?? "Modelo nao informado"}
+            {frota.placa ?? "Sem placa"} · {frota.modelo ?? "Modelo não informado"}
           </SheetDescription>
         </SheetHeader>
         <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
@@ -283,7 +283,7 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
         {tab === "Resumo" ? <ResumoTab frota={frota} /> : null}
         {tab === "Cadastro" ? <CadastroTab frota={frota} /> : null}
         {tab === "KM" ? <KmTab frota={frota} /> : null}
-        {tab === "Historico" ? <HistoricoTab frota={frota} /> : null}
+        {tab === "Histórico" ? <HistoricoTab frota={frota} /> : null}
         {tab === "Alertas" ? <AlertasTab frota={frota} /> : null}
         {tab === "Documentos" ? <DocumentosTab /> : null}
 
@@ -297,7 +297,7 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
           <Button variant="outline" asChild>
             <Link href={`/frotas/${frota.id}`}>
               <History className="h-4 w-4" aria-hidden="true" />
-              Historico completo
+              Histórico completo
             </Link>
           </Button>
         </div>
@@ -312,13 +312,13 @@ function ResumoTab({ frota }: { frota: Frota }) {
   return (
     <div className="space-y-5">
       <InfoGrid>
-        <Field label="Localizacao" value={frota.localizacao} />
+        <Field label="Localização" value={frota.localizacao} />
         <Field label="Status operacional" value={STATUS_OPERACIONAL_LABELS[statusOperacional(frota)]} />
-        <Field label="Condicao" value={CONDICAO_LABELS[condicaoFrota(frota)]} />
-        <Field label="Ultima atualizacao" value={formatDate(frota.atualizado_em)} />
+        <Field label="Condição" value={CONDICAO_LABELS[condicaoFrota(frota)]} />
+        <Field label="Última atualização" value={formatDate(frota.atualizado_em)} />
       </InfoGrid>
       <div>
-        <h3 className="text-sm font-semibold">Motivo da atencao</h3>
+        <h3 className="text-sm font-semibold">Motivo da atenção</h3>
         {motivos.length > 0 ? (
           <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
             {motivos.map((motivo) => (
@@ -329,7 +329,7 @@ function ResumoTab({ frota }: { frota: Frota }) {
           </ul>
         ) : (
           <p className="mt-2 rounded-md border bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-            Sem motivos automaticos de atencao.
+            Sem motivos automáticos de atenção.
           </p>
         )}
       </div>
@@ -345,7 +345,7 @@ function CadastroTab({ frota }: { frota: Frota }) {
       <Field label="Chassi" value={frota.chassi} />
       <Field label="Renavam" value={frota.renavam} />
       <Field label="Modelo / Marca" value={frota.modelo} />
-      <Field label="Ano de fabricacao" value={frota.ano_fabricacao} />
+      <Field label="Ano de fabricação" value={frota.ano_fabricacao} />
       <Field label="Cadastro" value={cadastroIncompleto(frota) ? "Incompleto" : "Completo"} />
       <Field label="Atualizado por" value={frota.atualizado_por} />
     </InfoGrid>
@@ -357,10 +357,10 @@ function KmTab({ frota }: { frota: Frota }) {
     <div className="space-y-4">
       <InfoGrid>
         <Field label="KM atual" value={formatNumber(frota.km_atual)} />
-        <Field label="Ultima atualizacao" value={formatDate(frota.atualizado_em)} />
+        <Field label="Última atualização" value={formatDate(frota.atualizado_em)} />
       </InfoGrid>
       <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
-        Para registrar KM agora, use a edicao da frota. A proxima etapa natural e separar um fluxo rapido so para KM.
+        Para registrar KM agora, use a edição da frota. A próxima etapa natural é separar um fluxo rápido só para KM.
       </p>
     </div>
   );
@@ -370,11 +370,11 @@ function HistoricoTab({ frota }: { frota: Frota }) {
   return (
     <div className="space-y-3">
       <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
-        O historico completo continua na pagina da frota, com alteracoes rastreadas de KM, status, localizacao,
-        chassi e observacoes.
+        O histórico completo continua na página da frota, com alterações rastreadas de KM, status, localização,
+        chassi e observações.
       </p>
       <Button variant="outline" asChild>
-        <Link href={`/frotas/${frota.id}`}>Abrir historico completo</Link>
+        <Link href={`/frotas/${frota.id}`}>Abrir histórico completo</Link>
       </Button>
     </div>
   );
@@ -385,7 +385,7 @@ function AlertasTab({ frota }: { frota: Frota }) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold">Alertas automaticos</h3>
+      <h3 className="text-sm font-semibold">Alertas automáticos</h3>
       {motivos.length > 0 ? (
         <ul className="space-y-2 text-sm text-muted-foreground">
           {motivos.map((motivo) => (
@@ -396,7 +396,7 @@ function AlertasTab({ frota }: { frota: Frota }) {
         </ul>
       ) : (
         <p className="rounded-md border bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          Nenhum alerta automatico para esta frota.
+          Nenhum alerta automático para esta frota.
         </p>
       )}
     </div>
@@ -406,7 +406,7 @@ function AlertasTab({ frota }: { frota: Frota }) {
 function DocumentosTab() {
   return (
     <p className="rounded-md border bg-slate-50 px-3 py-2 text-sm text-muted-foreground">
-      Documentos ainda nao existem no schema atual. O drawer ja reserva o espaco para anexos e vencimentos quando
+      Documentos ainda não existem no schema atual. O drawer já reserva o espaço para anexos e vencimentos quando
       essa tabela entrar.
     </p>
   );

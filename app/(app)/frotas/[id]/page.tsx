@@ -55,7 +55,7 @@ export default async function FrotaDetailPage({
             </Link>
           </Button>
           <EnviarRelatorioDialog
-            title={`Enviar relatorio de ${frota.placa ?? frota.id}`}
+            title={`Enviar relatório de ${frota.placa ?? frota.id}`}
             action={enviarRelatorioIndividualAction.bind(null, frota.id)}
             trigger={
               <Button variant="outline">

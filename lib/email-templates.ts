@@ -65,7 +65,7 @@ function truckImage(src: string | undefined, width: number): string {
 
   return `<img src="${escapeHtml(
     src
-  )}" width="${width}" alt="Caminhao Bemol" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
+  )}" width="${width}" alt="Caminhão Bemol" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
 }
 
 function statusTone(status: StatusOperacional): { bg: string; color: string; border: string } {
@@ -124,7 +124,7 @@ function header(title: string, subtitle: string, options: ReportOptions): string
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
           <tr>
             <td style="padding:26px 28px;color:#ffffff;vertical-align:middle;">
-              <div style="display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Operacao em tempo real</div>
+              <div style="display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Operação em tempo real</div>
               <div style="font-size:27px;line-height:33px;font-weight:800;margin-top:12px;">${escapeHtml(title)}</div>
               <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
             </td>
@@ -159,7 +159,7 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
       const idade = calcularIdade(f.ano_fabricacao);
       const status = statusOperacional(f);
       const condicao = condicaoFrota(f);
-      const motivo = motivosAtencao(f).join("; ") || "Sem alertas automaticos";
+      const motivo = motivosAtencao(f).join("; ") || "Sem alertas automáticos";
       const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
 
       return `
@@ -206,8 +206,8 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
 
   return shell(`
     ${header(
-      "Relatorio geral de frotas",
-      `${dataRef.toLocaleDateString("pt-BR")} - ${formatNumber(total)} frota(s) em operacao`,
+      "Relatório geral de frotas",
+      `${dataRef.toLocaleDateString("pt-BR")} - ${formatNumber(total)} frota(s) em operação`,
       options
     )}
     <tr>
@@ -218,10 +218,10 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
               <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:${BLUE};text-transform:uppercase;">Resumo operacional</div>
               <div style="font-size:30px;line-height:38px;font-weight:800;color:${INK};margin-top:4px;">${formatNumber(
                 disponiveis
-              )} de ${formatNumber(total)} frotas disponiveis</div>
+              )} de ${formatNumber(total)} frotas disponíveis</div>
               <div style="font-size:13px;color:${MUTED};line-height:20px;">${formatNumber(
                 atencaoTotal
-              )} frota(s) exigem atencao operacional por idade, status base ou cadastro incompleto.</div>
+              )} frota(s) exigem atenção operacional por idade, status base ou cadastro incompleto.</div>
             </td>
             <td style="width:180px;padding-left:14px;">
               <div style="background:${BLUE_2};border-radius:12px;padding:16px 18px;color:#ffffff;text-align:center;">
@@ -237,17 +237,17 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
           <tr>
             ${summaryCell("Total", formatNumber(total), BLUE)}
-            ${summaryCell("Disponiveis", formatNumber(disponiveis), "#059669", percent(disponiveis, total))}
-            ${summaryCell("Indisponiveis", formatNumber(indisponiveis), "#dc2626")}
-            ${summaryCell("Manutencao", formatNumber(manutencao), "#ea580c")}
+            ${summaryCell("Disponíveis", formatNumber(disponiveis), "#059669", percent(disponiveis, total))}
+            ${summaryCell("Indisponíveis", formatNumber(indisponiveis), "#dc2626")}
+            ${summaryCell("Manutenção", formatNumber(manutencao), "#ea580c")}
             ${summaryCell("Sem KM", formatNumber(semKm), "#0284c7")}
           </tr>
           <tr>
             ${summaryCell("Acima de 7 anos", formatNumber(acima7), "#f97316")}
-            ${summaryCell("Em atencao", formatNumber(atencao), "#f59e0b")}
-            ${summaryCell("Criticas", formatNumber(criticos), "#ef4444")}
+            ${summaryCell("Em atenção", formatNumber(atencao), "#f59e0b")}
+            ${summaryCell("Críticas", formatNumber(criticos), "#ef4444")}
             ${summaryCell("Cadastro incompleto", formatNumber(cadastro), "#334155")}
-            ${summaryCell("Base", "Bemol", BLUE_2, "relatorio automatico")}
+            ${summaryCell("Base", "Bemol", BLUE_2, "relatório automático")}
           </tr>
         </table>
       </td>
@@ -260,10 +260,10 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
               <th style="padding:10px 8px;text-align:left;">Frota</th>
               <th style="padding:10px 8px;text-align:left;">Modelo</th>
               <th style="padding:10px 8px;text-align:right;">Ano</th>
-              <th style="padding:10px 8px;text-align:left;">Localizacao</th>
+              <th style="padding:10px 8px;text-align:left;">Localização</th>
               <th style="padding:10px 8px;text-align:right;">KM</th>
               <th style="padding:10px 8px;text-align:left;">Status</th>
-              <th style="padding:10px 8px;text-align:left;">Condicao</th>
+              <th style="padding:10px 8px;text-align:left;">Condição</th>
               <th style="padding:10px 8px;text-align:left;">Motivo</th>
             </tr>
           </thead>
@@ -279,14 +279,14 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
   const condicao = condicaoFrota(frota);
   const motivos = motivosAtencao(frota);
   const observacoes = frota.observacoes
-    ? `<div style="margin-top:16px;font-size:13px;line-height:19px;color:${INK};"><strong>Observacoes:</strong><br>${escapeHtml(
+    ? `<div style="margin-top:16px;font-size:13px;line-height:19px;color:${INK};"><strong>Observações:</strong><br>${escapeHtml(
         frota.observacoes
       ).replace(/\n/g, "<br>")}</div>`
     : "";
 
   return shell(`
     ${header(
-      `Relatorio da frota ${String(frota.placa ?? frota.frota_geral ?? frota.id)}`,
+      `Relatório da frota ${String(frota.placa ?? frota.frota_geral ?? frota.id)}`,
       `${new Date().toLocaleDateString("pt-BR")} - acompanhamento individual`,
       options
     )}
@@ -313,13 +313,13 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
             ${row("Placa", frota.placa)}
             ${row("Modelo / Marca", frota.modelo)}
             ${row("Chassi", frota.chassi)}
-            ${row("Ano de fabricacao", frota.ano_fabricacao)}
+            ${row("Ano de fabricação", frota.ano_fabricacao)}
             ${row("Idade", idade != null ? `${idade} ano(s)` : null)}
-            ${row("Localizacao", frota.localizacao)}
+            ${row("Localização", frota.localizacao)}
             ${row("Km atual", frota.km_atual?.toLocaleString("pt-BR"))}
             ${row("Status operacional", STATUS_OPERACIONAL_LABELS[status])}
-            ${row("Condicao", CONDICAO_LABELS[condicao])}
-            ${row("Motivo da atencao", motivos.join("; ") || "Sem alertas automaticos")}
+            ${row("Condição", CONDICAO_LABELS[condicao])}
+            ${row("Motivo da atenção", motivos.join("; ") || "Sem alertas automáticos")}
           </tbody>
         </table>
         ${observacoes}

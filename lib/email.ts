@@ -43,7 +43,7 @@ export async function sendRelatorioGeral(args: {
   frotas: Frota[];
   enviadoPor: string;
 }): Promise<SendResult> {
-  const assunto = `Relatorio geral de frotas - ${new Date().toLocaleDateString("pt-BR")}`;
+  const assunto = `Relatório geral de frotas - ${new Date().toLocaleDateString("pt-BR")}`;
   const truckAttachment = await getTruckAttachment();
   const html = renderRelatorioGeral(args.frotas, new Date(), {
     truckImageSrc: truckAttachment ? `cid:${TRUCK_CID}` : undefined,
@@ -85,7 +85,7 @@ export async function sendRelatorioIndividual(args: {
   frota: Frota;
   enviadoPor: string;
 }): Promise<SendResult> {
-  const assunto = `Frota ${args.frota.placa ?? args.frota.id} - relatorio`;
+  const assunto = `Frota ${args.frota.placa ?? args.frota.id} - relatório`;
   const truckAttachment = await getTruckAttachment();
   const html = renderRelatorioIndividual(args.frota, {
     truckImageSrc: truckAttachment ? `cid:${TRUCK_CID}` : undefined,

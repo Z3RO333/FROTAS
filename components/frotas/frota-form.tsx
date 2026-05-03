@@ -15,10 +15,10 @@ import {
 import type { Frota } from "@/lib/repos/frotas";
 
 const STATUSES = [
-  { value: "disponivel", label: "Disponivel" },
-  { value: "manutencao", label: "Manutencao" },
-  { value: "atencao", label: "Atencao" },
-  { value: "critico", label: "Critico" },
+  { value: "disponivel", label: "Disponível" },
+  { value: "manutencao", label: "Manutenção" },
+  { value: "atencao", label: "Atenção" },
+  { value: "critico", label: "Crítico" },
 ] as const;
 
 type Props = {
@@ -42,12 +42,12 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       />
       <Field label="Renavam" name="renavam" defaultValue={initial?.renavam ?? ""} />
       <Field
-        label="Ano de fabricacao"
+        label="Ano de fabricação"
         name="ano_fabricacao"
         type="number"
         defaultValue={initial?.ano_fabricacao ?? ""}
       />
-      <Field label="Localizacao" name="localizacao" defaultValue={initial?.localizacao ?? ""} />
+      <Field label="Localização" name="localizacao" defaultValue={initial?.localizacao ?? ""} />
       <Field label="Km atual" name="km_atual" type="number" defaultValue={initial?.km_atual ?? ""} />
 
       <div className="space-y-1.5">
@@ -67,7 +67,7 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       </div>
 
       <div className="space-y-1.5 md:col-span-2">
-        <Label htmlFor="observacoes">Observacoes</Label>
+        <Label htmlFor="observacoes">Observações</Label>
         <textarea
           id="observacoes"
           name="observacoes"

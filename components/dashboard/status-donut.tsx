@@ -14,13 +14,13 @@ const COLORS: Record<string, string> = {
 };
 
 const LABELS: Record<string, string> = {
-  disponivel: "Disponivel",
-  manutencao: "Em manutencao",
-  indisponivel: "Indisponivel",
+  disponivel: "Disponível",
+  manutencao: "Em manutenção",
+  indisponivel: "Indisponível",
   baixado: "Baixado",
   normal: "Normal",
-  atencao: "Atencao",
-  critico: "Critico",
+  atencao: "Atenção",
+  critico: "Crítico",
 };
 
 type Props = {

@@ -17,7 +17,7 @@ export function KmEvolutionChart({ data }: { data: { date: string; km: number }[
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Evolucao da quilometragem</CardTitle>
+        <CardTitle>Evolução da quilometragem</CardTitle>
       </CardHeader>
       <CardContent className="h-64">
         <ResponsiveContainer>

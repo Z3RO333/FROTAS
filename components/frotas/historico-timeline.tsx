@@ -6,11 +6,11 @@ export function HistoricoTimeline({ entries }: { entries: HistoricoEntry[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Historico de alteracoes</CardTitle>
+        <CardTitle>Histórico de alterações</CardTitle>
       </CardHeader>
       <CardContent>
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sem alteracoes registradas.</p>
+          <p className="text-sm text-muted-foreground">Sem alterações registradas.</p>
         ) : (
           <ul className="space-y-4">
             {entries.map((h) => (

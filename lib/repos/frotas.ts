@@ -297,7 +297,7 @@ export async function updateFrota(
   userEmail: string
 ): Promise<void> {
   const current = await getFrota(id);
-  if (!current) throw new Error(`Frota ${id} nao encontrada`);
+  if (!current) throw new Error(`Frota ${id} não encontrada`);
 
   for (const field of TRACKED_FIELDS) {
     if (field in input) {

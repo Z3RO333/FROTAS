@@ -32,12 +32,12 @@ const EmailListSchema = z
   )
   .refine(
     (emails) => emails.length > 0 && emails.every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)),
-    { message: "E-mails invalidos" }
+    { message: "E-mails inválidos" }
   );
 
 async function requireUser(): Promise<string> {
   const session = await auth();
-  if (!session?.user?.email) throw new Error("Nao autenticado");
+  if (!session?.user?.email) throw new Error("Não autenticado");
   return session.user.email;
 }
 
@@ -76,7 +76,7 @@ export async function excluirFrotaAction(id: number) {
 export async function enviarRelatorioGeralAction(formData: FormData) {
   const email = await requireUser();
   const raw = formData.get("destinatarios");
-  if (typeof raw !== "string") throw new Error("Destinatarios obrigatorios");
+  if (typeof raw !== "string") throw new Error("Destinatários obrigatórios");
   const destinatarios = EmailListSchema.parse(raw);
   const frotas = await listFrotasForReport();
   const result = await sendRelatorioGeral({ destinatarios, frotas, enviadoPor: email });
@@ -86,10 +86,10 @@ export async function enviarRelatorioGeralAction(formData: FormData) {
 export async function enviarRelatorioIndividualAction(frotaId: number, formData: FormData) {
   const email = await requireUser();
   const raw = formData.get("destinatarios");
-  if (typeof raw !== "string") throw new Error("Destinatarios obrigatorios");
+  if (typeof raw !== "string") throw new Error("Destinatários obrigatórios");
   const destinatarios = EmailListSchema.parse(raw);
   const frota = await getFrota(frotaId);
-  if (!frota) throw new Error("Frota nao encontrada");
+  if (!frota) throw new Error("Frota não encontrada");
   const result = await sendRelatorioIndividual({ destinatarios, frota, enviadoPor: email });
   if (!result.ok) throw new Error(result.error);
 }

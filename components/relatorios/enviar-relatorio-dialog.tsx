@@ -28,7 +28,7 @@ export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
     startTransition(async () => {
       try {
         await action(formData);
-        toast.success("Relatorio enviado");
+        toast.success("Relatório enviado");
         setOpen(false);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erro ao enviar");
@@ -45,7 +45,7 @@ export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
         </DialogHeader>
         <form action={submit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="destinatarios">Destinatarios</Label>
+            <Label htmlFor="destinatarios">Destinatários</Label>
             <Input
               id="destinatarios"
               name="destinatarios"

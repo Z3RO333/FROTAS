@@ -6,14 +6,14 @@ export type StatusOperacional = "disponivel" | "manutencao" | "indisponivel" | "
 
 export const CONDICAO_LABELS: Record<CondicaoFrota, string> = {
   normal: "Normal",
-  atencao: "Atencao",
-  critico: "Critico",
+  atencao: "Atenção",
+  critico: "Crítico",
 };
 
 export const STATUS_OPERACIONAL_LABELS: Record<StatusOperacional, string> = {
-  disponivel: "Disponivel",
-  manutencao: "Em manutencao",
-  indisponivel: "Indisponivel",
+  disponivel: "Disponível",
+  manutencao: "Em manutenção",
+  indisponivel: "Indisponível",
   baixado: "Baixado",
 };
 
@@ -61,12 +61,12 @@ export function motivosAtencao(frota: Frota): string[] {
     motivos.push(`Frota acima de ${THRESHOLDS.idadeAtencao} anos`);
   }
 
-  if (frota.status === "critico") motivos.push("Status base marcado como critico");
-  if (frota.status === "atencao") motivos.push("Status base marcado como atencao");
-  if (frota.status === "manutencao") motivos.push("Frota em manutencao");
-  if (frota.km_atual == null) motivos.push("KM nao informado");
-  if (isBlank(frota.placa)) motivos.push("Placa nao informada");
-  if (isBlank(frota.chassi)) motivos.push("Chassi nao informado");
+  if (frota.status === "critico") motivos.push("Status base marcado como crítico");
+  if (frota.status === "atencao") motivos.push("Status base marcado como atenção");
+  if (frota.status === "manutencao") motivos.push("Frota em manutenção");
+  if (frota.km_atual == null) motivos.push("KM não informado");
+  if (isBlank(frota.placa)) motivos.push("Placa não informada");
+  if (isBlank(frota.chassi)) motivos.push("Chassi não informado");
 
   return motivos;
 }

@@ -17,28 +17,28 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
   const items = [
     { label: "Total de frotas", value: formatNumber(kpis.total_ativos), icon: Truck, href: "/frotas" },
     {
-      label: "Disponiveis",
+      label: "Disponíveis",
       value: formatNumber(kpis.total_disponiveis),
       icon: CheckCircle2,
       href: "/frotas?operacional=disponivel",
       tone: "text-emerald-700",
     },
     {
-      label: "Indisponiveis",
+      label: "Indisponíveis",
       value: formatNumber(kpis.total_indisponiveis),
       icon: XCircle,
       href: "/frotas?operacional=indisponivel",
       tone: "text-red-700",
     },
     {
-      label: "Em manutencao",
+      label: "Em manutenção",
       value: formatNumber(kpis.total_manutencao),
       icon: Wrench,
       href: "/frotas?operacional=manutencao",
       tone: "text-amber-700",
     },
     {
-      label: "Em atencao",
+      label: "Em atenção",
       value: formatNumber(kpis.total_atencao),
       icon: AlertTriangle,
       href: "/frotas?condicao=atencao",
@@ -52,7 +52,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
       tone: "text-sky-700",
     },
     {
-      label: "Idade media",
+      label: "Idade média",
       value: kpis.idade_media != null ? `${kpis.idade_media.toFixed(1)} anos` : "-",
       icon: Timer,
       href: "/frotas?idadeMin=7",

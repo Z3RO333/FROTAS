@@ -8,7 +8,7 @@ type Props = {
   priority?: boolean;
 };
 
-export function BemolTruck({ className, title = "Caminhao Bemol", priority = false }: Props) {
+export function BemolTruck({ className, title = "Caminhão Bemol", priority = false }: Props) {
   return (
     <div className={cn("truck-slot t1", className)}>
       <Image

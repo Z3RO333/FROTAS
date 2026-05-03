@@ -17,16 +17,16 @@ type Props = { modelos: string[]; localizacoes: string[]; basePath?: string };
 
 const OPERACIONAIS = [
   { value: "all", label: "Todos status" },
-  { value: "disponivel", label: "Disponivel" },
-  { value: "manutencao", label: "Em manutencao" },
-  { value: "indisponivel", label: "Indisponivel" },
+  { value: "disponivel", label: "Disponível" },
+  { value: "manutencao", label: "Em manutenção" },
+  { value: "indisponivel", label: "Indisponível" },
 ];
 
 const CONDICOES = [
-  { value: "all", label: "Todas condicoes" },
+  { value: "all", label: "Todas condições" },
   { value: "normal", label: "Normal" },
-  { value: "atencao", label: "Atencao" },
-  { value: "critico", label: "Critico" },
+  { value: "atencao", label: "Atenção" },
+  { value: "critico", label: "Crítico" },
 ];
 
 export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: Props) {
@@ -69,7 +69,7 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar placa, chassi, modelo, localizacao..."
+            placeholder="Buscar placa, chassi, modelo, localização..."
             className="pl-9"
           />
         </div>
@@ -93,10 +93,10 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
           onValueChange={(v) => update("localizacao", v)}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Localizacao" />
+            <SelectValue placeholder="Localização" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas localizacoes</SelectItem>
+            <SelectItem value="all">Todas localizações</SelectItem>
             {localizacoes.map((l) => (
               <SelectItem key={l} value={l}>
                 {l}
@@ -123,7 +123,7 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
 
         <Select value={searchParams.get("condicao") ?? "all"} onValueChange={(v) => update("condicao", v)}>
           <SelectTrigger>
-            <SelectValue placeholder="Condicao" />
+            <SelectValue placeholder="Condição" />
           </SelectTrigger>
           <SelectContent>
             {CONDICOES.map((s) => (
