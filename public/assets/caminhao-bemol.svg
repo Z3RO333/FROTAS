@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" width="320" height="160">
+  <defs>
+    <linearGradient id="v1-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E78D6"/>
+      <stop offset="1" stop-color="#0B3F8E"/>
+    </linearGradient>
+    <linearGradient id="v1-cab" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1F6FEB"/>
+      <stop offset="1" stop-color="#0B3F8E"/>
+    </linearGradient>
+    <clipPath id="v1-clip"><rect x="120" y="38" width="180" height="92" rx="6"/></clipPath>
+  </defs>
+  <ellipse cx="160" cy="148" rx="120" ry="6" fill="rgba(11,63,142,.18)"/>
+  <rect x="120" y="38" width="180" height="92" rx="6" fill="url(#v1-body)"/>
+  <rect x="120" y="38" width="180" height="6" fill="rgba(255,255,255,.18)"/>
+  <rect x="120" y="124" width="180" height="6" fill="rgba(0,0,0,.25)"/>
+  <g clip-path="url(#v1-clip)">
+    <g transform="rotate(-22 210 84)">
+      <rect x="60" y="62" width="320" height="3" fill="#FFFFFF" opacity="0.35"/>
+      <rect x="60" y="68" width="320" height="6" fill="#1F6FEB" opacity="0.7"/>
+      <rect x="60" y="78" width="320" height="3" fill="#FF5147"/>
+      <rect x="60" y="86" width="320" height="2" fill="#FFFFFF" opacity="0.4"/>
+    </g>
+  </g>
+  <rect x="184" y="64" width="64" height="28" rx="3" fill="#fff"/>
+  <text x="216" y="84" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="14" font-style="italic" fill="#0B3F8E">bemol</text>
+  <path d="M 36 130 L 36 78 Q 36 56 56 56 L 110 56 Q 124 56 124 70 L 124 130 Z" fill="url(#v1-cab)"/>
+  <path d="M 50 78 Q 50 66 62 66 L 110 66 Q 116 66 116 72 L 116 96 L 50 96 Z" fill="#A8CFFF"/>
+  <path d="M 50 78 Q 50 66 62 66 L 110 66 Q 116 66 116 72 L 116 96 L 50 96 Z" fill="rgba(255,255,255,.25)"/>
+  <rect x="30" y="80" width="6" height="14" rx="2" fill="#0B3F8E"/>
+  <rect x="36" y="106" width="8" height="10" rx="2" fill="#FFD23F"/>
+  <rect x="32" y="120" width="14" height="10" rx="2" fill="#0E1530"/>
+  <circle cx="78" cy="132" r="14" fill="#0A0F1F"/>
+  <circle cx="78" cy="132" r="7" fill="#94A3B8"/>
+  <circle cx="78" cy="132" r="3" fill="#475569"/>
+  <circle cx="220" cy="132" r="14" fill="#0A0F1F"/>
+  <circle cx="220" cy="132" r="7" fill="#94A3B8"/>
+  <circle cx="220" cy="132" r="3" fill="#475569"/>
+  <circle cx="252" cy="132" r="14" fill="#0A0F1F"/>
+  <circle cx="252" cy="132" r="7" fill="#94A3B8"/>
+  <circle cx="252" cy="132" r="3" fill="#475569"/>
+</svg>

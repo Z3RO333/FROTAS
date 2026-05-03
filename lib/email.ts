@@ -59,18 +59,24 @@ function publicEmailErrorMessage(message: string): string {
 
 function getTruckAttachment(): Promise<AttachmentData | null> {
   if (!truckAttachmentPromise) {
-    truckAttachmentPromise = readFile(join(process.cwd(), "public", "assets", "caminhao-bemol.png"))
-      .then(
-        (content) =>
-          ({
-            content: content.toString("base64"),
-            filename: "caminhao-bemol.png",
-            type: "image/png",
-            disposition: "inline",
-            content_id: TRUCK_CID,
-          }) as unknown as AttachmentData
-      )
-      .catch(() => null);
+    truckAttachmentPromise = (async () => {
+      const svg = await readFile(join(process.cwd(), "public", "assets", "caminhao-bemol.svg"));
+      const sharp = (await import("sharp")).default;
+      const png = await sharp(svg, { density: 288 })
+        .resize({ width: 640, withoutEnlargement: false })
+        .png()
+        .toBuffer();
+      return {
+        content: png.toString("base64"),
+        filename: "caminhao-bemol.png",
+        type: "image/png",
+        disposition: "inline",
+        content_id: TRUCK_CID,
+      } as unknown as AttachmentData;
+    })().catch((error) => {
+      console.error("Falha ao preparar imagem do caminhão para o e-mail", error);
+      return null;
+    });
   }
 
   return truckAttachmentPromise;
