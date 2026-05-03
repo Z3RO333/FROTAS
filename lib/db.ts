@@ -1,4 +1,5 @@
 import { DBSQLClient } from "@databricks/sql";
+import type { DBSQLParameter, DBSQLParameterValue } from "@databricks/sql/dist/DBSQLParameter";
 
 // Server-only guard: throws if accidentally imported into a client bundle.
 if (typeof window !== "undefined") {
@@ -25,22 +26,23 @@ async function getClient(): Promise<DBSQLClient> {
   return clientPromise;
 }
 
-const LOG_QUERIES = process.env.DATABRICKS_LOG_QUERIES !== "0";
+const LOG_QUERIES =
+  process.env.DATABRICKS_LOG_QUERIES === "1" ||
+  (process.env.NODE_ENV !== "production" && process.env.DATABRICKS_LOG_QUERIES !== "0");
+
+export type QueryParam = DBSQLParameter | DBSQLParameterValue;
 
 export async function query<T = Record<string, unknown>>(
   sql: string,
-  params: unknown[] = []
+  params: QueryParam[] = []
 ): Promise<T[]> {
   const start = LOG_QUERIES ? performance.now() : 0;
   const client = await getClient();
   const session = await client.openSession();
   try {
-    let bound = sql;
-    if (params.length > 0) {
-      let i = 0;
-      bound = sql.replace(/\?/g, () => formatParam(params[i++]));
-    }
-    const op = await session.executeStatement(bound, { runAsync: true });
+    const op = await session.executeStatement(sql, {
+      ordinalParameters: params,
+    });
     const rows = await op.fetchAll();
     await op.close();
     if (LOG_QUERIES) {
@@ -54,15 +56,6 @@ export async function query<T = Record<string, unknown>>(
   }
 }
 
-function formatParam(v: unknown): string {
-  if (v === null || v === undefined) return "NULL";
-  if (typeof v === "number") return String(v);
-  if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
-  if (v instanceof Date) return `TIMESTAMP '${v.toISOString().replace("T", " ").replace("Z", "")}'`;
-  const s = String(v).replace(/'/g, "''");
-  return `'${s}'`;
-}
-
-export async function execute(sql: string, params: unknown[] = []): Promise<void> {
+export async function execute(sql: string, params: QueryParam[] = []): Promise<void> {
   await query(sql, params);
 }

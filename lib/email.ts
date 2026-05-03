@@ -61,13 +61,15 @@ function getTruckAttachment(): Promise<AttachmentData | null> {
   if (!truckAttachmentPromise) {
     truckAttachmentPromise = (async () => {
       const svg = await readFile(join(process.cwd(), "public", "assets", "caminhao-bemol.svg"));
-      const sharp = (await import("sharp")).default;
-      const png = await sharp(svg, { density: 288 })
-        .resize({ width: 640, withoutEnlargement: false })
-        .png()
-        .toBuffer();
+      const { Resvg } = await import("@resvg/resvg-js");
+      const png = new Resvg(svg, {
+        fitTo: { mode: "width", value: 640 },
+        font: { loadSystemFonts: true, defaultFontFamily: "Arial" },
+      })
+        .render()
+        .asPng();
       return {
-        content: png.toString("base64"),
+        content: Buffer.from(png).toString("base64"),
         filename: "caminhao-bemol.png",
         type: "image/png",
         disposition: "inline",

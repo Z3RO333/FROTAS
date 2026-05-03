@@ -22,6 +22,10 @@ const FrotaSchema = z.object({
   observacoes: z.string().trim().optional().nullable(),
 });
 
+const ALLOWED_EMAIL_DOMAIN = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
+const MAX_DESTINATARIOS = 10;
+const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 const EmailListSchema = z
   .string()
   .transform((s) =>
@@ -30,9 +34,14 @@ const EmailListSchema = z
       .map((x) => x.trim())
       .filter(Boolean)
   )
+  .refine((emails) => emails.length > 0, { message: "Informe pelo menos um destinatário." })
+  .refine((emails) => emails.length <= MAX_DESTINATARIOS, {
+    message: `Máximo de ${MAX_DESTINATARIOS} destinatários por envio.`,
+  })
+  .refine((emails) => emails.every((e) => EMAIL_REGEX.test(e)), { message: "E-mails inválidos." })
   .refine(
-    (emails) => emails.length > 0 && emails.every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)),
-    { message: "E-mails inválidos" }
+    (emails) => emails.every((e) => e.toLowerCase().endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)),
+    { message: `Apenas destinatários @${ALLOWED_EMAIL_DOMAIN} são permitidos.` }
   );
 
 type RelatorioActionResult = { ok: true } | { ok: false; error: string };
