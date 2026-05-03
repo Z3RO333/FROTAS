@@ -54,3 +54,26 @@
     color: var(--foreground);
   }
 }
+
+@layer components {
+  .truck-slot {
+    width: 200px;
+    height: 140px;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .truck-slot.t1 .t-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+    filter:
+      drop-shadow(0 8px 10px rgba(11, 63, 142, 0.20))
+      drop-shadow(0 2px 4px rgba(11, 63, 142, 0.10));
+  }
+}

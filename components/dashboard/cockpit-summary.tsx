@@ -19,7 +19,7 @@ export function CockpitSummary({ kpis, reportDialog }: Props) {
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,.55fr)]">
       <Card className="overflow-hidden border-blue-100 bg-white">
         <CardContent className="grid gap-6 p-5 lg:grid-cols-[260px_1fr] lg:items-center">
-          <BemolTruck frota="106" className="mx-auto max-w-[280px]" />
+          <BemolTruck className="mx-auto" priority />
           <div className="space-y-5">
             <div className="space-y-2">
               <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase text-blue-700">

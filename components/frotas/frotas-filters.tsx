@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Props = { modelos: string[]; localizacoes: string[] };
+type Props = { modelos: string[]; localizacoes: string[]; basePath?: string };
 
 const OPERACIONAIS = [
   { value: "all", label: "Todos status" },
@@ -29,7 +29,7 @@ const CONDICOES = [
   { value: "critico", label: "Critico" },
 ];
 
-export function FrotasFilters({ modelos, localizacoes }: Props) {
+export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
@@ -42,7 +42,7 @@ export function FrotasFilters({ modelos, localizacoes }: Props) {
     }
     next.delete("page");
     const qs = next.toString();
-    router.push(qs ? `/frotas?${qs}` : "/frotas");
+    router.push(qs ? `${basePath}?${qs}` : basePath);
   }
 
   function update(key: string, value: string) {
@@ -151,7 +151,7 @@ export function FrotasFilters({ modelos, localizacoes }: Props) {
           </SelectContent>
         </Select>
 
-        <Button variant="ghost" onClick={() => router.push("/frotas")} className="justify-center gap-2">
+        <Button variant="ghost" onClick={() => router.push(basePath)} className="justify-center gap-2">
           <X className="h-4 w-4" aria-hidden="true" />
           Limpar
         </Button>
