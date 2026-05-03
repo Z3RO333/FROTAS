@@ -89,7 +89,7 @@ function badge(label: string, tone: { bg: string; color: string; border: string 
 
 function summaryCell(label: string, value: string, color: string, note?: string): string {
   return `
-    <td style="padding:6px;width:20%;vertical-align:top;">
+    <td style="padding:6px;width:25%;vertical-align:top;">
       <div style="border:1px solid ${BORDER};border-left:4px solid ${color};border-radius:10px;padding:12px 13px;background:#ffffff;">
         <div style="font-size:10px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;">${escapeHtml(
           label
@@ -150,7 +150,6 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
     const idade = calcularIdade(f.ano_fabricacao);
     return idade != null && idade >= 7;
   }).length;
-  const semKm = frotas.filter((f) => f.km_atual == null).length;
   const cadastro = frotas.filter(cadastroIncompleto).length;
   const atencaoTotal = atencao + criticos;
 
@@ -240,14 +239,12 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
             ${summaryCell("Disponíveis", formatNumber(disponiveis), "#059669", percent(disponiveis, total))}
             ${summaryCell("Indisponíveis", formatNumber(indisponiveis), "#dc2626")}
             ${summaryCell("Manutenção", formatNumber(manutencao), "#ea580c")}
-            ${summaryCell("Sem KM", formatNumber(semKm), "#0284c7")}
           </tr>
           <tr>
             ${summaryCell("Acima de 7 anos", formatNumber(acima7), "#f97316")}
             ${summaryCell("Em atenção", formatNumber(atencao), "#f59e0b")}
             ${summaryCell("Críticas", formatNumber(criticos), "#ef4444")}
             ${summaryCell("Cadastro incompleto", formatNumber(cadastro), "#334155")}
-            ${summaryCell("Base", "Bemol", BLUE_2, "relatório automático")}
           </tr>
         </table>
       </td>
