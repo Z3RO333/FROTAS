@@ -60,13 +60,16 @@ function publicEmailErrorMessage(message: string): string {
 function getTruckAttachment(): Promise<AttachmentData | null> {
   if (!truckAttachmentPromise) {
     truckAttachmentPromise = readFile(join(process.cwd(), "public", "assets", "caminhao-bemol.png"))
-      .then((content) => ({
-        content: content.toString("base64"),
-        filename: "caminhao-bemol.png",
-        type: "image/png",
-        disposition: "inline",
-        contentId: TRUCK_CID,
-      }))
+      .then(
+        (content) =>
+          ({
+            content: content.toString("base64"),
+            filename: "caminhao-bemol.png",
+            type: "image/png",
+            disposition: "inline",
+            content_id: TRUCK_CID,
+          }) as unknown as AttachmentData
+      )
       .catch(() => null);
   }
 
