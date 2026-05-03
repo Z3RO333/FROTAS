@@ -3,7 +3,8 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
-import { listFrotas, localizacoesDistintas, modelosDistintos } from "@/lib/repos/frotas";
+import { listFrotas } from "@/lib/repos/frotas";
+import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import type { StatusFrota } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
@@ -50,8 +51,8 @@ export default async function FrotasVendidasPage({
 
   const [{ rows, total }, modelos, localizacoes] = await Promise.all([
     listFrotas(filters),
-    modelosDistintos(),
-    localizacoesDistintas(),
+    modelosDistintosCached(),
+    localizacoesDistintasCached(),
   ]);
   const totalPages = Math.ceil(total / 50);
 

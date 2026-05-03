@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [, startTransition] = useTransition();
 
   function applyChanges(changes: Record<string, string>) {
     const next = new URLSearchParams(searchParams.toString());
@@ -42,7 +43,9 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
     }
     next.delete("page");
     const qs = next.toString();
-    router.push(qs ? `${basePath}?${qs}` : basePath);
+    startTransition(() => {
+      router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
+    });
   }
 
   function update(key: string, value: string) {
@@ -151,7 +154,11 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
           </SelectContent>
         </Select>
 
-        <Button variant="ghost" onClick={() => router.push(basePath)} className="justify-center gap-2">
+        <Button
+          variant="ghost"
+          onClick={() => startTransition(() => router.replace(basePath, { scroll: false }))}
+          className="justify-center gap-2"
+        >
           <X className="h-4 w-4" aria-hidden="true" />
           Limpar
         </Button>

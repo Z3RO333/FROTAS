@@ -150,18 +150,32 @@ function pagination(f: FrotaFilters): { pageSize: number; offset: number } {
   return { pageSize, offset: (page - 1) * pageSize };
 }
 
+type FrotaListRow = Frota & { __total: number | string | null };
+
 export async function listFrotas(
   f: FrotaFilters = {}
 ): Promise<{ rows: Frota[]; total: number }> {
   const { sql, params } = buildWhere(f);
   const { pageSize, offset } = pagination(f);
 
-  const [rows, totalResult] = await Promise.all([
-    query<Frota>(`SELECT * FROM ${T} WHERE ${sql} ORDER BY id LIMIT ${pageSize} OFFSET ${offset}`, params),
-    query<{ n: number }>(`SELECT COUNT(*) AS n FROM ${T} WHERE ${sql}`, params),
-  ]);
+  const result = await query<FrotaListRow>(
+    `SELECT *, COUNT(*) OVER() AS __total
+     FROM ${T}
+     WHERE ${sql}
+     ORDER BY id
+     LIMIT ${pageSize} OFFSET ${offset}`,
+    params
+  );
 
-  return { rows, total: Number(totalResult[0]?.n ?? 0) };
+  if (result.length === 0) {
+    const totalResult = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM ${T} WHERE ${sql}`, params);
+    return { rows: [], total: Number(totalResult[0]?.n ?? 0) };
+  }
+
+  const total = Number(result[0]?.__total ?? 0);
+  const rows = result.map(({ __total, ...row }) => row as Frota);
+
+  return { rows, total };
 }
 
 export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]> {

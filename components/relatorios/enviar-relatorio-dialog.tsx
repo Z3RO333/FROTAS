@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 type Props = {
   trigger: React.ReactNode;
   title: string;
-  action: (formData: FormData) => Promise<void>;
+  action: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
@@ -27,11 +27,16 @@ export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
   function submit(formData: FormData) {
     startTransition(async () => {
       try {
-        await action(formData);
-        toast.success("Relatório enviado");
-        setOpen(false);
+        const result = await action(formData);
+        if (result.ok) {
+          toast.success("Relatório enviado");
+          setOpen(false);
+        } else {
+          toast.error(result.error);
+        }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Erro ao enviar");
+        console.error(e);
+        toast.error("Erro inesperado ao enviar relatório.");
       }
     });
   }

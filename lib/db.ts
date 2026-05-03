@@ -25,10 +25,13 @@ async function getClient(): Promise<DBSQLClient> {
   return clientPromise;
 }
 
+const LOG_QUERIES = process.env.DATABRICKS_LOG_QUERIES !== "0";
+
 export async function query<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = []
 ): Promise<T[]> {
+  const start = LOG_QUERIES ? performance.now() : 0;
   const client = await getClient();
   const session = await client.openSession();
   try {
@@ -40,6 +43,11 @@ export async function query<T = Record<string, unknown>>(
     const op = await session.executeStatement(bound, { runAsync: true });
     const rows = await op.fetchAll();
     await op.close();
+    if (LOG_QUERIES) {
+      const ms = (performance.now() - start).toFixed(0);
+      const preview = sql.replace(/\s+/g, " ").trim().slice(0, 90);
+      console.log(`[db] ${ms}ms ${rows.length}rows :: ${preview}`);
+    }
     return rows as T[];
   } finally {
     await session.close();

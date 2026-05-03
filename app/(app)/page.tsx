@@ -4,13 +4,13 @@ import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { StatusDonut } from "@/components/dashboard/status-donut";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { Button } from "@/components/ui/button";
-import { conditionBreakdown, kpis, statusBreakdown } from "@/lib/repos/frotas";
+import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import { enviarRelatorioGeralAction } from "./frotas/_actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [k, operational, conditions] = await Promise.all([kpis(), statusBreakdown(), conditionBreakdown()]);
+  const { k, operational, conditions } = await dashboardFrotasCached();
 
   const reportDialog = (
     <EnviarRelatorioDialog

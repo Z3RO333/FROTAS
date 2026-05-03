@@ -16,10 +16,45 @@ let truckAttachmentPromise: Promise<AttachmentData | null> | null = null;
 
 function mailClient() {
   if (!configured) {
+    if (!process.env.SENDGRID_API_KEY?.trim()) {
+      throw new Error("Configuração de e-mail incompleta: SENDGRID_API_KEY não foi definida.");
+    }
     sg.setApiKey(process.env.SENDGRID_API_KEY?.trim() ?? "");
     configured = true;
   }
   return sg;
+}
+
+async function safeLogEmail(args: Parameters<typeof logEmail>[0]) {
+  try {
+    await logEmail(args);
+  } catch (error) {
+    console.error("Erro ao registrar log de e-mail", error);
+  }
+}
+
+function sendGridErrorMessage(error: unknown): string {
+  const responseErrors = (error as { response?: { body?: { errors?: Array<{ message?: string }> } } })?.response?.body
+    ?.errors;
+  const details = responseErrors?.map((item) => item.message).filter(Boolean).join("; ");
+
+  if (details) return details;
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function publicEmailErrorMessage(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("sender identity") || lower.includes("from address")) {
+    return "O remetente do e-mail não está verificado no SendGrid.";
+  }
+  if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("forbidden")) {
+    return "Configuração de e-mail inválida. Verifique a chave do SendGrid.";
+  }
+  if (lower.includes("recipient") || lower.includes("email")) {
+    return "Não foi possível enviar. Verifique os destinatários informados.";
+  }
+  return "Não foi possível enviar o relatório agora. Verifique a configuração de e-mail.";
 }
 
 function getTruckAttachment(): Promise<AttachmentData | null> {
@@ -58,7 +93,7 @@ export async function sendRelatorioGeral(args: {
       html,
       attachments: truckAttachment ? [truckAttachment] : undefined,
     });
-    await logEmail({
+    await safeLogEmail({
       tipo: "geral",
       destinatarios,
       assunto,
@@ -67,8 +102,9 @@ export async function sendRelatorioGeral(args: {
     });
     return { ok: true };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await logEmail({
+    const msg = sendGridErrorMessage(e);
+    console.error("Erro no envio do relatório geral", msg);
+    await safeLogEmail({
       tipo: "geral",
       destinatarios,
       assunto,
@@ -76,7 +112,7 @@ export async function sendRelatorioGeral(args: {
       status: "erro",
       erroMsg: msg,
     });
-    return { ok: false, error: msg };
+    return { ok: false, error: publicEmailErrorMessage(msg) };
   }
 }
 
@@ -100,7 +136,7 @@ export async function sendRelatorioIndividual(args: {
       html,
       attachments: truckAttachment ? [truckAttachment] : undefined,
     });
-    await logEmail({
+    await safeLogEmail({
       tipo: "individual",
       frotaId: args.frota.id,
       destinatarios,
@@ -110,8 +146,9 @@ export async function sendRelatorioIndividual(args: {
     });
     return { ok: true };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await logEmail({
+    const msg = sendGridErrorMessage(e);
+    console.error("Erro no envio do relatório individual", msg);
+    await safeLogEmail({
       tipo: "individual",
       frotaId: args.frota.id,
       destinatarios,
@@ -120,6 +157,6 @@ export async function sendRelatorioIndividual(args: {
       status: "erro",
       erroMsg: msg,
     });
-    return { ok: false, error: msg };
+    return { ok: false, error: publicEmailErrorMessage(msg) };
   }
 }

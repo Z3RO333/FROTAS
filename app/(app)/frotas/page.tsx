@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
-import { listFrotas, localizacoesDistintas, modelosDistintos } from "@/lib/repos/frotas";
+import { listFrotas } from "@/lib/repos/frotas";
+import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import type { StatusFrota } from "@/lib/rules";
 import { enviarRelatorioGeralAction } from "./_actions";
 
@@ -56,8 +57,8 @@ export default async function FrotasPage({
 
   const [{ rows, total }, modelos, localizacoes] = await Promise.all([
     listFrotas(filters),
-    modelosDistintos(),
-    localizacoesDistintas(),
+    modelosDistintosCached(),
+    localizacoesDistintasCached(),
   ]);
   const totalPages = Math.ceil(total / 50);
 
