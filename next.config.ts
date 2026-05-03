@@ -8,10 +8,13 @@ const SECURITY_HEADERS = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
 ];
 
-const ALLOWED_ORIGINS = (process.env.SERVER_ACTIONS_ALLOWED_ORIGINS ?? "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const ALLOWED_ORIGINS = [
+  ...(process.env.SERVER_ACTIONS_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
+  ...(process.env.VERCEL_URL ? [process.env.VERCEL_URL] : []),
+];
 
 const config: NextConfig = {
   experimental: {
@@ -20,7 +23,7 @@ const config: NextConfig = {
       ...(ALLOWED_ORIGINS.length > 0 ? { allowedOrigins: ALLOWED_ORIGINS } : {}),
     },
   },
-  serverExternalPackages: ["@databricks/sql"],
+  serverExternalPackages: ["@databricks/sql", "@resvg/resvg-js"],
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
