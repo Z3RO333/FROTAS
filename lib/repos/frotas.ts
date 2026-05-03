@@ -164,6 +164,11 @@ export async function listFrotas(
   return { rows, total: Number(totalResult[0]?.n ?? 0) };
 }
 
+export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]> {
+  const { sql, params } = buildWhere(f);
+  return query<Frota>(`SELECT * FROM ${T} WHERE ${sql} ORDER BY id`, params);
+}
+
 export async function getFrota(id: number): Promise<Frota | null> {
   const r = await query<Frota>(`SELECT * FROM ${T} WHERE id = ?`, [id]);
   return r[0] ?? null;

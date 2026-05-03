@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { sendRelatorioGeral, sendRelatorioIndividual } from "@/lib/email";
-import { createFrota, getFrota, listFrotas, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
+import { createFrota, getFrota, listFrotasForReport, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
 
@@ -78,8 +78,8 @@ export async function enviarRelatorioGeralAction(formData: FormData) {
   const raw = formData.get("destinatarios");
   if (typeof raw !== "string") throw new Error("Destinatarios obrigatorios");
   const destinatarios = EmailListSchema.parse(raw);
-  const { rows } = await listFrotas({ pageSize: 1000 });
-  const result = await sendRelatorioGeral({ destinatarios, frotas: rows, enviadoPor: email });
+  const frotas = await listFrotasForReport();
+  const result = await sendRelatorioGeral({ destinatarios, frotas, enviadoPor: email });
   if (!result.ok) throw new Error(result.error);
 }
 

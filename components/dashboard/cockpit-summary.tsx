@@ -14,6 +14,12 @@ type Props = {
 
 export function CockpitSummary({ kpis, reportDialog }: Props) {
   const attentionTotal = kpis.total_atencao + kpis.total_critico;
+  const attentionCopy =
+    attentionTotal > 0
+      ? `${formatNumber(attentionTotal)} de ${formatNumber(
+          kpis.total_ativos
+        )} frota(s) exigem atencao operacional por idade, status base ou cadastro incompleto.`
+      : `Nenhuma das ${formatNumber(kpis.total_ativos)} frota(s) exige atencao operacional agora.`;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,.55fr)]">
@@ -29,8 +35,7 @@ export function CockpitSummary({ kpis, reportDialog }: Props) {
                 {formatNumber(kpis.total_disponiveis)} de {formatNumber(kpis.total_ativos)} frotas disponiveis
               </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                {formatNumber(attentionTotal)} veiculo(s) exigem atencao operacional por idade, status base ou
-                cadastro incompleto.
+                {attentionCopy}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
