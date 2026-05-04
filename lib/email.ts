@@ -5,6 +5,7 @@ import type { AttachmentData } from "@sendgrid/helpers/classes/attachment";
 import { renderRelatorioGeral, renderRelatorioIndividual } from "@/lib/email-templates";
 import type { Frota } from "@/lib/repos/frotas";
 import { logEmail } from "@/lib/repos/email-logs";
+import { formatReportDate } from "@/lib/report-date";
 
 const FROM = process.env.FROM_EMAIL || "ordensmanutencao@bemol.com.br";
 const TRUCK_CID = "caminhao-bemol";
@@ -89,9 +90,10 @@ export async function sendRelatorioGeral(args: {
   frotas: Frota[];
   enviadoPor: string;
 }): Promise<SendResult> {
-  const assunto = `Relatório geral de frotas - ${new Date().toLocaleDateString("pt-BR")}`;
+  const sentAt = new Date();
+  const assunto = `Relatório de frotas - ${formatReportDate(sentAt)}`;
   const truckAttachment = await getTruckAttachment();
-  const html = renderRelatorioGeral(args.frotas, new Date(), {
+  const html = renderRelatorioGeral(args.frotas, sentAt, {
     truckImageSrc: truckAttachment ? `cid:${TRUCK_CID}` : undefined,
   });
   const destinatarios = args.destinatarios.join(",");

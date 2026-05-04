@@ -9,6 +9,7 @@ import {
   type StatusOperacional,
 } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
+import { formatReportDate } from "@/lib/report-date";
 import { calcularIdade } from "@/lib/rules";
 
 type ReportOptions = {
@@ -124,8 +125,7 @@ function header(title: string, subtitle: string, options: ReportOptions): string
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
           <tr>
             <td style="padding:26px 28px;color:#ffffff;vertical-align:middle;">
-              <div style="display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">Operação em tempo real</div>
-              <div style="font-size:27px;line-height:33px;font-weight:800;margin-top:12px;">${escapeHtml(title)}</div>
+              <div style="font-size:27px;line-height:33px;font-weight:800;">${escapeHtml(title)}</div>
               <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
             </td>
             <td align="right" style="width:280px;padding:20px 28px 18px 10px;vertical-align:middle;">
@@ -205,8 +205,8 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
 
   return shell(`
     ${header(
-      "Relatório geral de frotas",
-      `${dataRef.toLocaleDateString("pt-BR")} - ${formatNumber(total)} frota(s) em operação`,
+      "Relatório de frotas",
+      `${formatReportDate(dataRef)} - ${formatNumber(total)} frota(s) em operação`,
       options
     )}
     <tr>
@@ -284,7 +284,7 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
   return shell(`
     ${header(
       `Relatório da frota ${String(frota.placa ?? frota.frota_geral ?? frota.id)}`,
-      `${new Date().toLocaleDateString("pt-BR")} - acompanhamento individual`,
+      `${formatReportDate(new Date())} - acompanhamento individual`,
       options
     )}
     <tr>
