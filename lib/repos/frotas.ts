@@ -267,6 +267,20 @@ export async function statusBreakdown(): Promise<{ status: string; total: number
   return r.map((x) => ({ status: x.status, total: Number(x.total) }));
 }
 
+export async function frotasByYear(): Promise<{ ano: number | null; total: number }[]> {
+  const r = await query<{ ano: number | null; total: number }>(
+    `SELECT ano_fabricacao AS ano, COUNT(*) AS total
+     FROM ${T}
+     WHERE ativo = TRUE AND vendido = FALSE
+     GROUP BY ano_fabricacao
+     ORDER BY ano_fabricacao`
+  );
+  return r.map((x) => ({
+    ano: x.ano != null ? Number(x.ano) : null,
+    total: Number(x.total),
+  }));
+}
+
 export async function conditionBreakdown(): Promise<{ status: string; total: number }[]> {
   const r = await query<{ status: string; total: number }>(
     `SELECT status, COUNT(*) AS total

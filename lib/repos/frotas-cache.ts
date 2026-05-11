@@ -2,6 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import {
   conditionBreakdown,
+  frotasByYear,
   kpis,
   localizacoesDistintas,
   modelosDistintos,
@@ -28,13 +29,14 @@ export const localizacoesDistintasCached = unstable_cache(
 
 export const dashboardFrotasCached = unstable_cache(
   async () => {
-    const [k, operational, conditions] = await Promise.all([
+    const [k, operational, conditions, byYear] = await Promise.all([
       kpis(),
       statusBreakdown(),
       conditionBreakdown(),
+      frotasByYear(),
     ]);
 
-    return { k, operational, conditions };
+    return { k, operational, conditions, byYear };
   },
   ["frotas:dashboard"],
   {
