@@ -41,10 +41,12 @@ export default async function FrotasPage({
       ? (sp.condicao as "normal" | "atencao" | "critico")
       : undefined;
   const idadeMin = sp.idadeMin ? Number.parseInt(sp.idadeMin, 10) : undefined;
+  const ano = sp.ano ? Number.parseInt(sp.ano, 10) : undefined;
   const filters = {
     search: sp.search,
     modelo: sp.modelo,
     localizacao: sp.localizacao,
+    ano: ano && Number.isFinite(ano) ? ano : undefined,
     status,
     operacional,
     condicao,
