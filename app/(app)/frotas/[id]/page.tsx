@@ -24,6 +24,7 @@ import { KmEvolutionChart } from "@/components/frotas/km-evolution-chart";
 import { UnidadeOperacionalCard } from "@/components/frotas/unidade-operacional-card";
 import { VeiculoTabs } from "@/components/frotas/veiculo-360/tabs";
 import { EventsTimeline } from "@/components/frotas/veiculo-360/events-timeline";
+import { StatusOperacionalBanner } from "@/components/frotas/manutencao/status-banner";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { listAbastecimentosFrota } from "@/lib/repos/abastecimentos";
 import { listChecklistsByFrota, listPendenciasByFrota } from "@/lib/repos/checklists";
@@ -107,6 +108,20 @@ export default async function FrotaDetailPage({
       label: "Resumo",
       content: (
         <div className="space-y-5">
+          <StatusOperacionalBanner
+            frota={{
+              id: frota.id,
+              label: frota.frota_geral ?? frota.placa ?? `#${frota.id}`,
+              status: frota.status,
+              manutencao_motivo: frota.manutencao_motivo,
+              manutencao_tipo: frota.manutencao_tipo,
+              manutencao_oficina: frota.manutencao_oficina,
+              manutencao_prev_retorno: frota.manutencao_prev_retorno,
+              manutencao_observacao: frota.manutencao_observacao,
+              manutencao_iniciado_em: frota.manutencao_iniciado_em,
+              manutencao_iniciado_por: frota.manutencao_iniciado_por,
+            }}
+          />
           <MetricGrid cols={4}>
             <MetricCard
               label="KM atual"
