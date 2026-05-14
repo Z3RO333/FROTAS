@@ -18,7 +18,7 @@ const PAGE = 1000;
 
 // Mapeia colunas que precisam ser renomeadas na migração (fonte → destino)
 const COL_RENAME: Record<string, Record<string, string>> = {
-  trocas_pneus_app:   { id_troca: "id_troca" },
+  trocas_pneus_app:   { id_troca: "id_troca", posicao_pneu: "posicao" },
   alinhamentos_app:   { id_alinhamento: "id_alinhamento" },
   lavagens_app:       { id_lavagem: "id_lavagem" },
   // numero_fogo: id UUID da fonte vai para id_origem no destino (nosso id é bigserial)
