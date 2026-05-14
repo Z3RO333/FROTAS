@@ -1,0 +1,11 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - button "Pular para o conteúdo principal" [ref=e9]
+      - banner [ref=e11]
+    - generic [ref=e76]:
+      - navigation "Principal" [ref=e77]
+      - generic [ref=e174]
+  - generic [ref=e544]:
+    - img [ref=e545]
+    - dialog [ref=e547]

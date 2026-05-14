@@ -1,0 +1,33 @@
+- generic [ref=e7]:
+  - banner [ref=e8]:
+    - button "Pular para o conteúdo principal" [ref=e9]
+    - banner [ref=e11]:
+      - button "Inicializador de aplicativos" [ref=e14] [cursor=pointer]: 
+      - generic [ref=e20]:
+        - generic [ref=e24]: Power Automate
+        - search [ref=e27]:
+          - button [ref=e28]:
+            - img [ref=e30]
+          - combobox "Caixa de pesquisa. Sugestões aparecem à medida que você digita" [ref=e32]
+        - generic [ref=e33]:
+          - button "BENCHIMOL IRMAO E CIA LTDA (default)" [ref=e38] [cursor=pointer]:
+            - img [ref=e40]
+            - generic [ref=e43]:
+              - generic [ref=e44]: Ambientes
+              - generic [ref=e46]: BENCHIMOL IRMAO E CIA LTDA (default)
+          - button "Clique para enviar comentários" [ref=e51] [cursor=pointer]:
+            - img [ref=e53]
+          - button "Configurações" [ref=e57] [cursor=pointer]:
+            - generic [ref=e58]: 
+          - button "Ajuda" [ref=e61] [cursor=pointer]:
+            - generic [ref=e62]: 
+      - generic [ref=e63]:
+        - button "Gerente de contas de Gustavo Silva" [ref=e65] [cursor=pointer]:
+          - generic [ref=e72]:
+            - generic [ref=e73]: GS
+            - img "GS" [ref=e75]
+        - generic: 
+  - main [ref=e551]:
+    - generic [ref=e555]:
+      - status:
+        - generic [ref=e557]: Carregando

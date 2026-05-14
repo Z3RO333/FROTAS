@@ -1,0 +1,18 @@
+- generic [ref=e5]:
+  - img "Imagem do plano de fundo da organização" [ref=e6]
+  - generic [ref=e8]:
+    - generic [ref=e14]:
+      - img "Logotipo da faixa da organização" [ref=e17]
+      - main [ref=e18]:
+        - generic [ref=e21]:
+          - heading "Tentando conectá-lo" [level=1] [ref=e22]
+          - progressbar "Aguarde" [ref=e23]
+          - link "Cancelar" [active] [ref=e29] [cursor=pointer]:
+            - /url: "#"
+    - contentinfo [ref=e30]:
+      - generic [ref=e31]:
+        - link "Termos de uso" [ref=e32] [cursor=pointer]:
+          - /url: https://www.microsoft.com/pt-BR/servicesagreement/
+        - link "Privacidade e cookies" [ref=e33] [cursor=pointer]:
+          - /url: https://privacy.microsoft.com/pt-BR/privacystatement
+        - button "Clique aqui para obter informações sobre solução de problemas" [ref=e34] [cursor=pointer]: ...

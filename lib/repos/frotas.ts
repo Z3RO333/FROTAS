@@ -20,6 +20,16 @@ export type Frota = {
   criado_em: string | null;
   atualizado_em: string | null;
   atualizado_por: string | null;
+  km_origem: string | null;
+  km_atualizado_em: string | null;
+  km_validado: boolean | null;
+  ultimo_checklist_id: number | null;
+  ultimo_checklist_em: string | null;
+  ultimo_motorista_id: string | null;
+  ultimo_motorista_nome: string | null;
+  ultimo_abastecimento_em: string | null;
+  ultimo_abastecimento_litros: number | null;
+  status_operacional: string | null;
 };
 
 export type FrotaFilters = {
@@ -356,6 +366,77 @@ export async function updateFrota(
   sets.push("atualizado_em = current_timestamp()", "atualizado_por = ?");
   params.push(userEmail, id);
   await query(`UPDATE ${T} SET ${sets.join(", ")} WHERE id = ?`, params);
+}
+
+export type FrotaResumoChecklistInput = {
+  km_atual?: number | null;
+  km_origem?: string | null;
+  ultimo_checklist_id?: number | null;
+  ultimo_motorista_id?: string | null;
+  ultimo_motorista_nome?: string | null;
+  status?: StatusFrota | null;
+  status_operacional?: string | null;
+};
+
+export async function aplicarResumoChecklist(
+  frotaId: number,
+  input: FrotaResumoChecklistInput,
+  userEmail: string
+): Promise<void> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+
+  if (input.km_atual !== undefined) {
+    sets.push("km_atual = ?", "km_atualizado_em = current_timestamp()", "km_validado = ?");
+    params.push(input.km_atual);
+    params.push(input.km_origem === "CHECKLIST_INICIAL" ? false : true);
+  }
+  if (input.km_origem !== undefined) {
+    sets.push("km_origem = ?");
+    params.push(input.km_origem);
+  }
+  if (input.ultimo_checklist_id !== undefined) {
+    sets.push("ultimo_checklist_id = ?", "ultimo_checklist_em = current_timestamp()");
+    params.push(input.ultimo_checklist_id);
+  }
+  if (input.ultimo_motorista_id !== undefined) {
+    sets.push("ultimo_motorista_id = ?");
+    params.push(input.ultimo_motorista_id);
+  }
+  if (input.ultimo_motorista_nome !== undefined) {
+    sets.push("ultimo_motorista_nome = ?");
+    params.push(input.ultimo_motorista_nome);
+  }
+  if (input.status !== undefined) {
+    sets.push("status = ?");
+    params.push(input.status);
+  }
+  if (input.status_operacional !== undefined) {
+    sets.push("status_operacional = ?");
+    params.push(input.status_operacional);
+  }
+
+  if (sets.length === 0) return;
+
+  sets.push("atualizado_em = current_timestamp()", "atualizado_por = ?");
+  params.push(userEmail, frotaId);
+  await query(`UPDATE ${T} SET ${sets.join(", ")} WHERE id = ?`, params);
+}
+
+export async function aplicarResumoAbastecimento(
+  frotaId: number,
+  litros: number | null,
+  userEmail: string
+): Promise<void> {
+  await query(
+    `UPDATE ${T}
+     SET ultimo_abastecimento_em = current_timestamp(),
+         ultimo_abastecimento_litros = ?,
+         atualizado_em = current_timestamp(),
+         atualizado_por = ?
+     WHERE id = ?`,
+    [litros, userEmail, frotaId]
+  );
 }
 
 export async function softDeleteFrota(id: number, userEmail: string): Promise<void> {

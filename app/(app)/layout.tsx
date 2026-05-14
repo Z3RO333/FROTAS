@@ -1,14 +1,10 @@
-import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { auth } from "@/lib/auth";
-import { normalizeUserDisplayName } from "@/lib/user";
+import { requireAppUser } from "@/lib/rbac";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session?.user?.email) redirect("/login");
-  const displayName = normalizeUserDisplayName(session.user.name, session.user.email);
+  const user = await requireAppUser();
   return (
-    <AppShell email={session.user.email} name={displayName}>
+    <AppShell email={user.email} name={user.name} perfil={user.perfil}>
       {children}
     </AppShell>
   );

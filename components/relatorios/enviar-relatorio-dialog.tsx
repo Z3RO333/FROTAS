@@ -15,12 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Props = {
-  trigger: React.ReactNode;
   title: string;
+  triggerLabel?: string;
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
   action: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
-export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
+export function EnviarRelatorioDialog({
+  title,
+  triggerLabel = "Enviar relatório",
+  triggerVariant = "default",
+  action,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -43,7 +49,12 @@ export function EnviarRelatorioDialog({ trigger, title, action }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger asChild>
+        <Button type="button" variant={triggerVariant}>
+          <Mail className="h-4 w-4" aria-hidden="true" />
+          {triggerLabel}
+        </Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

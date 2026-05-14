@@ -1,0 +1,1441 @@
+{
+  "name": "9e2dafbd-172c-4b19-809f-1bc49fbcb04c",
+  "type": "Microsoft.Flow/environments/flows",
+  "properties": {
+    "displayName": "POSTO3000",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "Quando_uma_nova_resposta_é_enviada": {
+          "splitOn": "@triggerOutputs()?['body/value']",
+          "metadata": {
+            "operationMetadataId": "c3f43af6-701f-4231-80c4-3cb30dd2d6f0"
+          },
+          "type": "OpenApiConnectionWebhook",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+              "connectionName": "shared_microsoftforms",
+              "operationId": "CreateFormWebhook"
+            },
+            "parameters": {
+              "form_id": "5ZEP8QX5qkiMTKaNCuX27KxI9Qp3QHtEq5Qs5sJYmR1UQzk2MVZSRUdNRUcwSEMxVzlTMTFIVkU2VC4u"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        }
+      },
+      "actions": {
+        "Obter_os_detalhes_da_resposta": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "68dd1b6e-0366-4ab1-b7c1-de2d2d12e99a"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+              "connectionName": "shared_microsoftforms",
+              "operationId": "GetFormResponseById"
+            },
+            "parameters": {
+              "form_id": "5ZEP8QX5qkiMTKaNCuX27KxI9Qp3QHtEq5Qs5sJYmR1UQzk2MVZSRUdNRUcwSEMxVzlTMTFIVkU2VC4u",
+              "response_id": "@triggerOutputs()?['body/resourceData/responseId']"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Criar_item": {
+          "runAfter": {
+            "Obter_os_detalhes_da_resposta": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9632d55a-f748-4eed-9e1a-38a036a3738c"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "PostItem"
+            },
+            "parameters": {
+              "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+              "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+              "item/Title": "@outputs('Obter_os_detalhes_da_resposta')?['body/reafbd63ea5804e68888b4df81eaa9e85']",
+              "item/UNIDADE": "@outputs('Obter_os_detalhes_da_resposta')?['body/r798fd44930ca482ba6461ba161b7d31a']",
+              "item/QNTDLITROS": "@outputs('Obter_os_detalhes_da_resposta')?['body/r870b62e16e05426e861342100dc87931']",
+              "item/EMAILLOJA": "@outputs('Obter_os_detalhes_da_resposta')?['body/r68ded4c159b9459fab1aebbe9a9c0c2e']",
+              "item/STATUS/Value": "SOLICITAÇÃO",
+              "item/DataSolicitacao": "@convertTimeZone(utcNow(),'UTC','SA Western Standard Time')",
+              "item/Confirmado": false,
+              "item/ID_Confirmacao": "@guid()"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Obter_itens": {
+          "runAfter": {
+            "Criar_item": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "c89e3e60-037d-4fba-936d-8de6adf59c63"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "GetItems"
+            },
+            "parameters": {
+              "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+              "table": "3ec5bc26-6dd3-4450-8cae-2333dc0e7093",
+              "viewScopeOption": "Default",
+              "$top": 5000
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Matriz_de_filtro": {
+          "runAfter": {
+            "Obter_itens": [
+              "Succeeded"
+            ]
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@body('Obter_itens')?['value']",
+            "where": "@equals(int(coalesce(item()?['field_3'], 0)), int(coalesce(outputs('Criar_item')?['body/UNIDADE'], '0')))"
+          }
+        },
+        "Condicao_Loja_encontrada": {
+          "runAfter": {
+            "Matriz_de_filtro": [
+              "Succeeded"
+            ]
+          },
+          "type": "If",
+          "expression": {
+            "greater": [
+              "@length(body('Matriz_de_filtro'))",
+              0
+            ]
+          },
+          "actions": {
+            "Condição": {
+              "actions": {
+                "Enviar_email_(V4)": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "7c625317-dbd5-4290-b647-4eaaf1725b5f"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                      "connectionName": "shared_sendgrid",
+                      "operationId": "SendEmailV4"
+                    },
+                    "parameters": {
+                      "request/from": "ordensmanutencao@bemol.com.br",
+                      "request/to": "ordensmanutencao@bemol.com.br",
+                      "request/subject": "Solicita??o Diesel Registrada - @{first(body('Matriz_de_filtro'))?['field_2']} - @{outputs('Criar_item')?['body/QNTDLITROS']}L",
+                      "request/text": "<p><b>Solicita??o de Diesel Registrada</b></p>\n\n<p><b>Unidade:</b> @{first(body('Matriz_de_filtro'))?['field_2']}</p>\n<p><b>Centro:</b> @{first(body('Matriz_de_filtro'))?['field_3']}</p>\n<p><b>Endere?o:</b> @{first(body('Matriz_de_filtro'))?['field_11']}</p>\n<p><b>Neg?cio:</b> @{first(body('Matriz_de_filtro'))?['field_1']}</p>\n<p><b>Quantidade:</b> @{outputs('Criar_item')?['body/QNTDLITROS']} litros</p>\n<p><b>E-mail da unidade:</b> @{outputs('Criar_item')?['body/EMAILLOJA']}</p>\n<p><b>C?digo de confirma??o:</b> @{outputs('Criar_item')?['body/ID_Confirmacao']}</p>\n<p><b>Data:</b> @{formatDateTime(convertTimeZone(utcNow(),'UTC','SA Western Standard Time'),'dd/MM/yyyy HH:mm')}</p>\n<p><b>Status:</b> FARMA - enviado somente para manuten??o.</p>",
+                      "request/cc": "erickpereira@bemol.com.br;anazildosilva@bemol.com.br"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Atualizar_item": {
+                  "runAfter": {
+                    "Enviar_email_(V4)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "7929e9f4-56bd-43ac-a92b-4cc1f5c44f1e"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "connectionName": "shared_sharepointonline",
+                      "operationId": "PatchItem"
+                    },
+                    "parameters": {
+                      "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+                      "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+                      "id": "@outputs('Criar_item')?['body/ID']",
+                      "item/Title": "@outputs('Criar_item')?['body/Title']",
+                      "item/UNIDADE": "@outputs('Criar_item')?['body/UNIDADE']",
+                      "item/QNTDLITROS": "@outputs('Criar_item')?['body/QNTDLITROS']",
+                      "item/EMAILLOJA": "@outputs('Criar_item')?['body/EMAILLOJA']",
+                      "item/STATUS/Value": "Enviado Manutenção",
+                      "item/DataSolicitacao": "@outputs('Criar_item')?['body/DataSolicitacao']",
+                      "item/DataEnvio": "@convertTimeZone(utcNow(),'UTC','SA Western Standard Time')",
+                      "item/DataRecebimento": "@outputs('Criar_item')?['body/DataRecebimento']",
+                      "item/Confirmado": false,
+                      "item/ID_Confirmacao": "@outputs('Criar_item')?['body/ID_Confirmacao']"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {},
+              "else": {
+                "actions": {
+                  "Condição_2": {
+                    "actions": {
+                      "Atualizar_item_2": {
+                        "runAfter": {
+                          "Enviar_email_(V4)_2": [
+                            "Succeeded"
+                          ]
+                        },
+                        "metadata": {
+                          "operationMetadataId": "e5e0c398-e970-456d-b478-4a46e25eecdd"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "connectionName": "shared_sharepointonline",
+                            "operationId": "PatchItem"
+                          },
+                          "parameters": {
+                            "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+                            "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+                            "id": "@outputs('Criar_item')?['body/ID']",
+                            "item/Title": "@outputs('Criar_item')?['body/Title']",
+                            "item/UNIDADE": "@outputs('Criar_item')?['body/UNIDADE']",
+                            "item/QNTDLITROS": "@outputs('Criar_item')?['body/QNTDLITROS']",
+                            "item/EMAILLOJA": "@outputs('Criar_item')?['body/EMAILLOJA']",
+                            "item/STATUS/Value": "Enviado Manutenção",
+                            "item/DataSolicitacao": "@outputs('Criar_item')?['body/DataSolicitacao']",
+                            "item/DataEnvio": "@convertTimeZone(utcNow(), 'UTC', 'SA Western Standard Time')",
+                            "item/DataRecebimento": "@outputs('Criar_item')?['body/DataRecebimento']",
+                            "item/Confirmado": false,
+                            "item/ID_Confirmacao": "@outputs('Criar_item')?['body/ID_Confirmacao']"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Enviar_email_(V4)_2": {
+                        "runAfter": {},
+                        "metadata": {
+                          "operationMetadataId": "07760c7b-3d25-4519-ad69-c1c754db9541"
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                            "connectionName": "shared_sendgrid",
+                            "operationId": "SendEmailV4"
+                          },
+                          "parameters": {
+                            "request/from": "ordensmanutencao@bemol.com.br",
+                            "request/to": "ordensmanutencao@bemol.com.br",
+                            "request/subject": "[Controle] Solicitação Diesel",
+                            "request/text": "<p><b>Solicita??o de Diesel Registrada</b></p>\n\n<p><b>Unidade:</b> @{first(body('Matriz_de_filtro'))?['field_2']}</p>\n<p><b>Centro:</b> @{first(body('Matriz_de_filtro'))?['field_3']}</p>\n<p><b>Endere?o:</b> @{first(body('Matriz_de_filtro'))?['field_11']}</p>\n<p><b>Neg?cio:</b> @{first(body('Matriz_de_filtro'))?['field_1']}</p>\n<p><b>Quantidade:</b> @{outputs('Criar_item')?['body/QNTDLITROS']} litros</p>\n<p><b>E-mail da unidade:</b> @{outputs('Criar_item')?['body/EMAILLOJA']}</p>\n<p><b>C?digo de confirma??o:</b> @{outputs('Criar_item')?['body/ID_Confirmacao']}</p>\n<p><b>Data:</b> @{formatDateTime(convertTimeZone(utcNow(),'UTC','SA Western Standard Time'),'dd/MM/yyyy HH:mm')}</p>\n<p><b>Status:</b> Quantidade menor que 100 litros - enviado somente para manuten??o.</p>",
+                            "request/cc": "erickpereira@bemol.com.br;anazildosilva@bemol.com.br"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    },
+                    "runAfter": {},
+                    "else": {
+                      "actions": {
+                        "Atualizar_item_3": {
+                          "runAfter": {
+                            "Enviar_email_(V4)_5": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "4f71d004-58c2-4891-9df3-be55398105fb"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                              "connectionName": "shared_sharepointonline",
+                              "operationId": "PatchItem"
+                            },
+                            "parameters": {
+                              "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+                              "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+                              "id": "@outputs('Criar_item')?['body/ID']",
+                              "item/Title": "@outputs('Criar_item')?['body/Title']",
+                              "item/UNIDADE": "@outputs('Criar_item')?['body/UNIDADE']",
+                              "item/QNTDLITROS": "@outputs('Criar_item')?['body/QNTDLITROS']",
+                              "item/EMAILLOJA": "@outputs('Criar_item')?['body/EMAILLOJA']",
+                              "item/STATUS/Value": "Enviado Posto",
+                              "item/DataSolicitacao": "@outputs('Criar_item')?['body/DataSolicitacao']",
+                              "item/DataEnvio": "@convertTimeZone(utcNow(), 'UTC', 'SA Western Standard Time')",
+                              "item/DataRecebimento": "@outputs('Criar_item')?['body/DataRecebimento']",
+                              "item/Confirmado": false,
+                              "item/ID_Confirmacao": "@outputs('Criar_item')?['body/ID_Confirmacao']"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Enviar_email_(V4)_5": {
+                          "runAfter": {
+                            "Enviar_email_(V4)_3": [
+                              "Succeeded"
+                            ]
+                          },
+                          "metadata": {
+                            "operationMetadataId": "6734897f-f30f-4389-99da-851a8ceb09f6"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                              "connectionName": "shared_sendgrid",
+                              "operationId": "SendEmailV4"
+                            },
+                            "parameters": {
+                              "request/from": "ordensmanutencao@bemol.com.br",
+                              "request/to": "@outputs('Criar_item')?['body/EMAILLOJA']",
+                              "request/subject": "Abastecimento",
+                              "request/text": "<p><b>Solicita??o de Diesel</b></p>\n\n<p><b>Unidade:</b> @{first(body('Matriz_de_filtro'))?['field_2']}</p>\n<p><b>Centro:</b> @{first(body('Matriz_de_filtro'))?['field_3']}</p>\n<p><b>Quantidade:</b> @{outputs('Criar_item')?['body/QNTDLITROS']} litros</p>\n<p><b>C?digo da solicita??o:</b> @{outputs('Criar_item')?['body/ID_Confirmacao']}</p>\n\n<p>Ap?s o recebimento do diesel, confirme pelo formul?rio abaixo:</p>\n<p><a href=\"https://forms.office.com/r/yh00gV0S8v?origin=lprLink\" target=\"_blank\">Confirmar Recebimento</a></p>\n<p>Informe no formul?rio o c?digo da solicita??o: <b>@{outputs('Criar_item')?['body/ID_Confirmacao']}</b></p>"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        },
+                        "Enviar_email_(V4)_3": {
+                          "runAfter": {},
+                          "metadata": {
+                            "operationMetadataId": "71e71ee7-3103-432b-a504-3244a2e12a73"
+                          },
+                          "type": "OpenApiConnection",
+                          "inputs": {
+                            "host": {
+                              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                              "connectionName": "shared_sendgrid",
+                              "operationId": "SendEmailV4"
+                            },
+                            "parameters": {
+                              "request/from": "ordensmanutencao@bemol.com.br",
+                              "request/to": "adm3@postos3000.com.br",
+                              "request/subject": "Solicitação de Abastecimento de Diesel",
+                              "request/text": "<p><b>Solicita??o de Abastecimento de Diesel</b></p>\n\n<p><b>Unidade:</b> @{first(body('Matriz_de_filtro'))?['field_2']}</p>\n<p><b>Centro:</b> @{first(body('Matriz_de_filtro'))?['field_3']}</p>\n<p><b>Endere?o:</b> @{first(body('Matriz_de_filtro'))?['field_11']}</p>\n<p><b>Neg?cio:</b> @{first(body('Matriz_de_filtro'))?['field_1']}</p>\n<p><b>Quantidade:</b> @{outputs('Criar_item')?['body/QNTDLITROS']} litros</p>\n<p><b>Tipo de Combust?vel:</b> Mar?timo</p>\n<p><b>Solicitante:</b> @{outputs('Obter_os_detalhes_da_resposta')?['body/r989e37f560644bab92cf200c5530b806']}</p>\n<p><b>Telefone:</b> @{outputs('Obter_os_detalhes_da_resposta')?['body/r20007556736c44ff9152c03d83da13c0']}</p>\n\n<p>Favor realizar o abastecimento conforme solicitado.</p>",
+                              "request/cc": "ordensmanutencao@bemol.com.br"
+                            },
+                            "authentication": "@parameters('$authentication')"
+                          }
+                        }
+                      }
+                    },
+                    "expression": {
+                      "less": [
+                        "@int(coalesce(outputs('Criar_item')?['body/QNTDLITROS'],'0'))",
+                        100
+                      ]
+                    },
+                    "metadata": {
+                      "operationMetadataId": "2d66e2fb-7dd0-4983-9fa5-d9fd0700df46"
+                    },
+                    "type": "If"
+                  }
+                }
+              },
+              "expression": {
+                "equals": [
+                  "@toUpper(trim(string(first(body('Matriz_de_filtro'))?['field_1'])))",
+                  "FARMA"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "9033b1d9-c263-4062-a33a-3707feb34565"
+              },
+              "type": "If"
+            }
+          },
+          "else": {
+            "actions": {
+              "Enviar_alerta_loja_nao_encontrada": {
+                "runAfter": {},
+                "type": "OpenApiConnection",
+                "inputs": {
+                  "host": {
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                    "connectionName": "shared_sendgrid",
+                    "operationId": "SendEmailV4"
+                  },
+                  "parameters": {
+                    "request/from": "ordensmanutencao@bemol.com.br",
+                    "request/to": "ordensmanutencao@bemol.com.br",
+                    "request/subject": "ALERTA - Centro n?o localizado na LOJAS - @{outputs('Criar_item')?['body/UNIDADE']}",
+                    "request/text": "<p><b>Centro n?o localizado na lista LOJAS.</b></p><p><b>Centro informado:</b> @{outputs('Criar_item')?['body/UNIDADE']}</p><p><b>Quantidade:</b> @{outputs('Criar_item')?['body/QNTDLITROS']} litros</p><p><b>E-mail informado:</b> @{outputs('Criar_item')?['body/EMAILLOJA']}</p><p>Nenhum e-mail foi enviado para Posto3000 nem para a loja.</p>",
+                    "request/cc": "erickpereira@bemol.com.br;anazildosilva@bemol.com.br"
+                  },
+                  "authentication": "@parameters('$authentication')"
+                }
+              }
+            }
+          }
+        }
+      },
+      "outputs": {}
+    },
+    "connectionReferences": {
+      "shared_microsoftforms": {
+        "connectionName": "shared-microsoftform-144dd506-8820-44d6-876b-0e54a4c3b768",
+        "apiDefinition": {
+          "name": "shared_microsoftforms",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+          "type": "/providers/Microsoft.PowerApps/apis",
+          "properties": {
+            "displayName": "Microsoft Forms",
+            "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/microsoftforms/icon.png",
+            "purpose": "NotSpecified",
+            "connectionParameters": {
+              "token": {
+                "type": "oauthSetting",
+                "oAuthSettings": {
+                  "identityProvider": "aadcertificate",
+                  "clientId": "7ab7862c-4c57-491e-8a45-d52a7e023983",
+                  "scopes": [],
+                  "redirectMode": "GlobalPerConnector",
+                  "redirectUrl": "https://global.consent.azure-apim.net/redirect/microsoftforms",
+                  "properties": {
+                    "IsFirstParty": "True",
+                    "AzureActiveDirectoryResourceId": "https://forms.office.com",
+                    "IsOnbehalfofLoginSupported": true
+                  },
+                  "customParameters": {
+                    "ResourceUri": {
+                      "value": "https://forms.office.com"
+                    },
+                    "LoginUriAAD": {
+                      "value": "https://login.windows.net"
+                    },
+                    "LoginUri": {
+                      "value": "https://login.windows.net"
+                    }
+                  }
+                }
+              }
+            },
+            "scopes": {
+              "will": [],
+              "wont": []
+            },
+            "runtimeUrls": [
+              "https://msmanaged-na.azure-apim.net/apim/microsoftforms"
+            ],
+            "primaryRuntimeUrl": "https://msmanaged-na.azure-apim.net/apim/microsoftforms",
+            "metadata": {
+              "source": "marketplace",
+              "brandColor": "",
+              "useNewApimVersion": "true",
+              "version": {
+                "previous": "v1.0.1769\\1.0.1769.4352",
+                "current": "v1.0.1774\\1.0.1774.4397"
+              }
+            },
+            "capabilities": [
+              "actions",
+              "triggers"
+            ],
+            "tier": "Standard",
+            "isCustomApi": false,
+            "description": "O Microsoft Forms é uma nova parte do Office 365 Education que permite que professores e alunos criem testes, pesquisas, questionários e registros personalizados, e muito mais com rapidez e facilidade.",
+            "createdTime": "2018-03-22T16:46:26.6021501Z",
+            "changedTime": "2025-10-06T18:00:51.9985193Z",
+            "publisher": "Microsoft"
+          }
+        },
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+        "displayName": "Microsoft Forms",
+        "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/microsoftforms/icon.png",
+        "brandColor": "",
+        "tier": "Standard",
+        "apiName": "microsoftforms",
+        "operationDefinitions": {
+          "CreateFormWebhook": {
+            "trigger": "Batch",
+            "triggerHint": "Para ver isso em funcionamento agora, envie uma nova resposta para o formulário selecionado.",
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "form_id": {
+                  "type": "string",
+                  "title": "ID de formulário",
+                  "x-ms-dynamic-list": {
+                    "operationId": "ListForms",
+                    "parameters": {},
+                    "itemValuePath": "id",
+                    "itemTitlePath": "title"
+                  },
+                  "description": "Escolha um formulário.",
+                  "minLength": 1,
+                  "x-ms-visibility": "important",
+                  "x-ms-property-name-alias": "form_id"
+                }
+              },
+              "required": [
+                "form_id"
+              ]
+            },
+            "responsesSchema": {
+              "webhook": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "array",
+                        "title": "Lista de notificações de resposta",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "resourceData": {
+                              "type": "object",
+                              "properties": {
+                                "responseId": {
+                                  "type": "integer",
+                                  "title": "ID da resposta",
+                                  "description": "Identificador exclusivo da resposta. Use com a ação 'Get response details' para buscar o conteúdo da resposta do formulário.",
+                                  "x-ms-property-name-alias": "resourceData/responseId"
+                                }
+                              },
+                              "required": [],
+                              "x-ms-property-name-alias": "resourceData"
+                            }
+                          },
+                          "required": []
+                        },
+                        "x-ms-property-name-alias": "body/value"
+                      }
+                    },
+                    "required": [],
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": false,
+            "isChunkingSupported": false,
+            "description": "Esta operação dispara um fluxo quando uma nova resposta é enviada."
+          },
+          "GetFormResponseById": {
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "form_id": {
+                  "type": "string",
+                  "title": "ID de formulário",
+                  "x-ms-dynamic-list": {
+                    "operationId": "ListForms",
+                    "parameters": {},
+                    "itemValuePath": "id",
+                    "itemTitlePath": "title"
+                  },
+                  "description": "Identificador exclusivo do formulário",
+                  "minLength": 1,
+                  "x-ms-visibility": "important",
+                  "x-ms-property-name-alias": "form_id"
+                },
+                "response_id": {
+                  "type": "integer",
+                  "title": "ID da resposta",
+                  "format": "int32",
+                  "description": "Identificador exclusivo da resposta",
+                  "x-ms-visibility": "important",
+                  "x-ms-property-name-alias": "response_id"
+                }
+              },
+              "required": [
+                "form_id",
+                "response_id"
+              ]
+            },
+            "responsesSchema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "x-ms-dynamic-properties": {
+                      "operationId": "GetQuestions",
+                      "parameters": {
+                        "form_id": {
+                          "parameterReference": "form_id",
+                          "required": true
+                        }
+                      },
+                      "itemValuePath": "Schema"
+                    },
+                    "description": "Detalhes de resposta de formulário",
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": false,
+            "isChunkingSupported": false,
+            "description": "Esta ação recupera uma resposta do formulário"
+          }
+        },
+        "isProcessSimpleApiReferenceConversionAlreadyDone": false
+      },
+      "shared_sharepointonline": {
+        "connectionName": "shared-sharepointonl-9cab5c63-902d-4c99-9ef4-8bfbc53ca118",
+        "apiDefinition": {
+          "name": "shared_sharepointonline",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+          "type": "/providers/Microsoft.PowerApps/apis",
+          "properties": {
+            "displayName": "SharePoint",
+            "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png",
+            "purpose": "NotSpecified",
+            "connectionParameters": {
+              "token": {
+                "type": "oauthSetting",
+                "oAuthSettings": {
+                  "identityProvider": "sharepointonlinecertificateV2",
+                  "clientId": "7ab7862c-4c57-491e-8a45-d52a7e023983",
+                  "scopes": [],
+                  "redirectMode": "GlobalPerConnector",
+                  "redirectUrl": "https://global.consent.azure-apim.net/redirect/sharepointonline",
+                  "properties": {
+                    "IsFirstParty": "True",
+                    "IsOnbehalfofLoginSupported": true
+                  },
+                  "customParameters": {
+                    "ResourceUriAAD": {
+                      "value": "https://graph.microsoft.com/"
+                    },
+                    "loginUri": {
+                      "value": "https://login.windows.net"
+                    },
+                    "LoginUriAAD": {
+                      "value": "https://login.windows.net"
+                    },
+                    "ResourceUri": {
+                      "value": "https://graph.microsoft.com"
+                    }
+                  }
+                },
+                "uiDefinition": {
+                  "displayName": "Fazer Logon com as Credenciais do SharePoint",
+                  "description": "Fazer Logon com as Credenciais do SharePoint",
+                  "tooltip": "Fornecer Credenciais do SharePoint",
+                  "constraints": {
+                    "required": "true",
+                    "capability": [
+                      "cloud"
+                    ]
+                  }
+                }
+              },
+              "token:TenantId": {
+                "type": "string",
+                "metadata": {
+                  "sourceType": "AzureActiveDirectoryTenant"
+                },
+                "uiDefinition": {
+                  "displayName": "Locatário",
+                  "description": "A ID do locatário para o aplicativo Microsoft Entra ID",
+                  "constraints": {
+                    "required": "false",
+                    "hidden": "true"
+                  }
+                }
+              },
+              "gateway": {
+                "type": "gatewaySetting",
+                "gatewaySettings": {
+                  "dataSourceType": "SharePoint",
+                  "connectionDetails": []
+                },
+                "uiDefinition": {
+                  "tabIndex": 1,
+                  "constraints": {
+                    "hidden": "false",
+                    "capability": [
+                      "gateway"
+                    ]
+                  }
+                }
+              },
+              "authType": {
+                "type": "string",
+                "allowedValues": [
+                  {
+                    "value": "windows"
+                  }
+                ],
+                "uiDefinition": {
+                  "displayName": "Tipo de Autenticação",
+                  "description": "Tipo de autenticação para conectar ao seu banco de dados",
+                  "tooltip": "Tipo de autenticação para conectar ao seu banco de dados",
+                  "constraints": {
+                    "tabIndex": 2,
+                    "required": "false",
+                    "allowedValues": [
+                      {
+                        "text": "Windows",
+                        "value": "windows"
+                      }
+                    ],
+                    "capability": [
+                      "gateway"
+                    ]
+                  }
+                }
+              },
+              "username": {
+                "type": "securestring",
+                "uiDefinition": {
+                  "displayName": "Nome de usuário",
+                  "description": "Credencial de nome de usuário",
+                  "tooltip": "Credencial de nome de usuário",
+                  "constraints": {
+                    "tabIndex": 3,
+                    "clearText": true,
+                    "required": "true",
+                    "capability": [
+                      "gateway"
+                    ]
+                  }
+                }
+              },
+              "password": {
+                "type": "securestring",
+                "uiDefinition": {
+                  "displayName": "Senha",
+                  "description": "Credencial de senha",
+                  "tooltip": "Credencial de senha",
+                  "constraints": {
+                    "tabIndex": 4,
+                    "required": "true",
+                    "capability": [
+                      "gateway"
+                    ]
+                  }
+                }
+              }
+            },
+            "scopes": {
+              "will": [
+                "Ler a lista e os nomes de biblioteca, bem como os nomes das colunas",
+                "Criar, ler, atualizar, copiar e excluir arquivos e metadados",
+                "Criar, ler, atualizar e excluir itens de lista"
+              ],
+              "wont": []
+            },
+            "runtimeUrls": [
+              "https://msmanaged-na.azure-apim.net/apim/sharepointonline"
+            ],
+            "primaryRuntimeUrl": "https://msmanaged-na.azure-apim.net/apim/sharepointonline",
+            "metadata": {
+              "source": "marketplace",
+              "brandColor": "",
+              "useNewApimVersion": "true",
+              "version": {
+                "previous": "releases/v1.0.1809\\1.0.1809.4714",
+                "current": "releases/v1.0.1769\\1.0.1769.4361"
+              }
+            },
+            "capabilities": [
+              "tabular",
+              "gateway",
+              "cloud",
+              "federatedKnowledgeSource"
+            ],
+            "tier": "Standard",
+            "isCustomApi": false,
+            "description": "O SharePoint ajuda as organizações no compartilhamento e na colaboração com colegas, parceiros e clientes. Você pode se conectar ao SharePoint Online ou a um farm local do SharePoint 2016 ou 2019 usando o Gateway de Dados Local para gerenciar documentos e itens de lista.",
+            "createdTime": "2016-08-04T19:29:16.6427813Z",
+            "changedTime": "2026-05-13T02:53:53.8106322Z",
+            "publisher": "Microsoft"
+          }
+        },
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "displayName": "SharePoint",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png",
+        "brandColor": "",
+        "tier": "Standard",
+        "apiName": "sharepointonline",
+        "operationDefinitions": {
+          "PostItem": {
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "dataset": {
+                  "type": "string",
+                  "title": "Endereço do Site",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetDataSets",
+                    "parameters": {},
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Exemplo: https://contoso.sharepoint.com/sites/sitename",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "dataset"
+                },
+                "table": {
+                  "type": "string",
+                  "title": "Nome da Lista",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTables",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      }
+                    },
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Nome de lista do SharePoint",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "table"
+                },
+                "item": {
+                  "type": "object",
+                  "title": "Item",
+                  "x-ms-dynamic-properties": {
+                    "operationId": "GetTable",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      },
+                      "table": {
+                        "parameterReference": "table",
+                        "required": true
+                      },
+                      "view": {
+                        "parameterReference": "view",
+                        "required": false
+                      }
+                    },
+                    "itemValuePath": "Schema/Items"
+                  },
+                  "description": "Item para criar",
+                  "x-ms-property-name-alias": "item"
+                },
+                "view": {
+                  "type": "string",
+                  "title": "Limitar Colunas por Modo de Exibição",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTableViews",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      },
+                      "table": {
+                        "parameterReference": "table",
+                        "required": true
+                      }
+                    },
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Evite problemas de limite de coluna usando somente colunas definidas em um modo de exibição",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "view"
+                }
+              },
+              "required": [
+                "dataset",
+                "item",
+                "table"
+              ]
+            },
+            "responsesSchema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "x-ms-dynamic-properties": {
+                      "operationId": "GetTable",
+                      "parameters": {
+                        "dataset": {
+                          "parameterReference": "dataset",
+                          "required": true
+                        },
+                        "table": {
+                          "parameterReference": "table",
+                          "required": true
+                        },
+                        "view": {
+                          "parameterReference": "view",
+                          "required": false
+                        }
+                      },
+                      "itemValuePath": "Schema/Items"
+                    },
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": false,
+            "isChunkingSupported": false,
+            "description": "Cria um novo item em uma lista do SharePoint."
+          },
+          "GetItems": {
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "dataset": {
+                  "type": "string",
+                  "title": "Endereço do Site",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetDataSets",
+                    "parameters": {},
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Exemplo: https://contoso.sharepoint.com/sites/sitename",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "dataset"
+                },
+                "table": {
+                  "type": "string",
+                  "title": "Nome da Lista",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTables",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      }
+                    },
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Nome de lista do SharePoint",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "table"
+                },
+                "$filter": {
+                  "type": "string",
+                  "title": "Consulta de Filtro",
+                  "description": "Uma consulta de filtro do ODATA para restringir as entradas foi retornada (ex.: stringColumn eq 'string' OR numberColumn lt 123).",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "$filter"
+                },
+                "$orderby": {
+                  "type": "string",
+                  "title": "Ordenar Por",
+                  "description": "Uma consulta orderBy ODATA para especificar a ordem das entradas.",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "$orderby"
+                },
+                "$top": {
+                  "type": "integer",
+                  "title": "Contagem Superior",
+                  "format": "int32",
+                  "description": "Número total de entradas a serem recuperadas (padrão = todas).",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "$top"
+                },
+                "folderPath": {
+                  "type": "string",
+                  "title": "Limitar as Entradas na Pasta",
+                  "x-ms-dynamic-tree": {
+                    "settings": {
+                      "canSelectParentNodes": true,
+                      "canSelectLeafNodes": false
+                    },
+                    "open": {
+                      "operationId": "ListAllRootFolders",
+                      "parameters": {
+                        "dataset": {
+                          "parameterReference": "dataset",
+                          "required": true
+                        }
+                      },
+                      "itemValuePath": "Path",
+                      "itemTitlePath": "DisplayName",
+                      "itemFullTitlePath": "Path",
+                      "itemIsParent": "(IsFolder eq true)"
+                    },
+                    "browse": {
+                      "operationId": "ListFolder",
+                      "parameters": {
+                        "dataset": {
+                          "parameterReference": "dataset",
+                          "required": true
+                        },
+                        "id": {
+                          "selectedItemValuePath": "Id"
+                        }
+                      },
+                      "itemValuePath": "Path",
+                      "itemTitlePath": "DisplayName",
+                      "itemFullTitlePath": "Path",
+                      "itemIsParent": "(IsFolder eq true)"
+                    }
+                  },
+                  "description": "Selecione uma pasta ou deixe em branco para a considerar a lista inteira",
+                  "x-ms-property-name-alias": "folderPath"
+                },
+                "viewScopeOption": {
+                  "type": "string",
+                  "title": "Incluir Itens Aninhados",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetViewScopeOptions",
+                    "parameters": {},
+                    "itemValuePath": "value",
+                    "itemTitlePath": "name"
+                  },
+                  "description": "Retornar as entradas contidas em subpastas (padrão = true)",
+                  "x-ms-property-name-alias": "viewScopeOption"
+                },
+                "view": {
+                  "type": "string",
+                  "title": "Limitar as Colunas por Exibição",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTableViews",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      },
+                      "table": {
+                        "parameterReference": "table",
+                        "required": true
+                      }
+                    },
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Evite problemas de limite de coluna usando somente colunas definidas em uma exibição",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "view"
+                }
+              },
+              "required": [
+                "dataset",
+                "table"
+              ]
+            },
+            "responsesSchema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "properties": {
+                      "value": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "x-ms-dynamic-properties": {
+                            "operationId": "GetTable",
+                            "parameters": {
+                              "dataset": {
+                                "parameterReference": "dataset",
+                                "required": true
+                              },
+                              "table": {
+                                "parameterReference": "table",
+                                "required": true
+                              },
+                              "view": {
+                                "parameterReference": "view",
+                                "required": false
+                              }
+                            },
+                            "itemValuePath": "Schema/Items"
+                          },
+                          "description": "Entidade do item da tabela"
+                        },
+                        "description": "Lista de Itens",
+                        "x-ms-property-name-alias": "body/value"
+                      }
+                    },
+                    "required": [],
+                    "description": "Lista de Itens",
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": true,
+            "isChunkingSupported": false,
+            "description": "Obtém os itens de uma lista do SharePoint."
+          },
+          "PatchItem": {
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "dataset": {
+                  "type": "string",
+                  "title": "Endereço do Site",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetDataSets",
+                    "parameters": {},
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Exemplo: https://contoso.sharepoint.com/sites/sitename",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "dataset"
+                },
+                "table": {
+                  "type": "string",
+                  "title": "Nome da Lista",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTables",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      }
+                    },
+                    "itemsPath": "value",
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Nome de lista do SharePoint",
+                  "minLength": 1,
+                  "x-ms-property-name-alias": "table"
+                },
+                "id": {
+                  "type": "integer",
+                  "title": "ID",
+                  "format": "int64",
+                  "description": "Identificador exclusivo do item a ser atualizado",
+                  "x-ms-property-name-alias": "id"
+                },
+                "item": {
+                  "type": "object",
+                  "title": "Item",
+                  "x-ms-dynamic-properties": {
+                    "operationId": "GetTable",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      },
+                      "table": {
+                        "parameterReference": "table",
+                        "required": true
+                      },
+                      "view": {
+                        "parameterReference": "view",
+                        "required": false
+                      }
+                    },
+                    "itemValuePath": "Schema/Items"
+                  },
+                  "description": "Item com propriedades alteradas",
+                  "x-ms-property-name-alias": "item"
+                },
+                "view": {
+                  "type": "string",
+                  "title": "Limitar Colunas por Modo de Exibição",
+                  "x-ms-dynamic-list": {
+                    "operationId": "GetTableViews",
+                    "parameters": {
+                      "dataset": {
+                        "parameterReference": "dataset",
+                        "required": true
+                      },
+                      "table": {
+                        "parameterReference": "table",
+                        "required": true
+                      }
+                    },
+                    "itemValuePath": "Name",
+                    "itemTitlePath": "DisplayName"
+                  },
+                  "description": "Evite problemas de limite de coluna usando somente colunas definidas em um modo de exibição",
+                  "x-ms-visibility": "advanced",
+                  "x-ms-property-name-alias": "view"
+                }
+              },
+              "required": [
+                "dataset",
+                "id",
+                "item",
+                "table"
+              ]
+            },
+            "responsesSchema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "x-ms-dynamic-properties": {
+                      "operationId": "GetTable",
+                      "parameters": {
+                        "dataset": {
+                          "parameterReference": "dataset",
+                          "required": true
+                        },
+                        "table": {
+                          "parameterReference": "table",
+                          "required": true
+                        },
+                        "view": {
+                          "parameterReference": "view",
+                          "required": false
+                        }
+                      },
+                      "itemValuePath": "Schema/Items"
+                    },
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": false,
+            "isChunkingSupported": false,
+            "description": "Atualiza um item em uma lista do SharePoint."
+          }
+        },
+        "isProcessSimpleApiReferenceConversionAlreadyDone": false
+      },
+      "shared_sendgrid": {
+        "connectionName": "shared-sendgrid-7d3bed2f-e90a-4345-9dcb-52b8e6ca061e",
+        "apiDefinition": {
+          "name": "shared_sendgrid",
+          "id": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+          "type": "/providers/Microsoft.PowerApps/apis",
+          "properties": {
+            "displayName": "SendGrid",
+            "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1778/1.0.1778.4420/sendgrid/icon.png",
+            "purpose": "NotSpecified",
+            "connectionParameters": {
+              "ApiKey": {
+                "type": "securestring",
+                "uiDefinition": {
+                  "displayName": "Chave de Api do SendGrid",
+                  "description": "Chave de Api do SendGrid",
+                  "tooltip": "Fornecer sua Chave de Api do SendGrid",
+                  "constraints": {
+                    "required": "true"
+                  }
+                }
+              }
+            },
+            "scopes": {
+              "will": [],
+              "wont": []
+            },
+            "runtimeUrls": [
+              "https://msmanaged-na.azure-apim.net/apim/sendgrid"
+            ],
+            "primaryRuntimeUrl": "https://msmanaged-na.azure-apim.net/apim/sendgrid",
+            "metadata": {
+              "source": "marketplace",
+              "brandColor": "#34455F",
+              "allowSharing": true,
+              "useNewApimVersion": "true",
+              "version": {
+                "previous": "releases/v1.0.1777\\1.0.1777.4410",
+                "current": "releases/v1.0.1778\\1.0.1778.4420"
+              }
+            },
+            "capabilities": [
+              "actions"
+            ],
+            "tier": "Standard",
+            "isCustomApi": false,
+            "description": "O provedor de conexão SendGrid permite que você envie emails e gerencie listas de destinatários.",
+            "createdTime": "2016-09-16T20:01:34.0412656Z",
+            "changedTime": "2025-10-24T02:43:18.5980687Z",
+            "publisher": "Microsoft"
+          }
+        },
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+        "displayName": "SendGrid",
+        "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1778/1.0.1778.4420/sendgrid/icon.png",
+        "brandColor": "#34455F",
+        "tier": "Standard",
+        "apiName": "sendgrid",
+        "operationDefinitions": {
+          "SendEmailV4": {
+            "inputsSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "title": "Email a ser enviado (V5)",
+                  "properties": {
+                    "attachments": {
+                      "type": "array",
+                      "title": "Anexo",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "content": {
+                            "type": "string",
+                            "title": "Conteúdo",
+                            "format": "byte",
+                            "description": "Conteúdo do arquivo de anexo",
+                            "x-ms-visibility": "advanced",
+                            "x-ms-property-name-alias": "content"
+                          },
+                          "filename": {
+                            "type": "string",
+                            "title": "Nome",
+                            "description": "Nome do arquivo de anexo",
+                            "x-ms-visibility": "advanced",
+                            "x-ms-property-name-alias": "filename"
+                          },
+                          "contenttype": {
+                            "type": "string",
+                            "title": "ContentType",
+                            "description": "Tipo de conteúdo no anexo.",
+                            "x-ms-visibility": "advanced",
+                            "x-ms-property-name-alias": "contenttype"
+                          }
+                        },
+                        "required": [],
+                        "description": "Anexo"
+                      },
+                      "description": "Anexos",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/attachments"
+                    },
+                    "from": {
+                      "type": "string",
+                      "title": "De",
+                      "format": "email",
+                      "description": "Endereço de origem do email. Deve ser um endereço de email válido de seu domínio",
+                      "x-ms-property-name-alias": "request/from"
+                    },
+                    "fromname": {
+                      "type": "string",
+                      "title": "Nome do remetente",
+                      "description": "Nome de origem do email",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/fromname"
+                    },
+                    "to": {
+                      "type": "string",
+                      "title": "Para",
+                      "format": "email",
+                      "description": "Endereços de email válidos, separados por uma vírgula ou ponto e vírgula",
+                      "x-ms-property-name-alias": "request/to"
+                    },
+                    "toname": {
+                      "type": "string",
+                      "title": "Nomes no campo Para",
+                      "description": "Um nome de exibição para cada endereço de email separado por uma vírgula ou ponto e vírgula",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/toname"
+                    },
+                    "subject": {
+                      "type": "string",
+                      "title": "Assunto",
+                      "description": "Assunto do email",
+                      "x-ms-property-name-alias": "request/subject"
+                    },
+                    "text": {
+                      "type": "string",
+                      "title": "Corpo do email",
+                      "format": "html",
+                      "description": "Conteúdo do email",
+                      "x-ms-property-name-alias": "request/text"
+                    },
+                    "cc": {
+                      "type": "string",
+                      "title": "CC",
+                      "format": "email",
+                      "description": "Endereços de email válidos, separados por uma vírgula ou ponto e vírgula",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/cc"
+                    },
+                    "ccname": {
+                      "type": "string",
+                      "title": "Nomes de CC",
+                      "description": "Um nome de exibição para cada endereço de email em CC, separados por uma vírgula ou ponto e vírgula",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/ccname"
+                    },
+                    "bcc": {
+                      "type": "string",
+                      "title": "Bcc",
+                      "format": "email",
+                      "description": "Endereços de email válidos, separados por uma vírgula ou ponto e vírgula",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/bcc"
+                    },
+                    "bccname": {
+                      "type": "string",
+                      "title": "Nomes de CCO",
+                      "description": "Um nome de exibição para cada endereço de email de CCO separado por uma vírgula ou ponto e vírgula",
+                      "x-ms-visibility": "advanced",
+                      "x-ms-property-name-alias": "request/bccname"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "subject",
+                    "text",
+                    "to"
+                  ],
+                  "description": "A mensagem de email a ser enviada.",
+                  "x-ms-property-name-alias": "request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "responsesSchema": {
+              "200": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "x-ms-property-name-alias": "body"
+                  }
+                }
+              }
+            },
+            "pageable": false,
+            "isChunkingSupported": false,
+            "description": "Envia um email (V4). Limitado a 1000 destinatários."
+          }
+        },
+        "isProcessSimpleApiReferenceConversionAlreadyDone": false
+      }
+    },
+    "state": "Started"
+  }
+}

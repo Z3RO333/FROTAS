@@ -1,0 +1,372 @@
+{
+    "name":  "9e2dafbd-172c-4b19-809f-1bc49fbcb04c",
+    "id":  "/providers/Microsoft.Flow/environments/Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec/flows/9e2dafbd-172c-4b19-809f-1bc49fbcb04c",
+    "type":  "Microsoft.Flow/environments/flows",
+    "properties":  {
+                       "apiId":  "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+                       "displayName":  "POSTO3000",
+                       "userType":  "Owner",
+                       "definition":  {
+                                          "$schema":  "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                                          "contentVersion":  "1.0.0.0",
+                                          "parameters":  {
+                                                             "$connections":  {
+                                                                                  "defaultValue":  {
+
+                                                                                                   },
+                                                                                  "type":  "Object"
+                                                                              },
+                                                             "$authentication":  {
+                                                                                     "defaultValue":  {
+
+                                                                                                      },
+                                                                                     "type":  "SecureObject"
+                                                                                 }
+                                                         },
+                                          "triggers":  {
+                                                           "Quando_uma_nova_resposta_é_enviada":  {
+                                                                                                      "splitOn":  "@triggerOutputs()?[\u0027body/value\u0027]",
+                                                                                                      "metadata":  {
+                                                                                                                       "operationMetadataId":  "c3f43af6-701f-4231-80c4-3cb30dd2d6f0"
+                                                                                                                   },
+                                                                                                      "type":  "OpenApiConnectionWebhook",
+                                                                                                      "inputs":  {
+                                                                                                                     "host":  "@{apiId=/providers/Microsoft.PowerApps/apis/shared_microsoftforms; connectionName=shared_microsoftforms; operationId=CreateFormWebhook}",
+                                                                                                                     "parameters":  "@{form_id=5ZEP8QX5qkiMTKaNCuX27KxI9Qp3QHtEq5Qs5sJYmR1UQzk2MVZSRUdNRUcwSEMxVzlTMTFIVkU2VC4u}",
+                                                                                                                     "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                                 }
+                                                                                                  }
+                                                       },
+                                          "actions":  {
+                                                          "Obter_os_detalhes_da_resposta":  {
+                                                                                                "runAfter":  {
+
+                                                                                                             },
+                                                                                                "metadata":  {
+                                                                                                                 "operationMetadataId":  "68dd1b6e-0366-4ab1-b7c1-de2d2d12e99a"
+                                                                                                             },
+                                                                                                "type":  "OpenApiConnection",
+                                                                                                "inputs":  {
+                                                                                                               "host":  "@{apiId=/providers/Microsoft.PowerApps/apis/shared_microsoftforms; connectionName=shared_microsoftforms; operationId=GetFormResponseById}",
+                                                                                                               "parameters":  "@{form_id=5ZEP8QX5qkiMTKaNCuX27KxI9Qp3QHtEq5Qs5sJYmR1UQzk2MVZSRUdNRUcwSEMxVzlTMTFIVkU2VC4u; response_id=@triggerOutputs()?[\u0027body/resourceData/responseId\u0027]}",
+                                                                                                               "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                                           }
+                                                                                            },
+                                                          "Criar_item":  {
+                                                                             "runAfter":  {
+                                                                                              "Obter_os_detalhes_da_resposta":  "Succeeded"
+                                                                                          },
+                                                                             "metadata":  {
+                                                                                              "operationMetadataId":  "9632d55a-f748-4eed-9e1a-38a036a3738c"
+                                                                                          },
+                                                                             "type":  "OpenApiConnection",
+                                                                             "inputs":  {
+                                                                                            "host":  "@{apiId=/providers/Microsoft.PowerApps/apis/shared_sharepointonline; connectionName=shared_sharepointonline; operationId=PostItem}",
+                                                                                            "parameters":  "@{dataset=https://bemol.sharepoint.com/sites/Manuteno145; table=b8b64d69-c2e8-4775-9451-f1291728e2de; item/Title=@outputs(\u0027Obter_os_detalhes_da_resposta\u0027)?[\u0027body/reafbd63ea5804e68888b4df81eaa9e85\u0027]; item/UNIDADE=@outputs(\u0027Obter_os_detalhes_da_resposta\u0027)?[\u0027body/r798fd44930ca482ba6461ba161b7d31a\u0027]; item/QNTDLITROS=@outputs(\u0027Obter_os_detalhes_da_resposta\u0027)?[\u0027body/r870b62e16e05426e861342100dc87931\u0027]; item/EMAILLOJA=@outputs(\u0027Obter_os_detalhes_da_resposta\u0027)?[\u0027body/r68ded4c159b9459fab1aebbe9a9c0c2e\u0027]; item/STATUS/Value=SOLICITAÇÃO; item/DataSolicitacao=@convertTimeZone(utcNow(),\u0027UTC\u0027,\u0027SA Western Standard Time\u0027); item/Confirmado=False; item/ID_Confirmacao=@guid()}",
+                                                                                            "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                        }
+                                                                         },
+                                                          "Condição":  {
+                                                                           "actions":  {
+                                                                                           "Enviar_email_(V4)":  "@{runAfter=; metadata=; type=OpenApiConnection; inputs=}",
+                                                                                           "Atualizar_item":  "@{runAfter=; metadata=; type=OpenApiConnection; inputs=}",
+                                                                                           "Enviar_email_(V4)_6":  "@{runAfter=; metadata=; type=OpenApiConnection; inputs=}"
+                                                                                       },
+                                                                           "runAfter":  {
+                                                                                            "Obter_itens":  "Succeeded"
+                                                                                        },
+                                                                           "else":  {
+                                                                                        "actions":  "@{Condição_2=}"
+                                                                                    },
+                                                                           "expression":  {
+                                                                                              "equals":  "@outputs(\u0027Criar_item\u0027)?[\u0027body/Title\u0027] FARMA"
+                                                                                          },
+                                                                           "metadata":  {
+                                                                                            "operationMetadataId":  "9033b1d9-c263-4062-a33a-3707feb34565"
+                                                                                        },
+                                                                           "type":  "If"
+                                                                       },
+                                                          "Obter_itens":  {
+                                                                              "runAfter":  {
+                                                                                               "Criar_item":  "Succeeded"
+                                                                                           },
+                                                                              "metadata":  {
+                                                                                               "operationMetadataId":  "c89e3e60-037d-4fba-936d-8de6adf59c63"
+                                                                                           },
+                                                                              "type":  "OpenApiConnection",
+                                                                              "inputs":  {
+                                                                                             "host":  "@{apiId=/providers/Microsoft.PowerApps/apis/shared_sharepointonline; connectionName=shared_sharepointonline; operationId=GetItems}",
+                                                                                             "parameters":  "@{dataset=https://bemol.sharepoint.com/sites/Manuteno145; table=3ec5bc26-6dd3-4450-8cae-2333dc0e7093; viewScopeOption=Default; $filter=centro eq \u0027@{outputs(\u0027Criar_item\u0027)?[\u0027body/CENTRO\u0027]}\u0027}",
+                                                                                             "authentication":  "@parameters(\u0027$authentication\u0027)"
+                                                                                         }
+                                                                          }
+                                                      },
+                                          "outputs":  {
+
+                                                      }
+                                      },
+                       "state":  "Started",
+                       "connectionReferences":  {
+                                                    "shared_microsoftforms":  {
+                                                                                  "connectionName":  "shared-microsoftform-144dd506-8820-44d6-876b-0e54a4c3b768",
+                                                                                  "source":  "Embedded",
+                                                                                  "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftforms",
+                                                                                  "displayName":  "Microsoft Forms",
+                                                                                  "iconUri":  "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/microsoftforms/icon.png",
+                                                                                  "brandColor":  "",
+                                                                                  "tier":  "Standard",
+                                                                                  "apiName":  "microsoftforms",
+                                                                                  "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                                                              },
+                                                    "shared_sharepointonline":  {
+                                                                                    "connectionName":  "shared-sharepointonl-9cab5c63-902d-4c99-9ef4-8bfbc53ca118",
+                                                                                    "source":  "Embedded",
+                                                                                    "id":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                                                                                    "displayName":  "SharePoint",
+                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png",
+                                                                                    "brandColor":  "",
+                                                                                    "tier":  "Standard",
+                                                                                    "apiName":  "sharepointonline",
+                                                                                    "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                                                                },
+                                                    "shared_sendgrid":  {
+                                                                            "connectionName":  "shared-sendgrid-7d3bed2f-e90a-4345-9dcb-52b8e6ca061e",
+                                                                            "source":  "Embedded",
+                                                                            "id":  "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                                                                            "displayName":  "SendGrid",
+                                                                            "iconUri":  "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1778/1.0.1778.4420/sendgrid/icon.png",
+                                                                            "brandColor":  "#34455F",
+                                                                            "tier":  "Standard",
+                                                                            "apiName":  "sendgrid",
+                                                                            "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                                                        }
+                                                },
+                       "createdTime":  "2026-03-20T14:51:25.7733117Z",
+                       "lastModifiedTime":  "2026-05-13T23:07:36.2361748Z",
+                       "flowSuspensionReason":  "None",
+                       "environment":  {
+                                           "name":  "Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec",
+                                           "type":  "Microsoft.Flow/environments",
+                                           "id":  "/providers/Microsoft.Flow/environments/Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec"
+                                       },
+                       "definitionSummary":  {
+                                                 "triggers":  [
+                                                                  {
+                                                                      "type":  "OpenApiConnectionWebhook",
+                                                                      "swaggerOperationId":  "CreateFormWebhook",
+                                                                      "metadata":  {
+                                                                                       "operationMetadataId":  "c3f43af6-701f-4231-80c4-3cb30dd2d6f0"
+                                                                                   }
+                                                                  }
+                                                              ],
+                                                 "actions":  [
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "GetFormResponseById",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "68dd1b6e-0366-4ab1-b7c1-de2d2d12e99a"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "PostItem",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "9632d55a-f748-4eed-9e1a-38a036a3738c"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "If",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "9033b1d9-c263-4062-a33a-3707feb34565"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "GetItems",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "c89e3e60-037d-4fba-936d-8de6adf59c63"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "7c625317-dbd5-4290-b647-4eaaf1725b5f"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "PatchItem",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "7929e9f4-56bd-43ac-a92b-4cc1f5c44f1e"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "43229b98-515d-4567-9da8-effe4e6c717d"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "If",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "2d66e2fb-7dd0-4983-9fa5-d9fd0700df46"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "PatchItem",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "e5e0c398-e970-456d-b478-4a46e25eecdd"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "b8626a82-0ee3-48b0-88f2-20baf9bf939e"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "07760c7b-3d25-4519-ad69-c1c754db9541"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "PatchItem",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "4f71d004-58c2-4891-9df3-be55398105fb"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "6734897f-f30f-4389-99da-851a8ceb09f6"
+                                                                                  }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "SendEmailV4",
+                                                                     "metadata":  {
+                                                                                      "operationMetadataId":  "71e71ee7-3103-432b-a504-3244a2e12a73"
+                                                                                  }
+                                                                 }
+                                                             ]
+                                             },
+                       "creator":  {
+                                       "tenantId":  "f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec",
+                                       "objectId":  "0af548ac-4077-447b-ab94-2ce6c258991d",
+                                       "userId":  "0af548ac-4077-447b-ab94-2ce6c258991d",
+                                       "userType":  "ActiveDirectory"
+                                   },
+                       "installationStatus":  "NotApplicable",
+                       "provisioningMethod":  "FromDefinition",
+                       "flowFailureAlertSubscribed":  true,
+                       "referencedResources":  [
+                                                   {
+                                                       "service":  "sharepoint",
+                                                       "resource":  {
+                                                                        "site":  "https://bemol.sharepoint.com/sites/Manuteno145",
+                                                                        "list":  "b8b64d69-c2e8-4775-9451-f1291728e2de"
+                                                                    },
+                                                       "referencers":  [
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PostItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PostItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           }
+                                                                       ]
+                                                   },
+                                                   {
+                                                       "service":  "sharepoint",
+                                                       "resource":  {
+                                                                        "site":  "https://bemol.sharepoint.com/sites/Manuteno145",
+                                                                        "list":  "3ec5bc26-6dd3-4450-8cae-2333dc0e7093"
+                                                                    },
+                                                       "referencers":  [
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/GetItems"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/GetItems"
+                                                                           }
+                                                                       ]
+                                                   },
+                                                   {
+                                                       "service":  "sharepoint",
+                                                       "resource":  {
+                                                                        "site":  "https://bemol.sharepoint.com/sites/Manuteno145"
+                                                                    },
+                                                       "referencers":  [
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PostItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/GetItems"
+                                                                           }
+                                                                       ]
+                                                   },
+                                                   {
+                                                       "service":  "sharepoint",
+                                                       "resource":  {
+                                                                        "site":  "https://bemol.sharepoint.com/sites/Manuteno145",
+                                                                        "fileId":  "@outputs(\u0027Criar_item\u0027)?[\u0027body/ID\u0027]"
+                                                                    },
+                                                       "referencers":  [
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           },
+                                                                           {
+                                                                               "referenceSourceType":  "Actions",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline/apiOperations/PatchItem"
+                                                                           }
+                                                                       ]
+                                                   }
+                                               ],
+                       "isManaged":  false,
+                       "machineDescriptionData":  {
+
+                                                  }
+                   }
+}
