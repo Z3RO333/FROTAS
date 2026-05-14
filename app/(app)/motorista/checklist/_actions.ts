@@ -83,9 +83,9 @@ export async function enviarChecklistMotoristaAction(
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
 
-    const fotoKm = validateImage(fileFromForm(formData.get("foto_km")), "Foto do hodometro");
+    const fotoKm = validateImage(fileFromForm(formData.get("foto_km")), "Foto do hodômetro");
     if (!fotoKm) {
-      throw new Error("A foto do hodometro e obrigatoria para comprovar o KM.");
+      throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
     }
 
     const leituraKm = await analyzeOdometerImage(fotoKm);
@@ -94,27 +94,35 @@ export async function enviarChecklistMotoristaAction(
       (leituraKm.leitura_segura && leituraKm.km_lido != null ? leituraKm.km_lido : null);
 
     if (kmInformado == null) {
-      throw new Error("Nao conseguimos ler a quilometragem com seguranca. Digite o KM manualmente.");
+      throw new Error("Não conseguimos ler a quilometragem com segurança. Digite o KM manualmente.");
     }
 
     const tipoCombustivelRaw = optionalText(formData.get("tipo_combustivel"));
     const tipoCombustivel = TipoCombustivelSchema.parse(tipoCombustivelRaw ?? undefined) ?? null;
     const litrosCombustivel = optionalDecimal(formData.get("litros_combustivel"));
     const litrosArla = optionalDecimal(formData.get("litros_arla"));
+    const nivelCombustivelRaw = optionalInteger(formData.get("nivel_combustivel"));
+    const nivelArlaRaw = optionalInteger(formData.get("nivel_arla"));
+    const nivelCombustivel =
+      nivelCombustivelRaw != null && nivelCombustivelRaw >= 0 && nivelCombustivelRaw <= 4
+        ? nivelCombustivelRaw
+        : null;
+    const nivelArla =
+      nivelArlaRaw != null && nivelArlaRaw >= 0 && nivelArlaRaw <= 4 ? nivelArlaRaw : null;
     const fotoComprovante = validateImage(
       fileFromForm(formData.get("foto_comprovante")),
       "Foto do comprovante"
     );
 
     const frota = await getFrota(frotaId);
-    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponivel para checklist.");
+    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
 
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
       throw new Error(
         kmValidation.reason === "MENOR_QUE_ULTIMO"
-          ? "O KM informado e menor que o ultimo registrado. Informe uma justificativa."
-          : "A variacao de KM esta incomum. Informe uma justificativa."
+          ? "O KM informado é menor que o último registrado. Informe uma justificativa."
+          : "A variação de KM está incomum. Informe uma justificativa."
       );
     }
 
@@ -134,14 +142,14 @@ export async function enviarChecklistMotoristaAction(
 
     const missingEvidence = itensDraft.find(itemNeedsEvidence);
     if (missingEvidence) {
-      throw new Error(`${missingEvidence.catalogItem.nome}: informe observacao ou anexe foto ao marcar Problema.`);
+      throw new Error(`${missingEvidence.catalogItem.nome}: informe observação ou anexe foto ao marcar Problema.`);
     }
 
     const statusGeral = statusGeralFromItems(itensDraft, observacaoOriginal);
     const observacaoCorrigida = normalizeDriverNote(observacaoOriginal);
     const observacaoComKm =
       kmValidation.diff != null && justificativaKm
-        ? `${observacaoOriginal ?? ""}\nKM: ultimo=${frota.km_atual}; informado=${kmInformado}; diferenca=${kmValidation.diff}; justificativa=${justificativaKm}`.trim()
+        ? `${observacaoOriginal ?? ""}\nKM: último=${frota.km_atual}; informado=${kmInformado}; diferença=${kmValidation.diff}; justificativa=${justificativaKm}`.trim()
         : observacaoOriginal;
     const inspections: Omit<ChecklistImageInspectionInput, "checklist_id">[] = [];
 
@@ -200,6 +208,8 @@ export async function enviarChecklistMotoristaAction(
       tipo_combustivel: tipoCombustivel,
       litros_combustivel: litrosCombustivel,
       litros_arla: litrosArla,
+      nivel_combustivel: nivelCombustivel,
+      nivel_arla: nivelArla,
       foto_comprovante_abastecimento_url: fotoComprovanteUrl,
     });
 
@@ -209,11 +219,11 @@ export async function enviarChecklistMotoristaAction(
         checklist_id: result.checklist_id,
       }))
     ).catch((error) => {
-      console.warn("[vision] falha ao criar fila de inspecao", error);
+      console.warn("[vision] falha ao criar fila de inspeção", error);
     });
   } catch (error) {
     await removeChecklistImages(uploadedPaths).catch((cleanupError) => {
-      console.warn("[checklists] falha ao limpar imagens apos erro", cleanupError);
+      console.warn("[checklists] falha ao limpar imagens após erro", cleanupError);
     });
     return { ok: false, error: getChecklistActionErrorMessage(error) };
   }
@@ -226,7 +236,7 @@ export async function enviarChecklistMotoristaAction(
 }
 
 function getChecklistActionErrorMessage(error: unknown): string {
-  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados invalidos no checklist.";
+  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados inválidos no checklist.";
   if (error instanceof Error) return error.message;
-  return "Nao foi possivel enviar o checklist.";
+  return "Não foi possível enviar o checklist.";
 }

@@ -82,6 +82,35 @@ export async function recordCombustivel(input: {
     .eq("id", input.veiculo_id);
 }
 
+export async function recordArla(input: {
+  veiculo_id: number;
+  checklist_id?: number | null;
+  nivel_relativo: number;
+  origem: string;
+  usuario_id?: string | null;
+}): Promise<void> {
+  const { error } = await supabaseManutencao.from("veiculo_arla_historico").insert({
+    veiculo_id: input.veiculo_id,
+    checklist_id: input.checklist_id ?? null,
+    nivel_relativo: input.nivel_relativo,
+    origem: input.origem,
+    usuario_id: input.usuario_id ?? null,
+  });
+  if (error) {
+    console.warn("[veiculo-arla] falha", error.message);
+    return;
+  }
+
+  await supabaseManutencao
+    .from("veiculos")
+    .update({
+      arla_atual_nivel: input.nivel_relativo,
+      arla_atualizado_em: new Date().toISOString(),
+      arla_origem: input.origem,
+    })
+    .eq("id", input.veiculo_id);
+}
+
 export type ChecklistEventInput = {
   checklist_id: number;
   veiculo_id: number;
@@ -155,6 +184,7 @@ export async function recordChecklistEnviado(input: ChecklistEventInput): Promis
       veiculo_id: input.veiculo_id,
       checklist_id: input.checklist_id,
       litros: input.litros_combustivel,
+      nivel_relativo: input.nivel_combustivel ?? null,
       origem: "checklist_abastecimento",
       usuario_id: input.motorista_id,
     });
@@ -165,7 +195,7 @@ export async function recordChecklistEnviado(input: ChecklistEventInput): Promis
       origem_id: input.checklist_id,
       titulo: `Abastecimento ${input.litros_combustivel} L`,
       severidade: "INFO",
-      payload: { litros: input.litros_combustivel, arla: input.nivel_arla },
+      payload: { litros: input.litros_combustivel, nivel: input.nivel_combustivel },
       usuario_id: input.motorista_id,
     });
   } else if (input.nivel_combustivel != null && input.nivel_combustivel > 0) {
@@ -173,6 +203,16 @@ export async function recordChecklistEnviado(input: ChecklistEventInput): Promis
       veiculo_id: input.veiculo_id,
       checklist_id: input.checklist_id,
       nivel_relativo: input.nivel_combustivel,
+      origem: "checklist_nivel",
+      usuario_id: input.motorista_id,
+    });
+  }
+
+  if (input.nivel_arla != null && input.nivel_arla > 0) {
+    await recordArla({
+      veiculo_id: input.veiculo_id,
+      checklist_id: input.checklist_id,
+      nivel_relativo: input.nivel_arla,
       origem: "checklist_nivel",
       usuario_id: input.motorista_id,
     });

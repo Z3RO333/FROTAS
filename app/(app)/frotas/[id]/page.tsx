@@ -24,6 +24,7 @@ import { KmEvolutionChart } from "@/components/frotas/km-evolution-chart";
 import { UnidadeOperacionalCard } from "@/components/frotas/unidade-operacional-card";
 import { VeiculoTabs } from "@/components/frotas/veiculo-360/tabs";
 import { EventsTimeline } from "@/components/frotas/veiculo-360/events-timeline";
+import { FuelGauge } from "@/components/frotas/veiculo-360/fuel-gauge";
 import { StatusOperacionalBanner } from "@/components/frotas/manutencao/status-banner";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { listAbastecimentosFrota } from "@/lib/repos/abastecimentos";
@@ -94,14 +95,6 @@ export default async function FrotaDetailPage({
   const documentosCompletos = documentosResult.rows.filter((doc) => doc.dut_url && doc.crlv_url).length;
   const pneusTrocados = trocasPneus.reduce((sum, item) => sum + (item.trocas?.length ?? 0), 0);
 
-  const f = frota as typeof frota & {
-    combustivel_atual_litros?: number | null;
-    combustivel_atual_nivel?: number | null;
-    combustivel_atualizado_em?: string | null;
-    combustivel_origem?: string | null;
-  };
-  const combustivelNivel = f.combustivel_atual_nivel ?? null;
-
   const tabs = [
     {
       id: "resumo",
@@ -122,26 +115,13 @@ export default async function FrotaDetailPage({
               manutencao_iniciado_por: frota.manutencao_iniciado_por,
             }}
           />
-          <MetricGrid cols={4}>
+          <MetricGrid cols={3}>
             <MetricCard
               label="KM atual"
               value={formatNumber(frota.km_atual)}
               icon={Gauge}
               severity="INFO"
               hint={frota.km_atualizado_em ? `Atualizado em ${formatDate(frota.km_atualizado_em)}` : "Sem data"}
-            />
-            <MetricCard
-              label="Combustível"
-              value={
-                f.combustivel_atual_litros != null
-                  ? `${formatNumber(f.combustivel_atual_litros)} L`
-                  : combustivelNivel != null
-                    ? `${combustivelNivel}/4`
-                    : "—"
-              }
-              icon={Fuel}
-              severity="NEUTRO"
-              hint={f.combustivel_atualizado_em ? `${f.combustivel_origem ?? "checklist"} · ${formatDate(f.combustivel_atualizado_em)}` : "Sem leitura"}
             />
             <MetricCard
               label="Último checklist"
@@ -164,6 +144,21 @@ export default async function FrotaDetailPage({
               hint={pendenciasAbertas[0]?.item_nome ?? "Sem pendências"}
             />
           </MetricGrid>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FuelGauge
+              label="Nível combustível"
+              nivel={frota.combustivel_atual_nivel}
+              atualizadoEm={frota.combustivel_atualizado_em}
+              origem={frota.combustivel_origem}
+            />
+            <FuelGauge
+              label="Nível arla"
+              nivel={frota.arla_atual_nivel}
+              atualizadoEm={frota.arla_atualizado_em}
+              origem={frota.arla_origem}
+            />
+          </div>
 
           <FrotaInfo frota={frota} />
           <UnidadeOperacionalCard unidade={unidade} />

@@ -113,6 +113,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   return (
     <form action={formAction} className="mx-auto max-w-3xl space-y-5">
       <input type="hidden" name="frota_id" value={frotaId} />
+      <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
+      <input type="hidden" name="nivel_arla" value={nivelArla} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
           key={item.codigo}
