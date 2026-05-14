@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, Gauge, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Eye, Gauge, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -7,6 +7,7 @@ import {
   listAdminChecklists,
   listOpenPendencias,
 } from "@/lib/repos/checklists";
+import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
 import { requireAdminUser } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -14,10 +15,11 @@ export const dynamic = "force-dynamic";
 
 export default async function ChecklistsAdminPage() {
   await requireAdminUser();
-  const [kpis, checklists, pendencias] = await Promise.all([
+  const [kpis, checklists, pendencias, vision] = await Promise.all([
     checklistDashboardKpis(),
     listAdminChecklists(100),
     listOpenPendencias(5),
+    countChecklistImageInspectionsByStatus(),
   ]);
 
   return (
@@ -27,7 +29,7 @@ export default async function ChecklistsAdminPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Checklists de frotas</h1>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <Kpi title="Hoje" value={kpis.total_hoje} icon={<ClipboardCheck className="h-4 w-4" />} />
         <Kpi title="Aprovados" value={kpis.aprovados_hoje} icon={<ShieldCheck className="h-4 w-4" />} />
         <Kpi title="Pendencias" value={kpis.pendentes_hoje} icon={<AlertTriangle className="h-4 w-4" />} />
@@ -35,6 +37,7 @@ export default async function ChecklistsAdminPage() {
         <Link href="/checklists/validacao-km" className="rounded-md focus:outline-none focus:ring-2 focus:ring-ring">
           <Kpi title="Divergencias KM" value={kpis.divergencias_km} icon={<Gauge className="h-4 w-4" />} />
         </Link>
+        <Kpi title="Visao IA na fila" value={vision.queued + vision.processing} icon={<Eye className="h-4 w-4" />} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">

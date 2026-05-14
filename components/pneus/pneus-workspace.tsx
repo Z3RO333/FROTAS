@@ -15,7 +15,15 @@ import {
 } from "@/lib/pneus-layout";
 import type { Veiculo } from "@/lib/repos/manutencao/types";
 
-export function PneusWorkspace({ veiculos, query }: { veiculos: Veiculo[]; query?: string }) {
+export function PneusWorkspace({
+  veiculos,
+  query,
+  ultimaContagemPorFrota = {},
+}: {
+  veiculos: Veiculo[];
+  query?: string;
+  ultimaContagemPorFrota?: Record<string, number>;
+}) {
   const [selectedId, setSelectedId] = useState(() => String(veiculos[0]?.id ?? ""));
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
   const [km, setKm] = useState("");
@@ -27,12 +35,13 @@ export function PneusWorkspace({ veiculos, query }: { veiculos: Veiculo[]; query
     [selectedId, veiculos]
   );
   const layoutType = selected ? getTipoLayoutPneus(selected.qtd_pneus) : null;
+  const ultimaContagem = selected ? ultimaContagemPorFrota[selected.codigo_frota] ?? 0 : 0;
   const selectedDetails = selectedPositions.map((position, index) => {
     const numeroFogo = gerarNumeroFogoSequencial({
       frota: selected?.codigo_frota,
       placa: selected?.placa,
       ano: new Date().getFullYear(),
-      contagem: index + 1,
+      contagem: ultimaContagem + index + 1,
     }).numeroFogo;
     return {
       position,
@@ -234,7 +243,7 @@ export function PneusWorkspace({ veiculos, query }: { veiculos: Veiculo[]; query
             }}
             className="rounded-md border bg-white p-5 shadow-sm"
           >
-            <input type="hidden" name="id_veiculo" value={selected ? String(selected.id) : ""} />
+            <input type="hidden" name="id_veiculo" value={selected?.codigo_frota ?? ""} />
             <input type="hidden" name="posicoes" value={posicoesPayload} />
             <div className="space-y-4">
               <div className="space-y-2">

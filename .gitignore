@@ -2,8 +2,11 @@
 .env.local
 node_modules/
 .next/
+.playwright-mcp/
 out/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 next-env.d.ts
 .vercel
 deploy.zip

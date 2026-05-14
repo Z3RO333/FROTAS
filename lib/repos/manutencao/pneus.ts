@@ -1,6 +1,7 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { Veiculo, ServicoApp, TrocaPneuApp } from "./types";
 import { randomUUID } from "crypto";
+import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 
 export async function listVeiculos(search?: string): Promise<Veiculo[]> {
   let q = supabaseManutencao.from("veiculos").select("*").order("codigo_frota");
@@ -23,6 +24,86 @@ export async function getVeiculo(codigoFrota: string): Promise<Veiculo | null> {
   return (data ?? null) as Veiculo | null;
 }
 
+async function getVeiculoByIdOrCodigo(idOrCodigo: string): Promise<Veiculo | null> {
+  const codigo = String(idOrCodigo ?? "").trim();
+  if (!codigo) return null;
+
+  const { data: byCodigo, error: errCodigo } = await supabaseManutencao
+    .from("veiculos")
+    .select("*")
+    .eq("codigo_frota", codigo)
+    .limit(1)
+    .maybeSingle();
+
+  if (errCodigo) throw new Error(`getVeiculoByIdOrCodigo: ${errCodigo.message}`);
+  if (byCodigo) return byCodigo as Veiculo;
+
+  const id = Number(codigo);
+  if (!Number.isInteger(id) || id <= 0) return null;
+
+  const { data: byId, error: errId } = await supabaseManutencao
+    .from("veiculos")
+    .select("*")
+    .eq("id", id)
+    .limit(1)
+    .maybeSingle();
+
+  if (errId) throw new Error(`getVeiculoByIdOrCodigo: ${errId.message}`);
+  return (byId ?? null) as Veiculo | null;
+}
+
+function normalizePlate(value: string | null | undefined): string {
+  return String(value ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+}
+
+async function getUltimaContagemNumeroFogo(veiculo: Veiculo, digitoAno: string): Promise<number> {
+  const placa = normalizePlate(veiculo.placa);
+  let query = supabaseManutencao
+    .from("numero_fogo")
+    .select("contagem, numero_fogo")
+    .eq("ultimo_digito_ano", digitoAno)
+    .order("contagem", { ascending: false })
+    .order("numero_fogo", { ascending: false })
+    .limit(1);
+
+  if (veiculo.codigo_frota) {
+    query = query.eq("frota", veiculo.codigo_frota);
+  } else if (placa) {
+    query = query.eq("placa", placa);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`getUltimaContagemNumeroFogo: ${error.message}`);
+
+  const contagem = Number(data?.[0]?.contagem ?? 0);
+  return Number.isFinite(contagem) && contagem > 0 ? Math.floor(contagem) : 0;
+}
+
+export async function listUltimaContagemNumeroFogoPorFrota(
+  ano = new Date().getFullYear()
+): Promise<Record<string, number>> {
+  const digitoAno = String(ano).slice(-1);
+  const { data, error } = await supabaseManutencao
+    .from("numero_fogo")
+    .select("frota, contagem")
+    .eq("ultimo_digito_ano", digitoAno)
+    .not("frota", "is", null)
+    .order("contagem", { ascending: false })
+    .limit(5000);
+
+  if (error) throw new Error(`listUltimaContagemNumeroFogoPorFrota: ${error.message}`);
+
+  const result: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const frota = String(row.frota ?? "").trim();
+    const contagem = Number(row.contagem ?? 0);
+    if (frota && result[frota] == null && Number.isFinite(contagem)) {
+      result[frota] = Math.max(0, Math.floor(contagem));
+    }
+  }
+  return result;
+}
+
 export interface TrocaPneuInput {
   id_veiculo: string;
   quilometragem: number;
@@ -33,10 +114,33 @@ export interface TrocaPneuInput {
 }
 
 export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string> {
+  const veiculo = await getVeiculoByIdOrCodigo(input.id_veiculo);
+  if (!veiculo) throw new Error("Veiculo nao encontrado para registrar troca de pneu.");
+
+  const dataServico = new Date();
+  const ano = dataServico.getFullYear();
+  const digitoAno = String(ano).slice(-1);
+  const contagemBase = await getUltimaContagemNumeroFogo(veiculo, digitoAno);
+  const placaNormalizada = normalizePlate(veiculo.placa);
+
+  const posicoes = input.posicoes.map((p, index) => {
+    const gerado = gerarNumeroFogoSequencial({
+      frota: veiculo.codigo_frota,
+      placa: veiculo.placa,
+      ano,
+      contagem: contagemBase + index + 1,
+    });
+    return {
+      posicao: p.posicao,
+      numero_fogo: gerado.numeroFogo,
+      contagem: gerado.contagem,
+    };
+  });
+
   const idServico = randomUUID();
   const { error: errServico } = await supabaseManutencao.from("servicos_app").insert({
     id_servico: idServico,
-    id_veiculo: input.id_veiculo,
+    id_veiculo: veiculo.codigo_frota,
     tipo_servico: "troca_pneu",
     quilometragem: input.quilometragem,
     observacoes: input.observacoes ?? null,
@@ -45,14 +149,37 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
   });
   if (errServico) throw new Error(`registrarTrocaPneu: ${errServico.message}`);
 
-  const trocas = input.posicoes.map((p) => ({
+  const trocas = posicoes.map((p) => ({
     id_servico: idServico,
     posicao: p.posicao,
-    numero_fogo: p.numero_fogo ?? null,
+    numero_fogo: p.numero_fogo,
     quilometragem: input.quilometragem,
   }));
+
   const { error: errTrocas } = await supabaseManutencao.from("trocas_pneus_app").insert(trocas);
-  if (errTrocas) throw new Error(`registrarTrocaPneu trocas: ${errTrocas.message}`);
+  if (errTrocas) {
+    await supabaseManutencao.from("servicos_app").delete().eq("id_servico", idServico);
+    throw new Error(`registrarTrocaPneu trocas: ${errTrocas.message}`);
+  }
+
+  const numerosFogo = posicoes.map((p) => ({
+    numero_fogo: p.numero_fogo,
+    contagem: p.contagem,
+    data: dataServico.toISOString().slice(0, 10),
+    mes: dataServico.getMonth() + 1,
+    placa: placaNormalizada || null,
+    frota: veiculo.codigo_frota,
+    ultimo_digito_ano: digitoAno,
+    qtd_pneus: 1,
+  }));
+
+  const { error: errNumeroFogo } = await supabaseManutencao.from("numero_fogo").insert(numerosFogo);
+  if (errNumeroFogo) {
+    await supabaseManutencao.from("trocas_pneus_app").delete().eq("id_servico", idServico);
+    await supabaseManutencao.from("servicos_app").delete().eq("id_servico", idServico);
+    throw new Error(`registrarTrocaPneu numero_fogo: ${errNumeroFogo.message}`);
+  }
+
   return idServico;
 }
 

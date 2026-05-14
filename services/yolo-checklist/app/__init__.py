@@ -1,0 +1,1 @@
+"""YOLO checklist inspection service."""

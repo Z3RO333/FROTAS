@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { PneusWorkspace } from "@/components/pneus/pneus-workspace";
 import { canAccessManutencao, requireAppUser } from "@/lib/rbac";
-import { listVeiculos } from "@/lib/repos/manutencao/pneus";
+import { listUltimaContagemNumeroFogoPorFrota, listVeiculos } from "@/lib/repos/manutencao/pneus";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,10 @@ export default async function PneusPage({
   if (!canAccessManutencao(user.perfil)) redirect("/");
 
   const sp = await searchParams;
-  const veiculos = await listVeiculos(sp.q);
+  const [veiculos, ultimaContagemPorFrota] = await Promise.all([
+    listVeiculos(sp.q),
+    listUltimaContagemNumeroFogoPorFrota(),
+  ]);
 
-  return <PneusWorkspace veiculos={veiculos} query={sp.q} />;
+  return <PneusWorkspace veiculos={veiculos} query={sp.q} ultimaContagemPorFrota={ultimaContagemPorFrota} />;
 }
