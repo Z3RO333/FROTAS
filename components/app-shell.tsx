@@ -41,6 +41,7 @@ const DOCUMENTOS_NAV: NavItem[] = [{ href: "/documentos", label: "Documentos", i
 
 const PLANEJAMENTO_NAV: NavItem[] = [
   { href: "/planejamento", label: "Visão Geral", icon: "LayoutDashboard" },
+  { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
   { href: "/planejamento/manutencao", label: "Manutenção", icon: "Wrench" },
   { href: "/planejamento/documentos", label: "Documentos", icon: "FileText" },
   { href: "/planejamento/disponibilidade", label: "Disponibilidade", icon: "Gauge" },

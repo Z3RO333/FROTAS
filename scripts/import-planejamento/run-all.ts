@@ -10,6 +10,7 @@ import { runDisponibilidade } from "./06-disponibilidade";
 import { runAlinhamento } from "./07-alinhamento";
 import { runPneus } from "./08-pneus";
 import { runTacografo } from "./09-tacografo";
+import { runFrotasParadas } from "./10-frotas-paradas";
 
 (async () => {
   const batchId = randomUUID();
@@ -26,6 +27,7 @@ import { runTacografo } from "./09-tacografo";
   await runAlinhamento(batchId);
   await runPneus(batchId);
   await runTacografo(batchId);
+  await runFrotasParadas(batchId);
 
   console.log("\n=== CONCLUÍDO ===");
   process.exit(0);

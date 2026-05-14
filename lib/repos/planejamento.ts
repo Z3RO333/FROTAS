@@ -229,3 +229,33 @@ export async function getEstepes(): Promise<EstepeRow[]> {
     .limit(200);
   return (data ?? []) as EstepeRow[];
 }
+
+export type ParadaRow = {
+  id: number;
+  frota_numero: string | null;
+  placa: string | null;
+  descricao_original: string;
+  servicos: string | null;
+  classificacao: string | null;
+  oficina: string | null;
+  proxima_programacao: string | null;
+  inicio_em: string | null;
+  prev_saida: string | null;
+  setor: string | null;
+  status: string | null;
+  ia_texto_corrigido: string | null;
+  ia_classificacao: string | null;
+  ia_criticidade: "BAIXA" | "MEDIA" | "ALTA" | "CRITICA" | null;
+  ia_acao_recomendada: string | null;
+  ia_justificativa: string | null;
+  ia_analisado_em: string | null;
+};
+
+export async function getParadas(): Promise<ParadaRow[]> {
+  const { data } = await supabaseManutencao
+    .from("fact_frotas_paradas")
+    .select("*")
+    .order("ia_criticidade", { nullsFirst: false })
+    .order("id");
+  return (data ?? []) as ParadaRow[];
+}
