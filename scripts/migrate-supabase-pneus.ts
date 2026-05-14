@@ -16,17 +16,45 @@ const destino = createClient(DESTINO_URL, process.env.SUPABASE_MANUTENCAO_SERVIC
 
 const PAGE = 1000;
 
+// Mapeia colunas que precisam ser renomeadas na migração (fonte → destino)
+const COL_RENAME: Record<string, Record<string, string>> = {
+  trocas_pneus_app:   { id_troca: "id_troca" },
+  alinhamentos_app:   { id_alinhamento: "id_alinhamento" },
+  lavagens_app:       { id_lavagem: "id_lavagem" },
+  // numero_fogo: id UUID da fonte vai para id_origem no destino (nosso id é bigserial)
+  numero_fogo:        { id: "id_origem" },
+};
+
+// Colunas a excluir do destino (incompatíveis)
+const COL_EXCLUDE: Record<string, Set<string>> = {
+  numero_fogo: new Set(["id"]),  // nosso id é bigserial, não pode receber UUID
+};
+
 async function migrarTabela(nomeTabela: string, onConflict: string) {
   console.log(`\n→ Migrando ${nomeTabela}...`);
   let offset = 0;
   let total = 0;
   let erros = 0;
 
+  const renameMap = COL_RENAME[nomeTabela] ?? {};
+  const excludeSet = COL_EXCLUDE[nomeTabela] ?? new Set<string>();
+
   while (true) {
     const { data, error } = await origem
       .from(nomeTabela)
       .select("*")
       .range(offset, offset + PAGE - 1);
+
+    // Transformar colunas se necessário
+    const transformed = (data ?? []).map((row) => {
+      const out: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(row)) {
+        if (excludeSet.has(key)) continue;          // excluir coluna incompatível
+        const newKey = renameMap[key] ?? key;        // renomear se mapeado
+        out[newKey] = val;
+      }
+      return out;
+    });
 
     if (error) {
       console.error(`  Erro ao ler ${nomeTabela}: ${error.message}`);
@@ -36,11 +64,11 @@ async function migrarTabela(nomeTabela: string, onConflict: string) {
 
     const { error: errInsert } = await destino
       .from(nomeTabela)
-      .upsert(data, { onConflict });
+      .upsert(transformed, { onConflict });
 
     if (errInsert) {
       console.warn(`  Erro no lote, tentando row-by-row: ${errInsert.message}`);
-      for (const row of data) {
+      for (const row of transformed) {
         const { error: e } = await destino.from(nomeTabela).upsert(row, { onConflict });
         if (e) { console.warn(`  Skip: ${e.message}`); erros++; }
         else total++;
@@ -74,11 +102,11 @@ async function main() {
   // Ordem importa pelas FKs: veiculos primeiro, depois servicos, depois subtabelas
   await migrarTabela("veiculos", "codigo_frota");
   await migrarTabela("servicos_app", "id_servico");
-  await migrarTabela("trocas_pneus_app", "id");
-  await migrarTabela("alinhamentos_app", "id");
-  await migrarTabela("lavagens_app", "id");
+  await migrarTabela("trocas_pneus_app", "id_troca");
+  await migrarTabela("alinhamentos_app", "id_alinhamento");
+  await migrarTabela("lavagens_app", "id_lavagem");
   await migrarTabela("servicos_km_base_app", "id_veiculo,tipo_servico");
-  await migrarTabela("numero_fogo", "id");
+  await migrarTabela("numero_fogo", "id_origem");
   await migrarTabela("equipamentos_app", "id");
   await migrarTabela("equipamentos_preventivas_app", "id");
   await migrarTabela("equipamentos_componentes_app", "id");
