@@ -18,8 +18,10 @@ import {
   List,
   MapPin,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Truck,
+  Users,
   Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,8 +41,10 @@ const NAV_ICONS = {
   List,
   MapPin,
   Settings,
+  ShieldAlert,
   ShoppingCart,
   Truck,
+  Users,
   Wrench,
 } as const;
 

@@ -5,6 +5,7 @@ import {
   canAccessDocumentos,
   canAccessManutencao,
   canAccessOperacao,
+  canManageUsers,
   type PerfilUsuario,
 } from "@/lib/rbac";
 
@@ -12,58 +13,69 @@ type NavItem = { href: string; label: string; icon: NavIconName };
 type NavSection = { title: string; items: NavItem[] };
 
 const COCKPIT_NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: "LayoutDashboard" },
-  { href: "/pendencias", label: "Pendencias", icon: "AlertTriangle" },
-];
-
-const FROTA_NAV: NavItem[] = [
-  { href: "/frotas", label: "Frotas", icon: "List" },
-  { href: "/unidades", label: "Unidades", icon: "Building2" },
-  { href: "/frotas/vendidos", label: "Vendidos", icon: "ShoppingCart" },
-];
-
-const CHECKLIST_NAV: NavItem[] = [
-  { href: "/checklists", label: "Checklists", icon: "ClipboardCheck" },
-  { href: "/checklists/validacao-km", label: "Validar KM", icon: "Gauge" },
-  { href: "/portaria", label: "Portaria", icon: "DoorOpen" },
+  { href: "/", label: "Visão Geral", icon: "LayoutDashboard" },
+  { href: "/planejamento", label: "Radar de Manutenção", icon: "Gauge" },
+  { href: "/pendencias", label: "Alertas", icon: "AlertTriangle" },
   { href: "/relatorios/checklists", label: "Relatórios IA", icon: "BarChart2" },
 ];
 
-const MANUTENCAO_NAV: NavItem[] = [
-  { href: "/pneus", label: "Pneus", icon: "Truck" },
-  { href: "/manutencao", label: "Servicos", icon: "Wrench" },
-  { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
-  { href: "/oficinas", label: "Oficinas", icon: "MapPin" },
+const FROTA_NAV: NavItem[] = [
+  { href: "/frotas", label: "Veículos", icon: "List" },
+  { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
+  { href: "/planejamento/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
+  { href: "/checklists/validacao-km", label: "Quilometragem", icon: "Gauge" },
+  { href: "/frotas/vendidos", label: "Vendidos", icon: "ShoppingCart" },
 ];
 
-const OPERACAO_NAV: NavItem[] = [{ href: "/operacao", label: "Operacao", icon: "Gauge" }];
-const DOCUMENTOS_NAV: NavItem[] = [{ href: "/documentos", label: "Documentos", icon: "FileText" }];
+const OPERACAO_NAV: NavItem[] = [
+  { href: "/checklists", label: "Checklists", icon: "ClipboardCheck" },
+  { href: "/portaria", label: "Portaria", icon: "DoorOpen" },
+  { href: "/operacao", label: "Operação", icon: "Gauge" },
+];
 
-const PLANEJAMENTO_NAV: NavItem[] = [
-  { href: "/planejamento", label: "Visão Geral", icon: "LayoutDashboard" },
-  { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
-  { href: "/planejamento/manutencao", label: "Manutenção", icon: "Wrench" },
-  { href: "/planejamento/documentos", label: "Documentos", icon: "FileText" },
-  { href: "/planejamento/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
-  { href: "/planejamento/pneus", label: "Pneus", icon: "Truck" },
+const MANUTENCAO_NAV: NavItem[] = [
+  { href: "/planejamento/manutencao", label: "Preventivas", icon: "Wrench" },
+  { href: "/manutencao", label: "Serviços", icon: "Wrench" },
+  { href: "/oficinas", label: "Oficinas", icon: "MapPin" },
   { href: "/planejamento/lavagem", label: "Lavagem", icon: "ClipboardCheck" },
+  { href: "/planejamento/bateria", label: "Bateria", icon: "Wrench" },
+  { href: "/planejamento/seguranca", label: "Kit Segurança", icon: "ShieldAlert" },
+];
+
+const PNEUS_NAV: NavItem[] = [
+  { href: "/planejamento/pneus", label: "Painel de Pneus", icon: "Truck" },
+  { href: "/pneus", label: "Trocas e Histórico", icon: "Truck" },
+  { href: "/planejamento/estepes", label: "Estepes", icon: "Truck" },
+];
+
+const DOCUMENTOS_NAV: NavItem[] = [
+  { href: "/documentos", label: "Documentos da Frota", icon: "FileText" },
+  { href: "/planejamento/documentos", label: "Vencimentos", icon: "FileText" },
+];
+
+const ADMINISTRACAO_NAV: NavItem[] = [
+  { href: "/administracao/usuarios", label: "Usuários", icon: "Users" },
+  { href: "/unidades", label: "Unidades", icon: "Building2" },
+  { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
 ];
 
 const MOTORISTA_NAV: NavItem[] = [
-  { href: "/motorista", label: "Inicio", icon: "Home" },
-  { href: "/motorista/checklist", label: "Fazer checklist", icon: "ClipboardCheck" },
-  { href: "/motorista/checklists", label: "Meus checklists", icon: "List" },
+  { href: "/motorista", label: "Início", icon: "Home" },
+  { href: "/motorista/checklist", label: "Fazer Checklist", icon: "ClipboardCheck" },
+  { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
   { href: "/documentos", label: "Documentos", icon: "FileText" },
 ];
 
-const PORTARIA_NAV: NavItem[] = [{ href: "/portaria", label: "Liberacao", icon: "DoorOpen" }];
+const PORTARIA_NAV: NavItem[] = [
+  { href: "/portaria", label: "Liberação", icon: "DoorOpen" },
+];
 
 function buildSections(perfil: PerfilUsuario): NavSection[] {
   if (perfil === "MOTORISTA") return [{ title: "Motorista", items: MOTORISTA_NAV }];
 
   if (perfil === "PORTARIA") {
     const sections: NavSection[] = [{ title: "Portaria", items: PORTARIA_NAV }];
-    if (canAccessOperacao(perfil)) sections.push({ title: "Operacao", items: OPERACAO_NAV });
+    if (canAccessOperacao(perfil)) sections.push({ title: "Operação", items: OPERACAO_NAV });
     if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
     return sections;
   }
@@ -71,21 +83,21 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   const sections: NavSection[] = [
     { title: "Cockpit", items: COCKPIT_NAV },
     { title: "Frota", items: FROTA_NAV },
-    { title: "Checklists", items: CHECKLIST_NAV },
+    { title: "Operação", items: OPERACAO_NAV },
   ];
 
-  if (canAccessManutencao(perfil)) sections.push({ title: "Manutencao", items: MANUTENCAO_NAV });
-  if (canAccessOperacao(perfil)) sections.push({ title: "Operacao", items: OPERACAO_NAV });
+  if (canAccessManutencao(perfil)) sections.push({ title: "Manutenção", items: MANUTENCAO_NAV });
+  if (canAccessManutencao(perfil)) sections.push({ title: "Pneus", items: PNEUS_NAV });
   if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
-  if (canAccessManutencao(perfil)) sections.push({ title: "Planejamento", items: PLANEJAMENTO_NAV });
+  if (canManageUsers(perfil)) sections.push({ title: "Administração", items: ADMINISTRACAO_NAV });
 
   if (perfil === "DEV") {
     sections.push({
-      title: "Motorista",
+      title: "Motorista (Dev)",
       items: [
-        { href: "/motorista", label: "Inicio motorista", icon: "Home" },
+        { href: "/motorista", label: "Início motorista", icon: "Home" },
         { href: "/motorista/checklist", label: "Checklist motorista", icon: "ClipboardCheck" },
-        { href: "/motorista/checklists", label: "Historico motorista", icon: "List" },
+        { href: "/motorista/checklists", label: "Histórico motorista", icon: "List" },
       ],
     });
   }
