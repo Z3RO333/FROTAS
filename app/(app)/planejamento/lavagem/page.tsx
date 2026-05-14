@@ -1,12 +1,7 @@
 import { getLavagem } from "@/lib/repos/planejamento";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export const dynamic = "force-dynamic";
-
-function StatusBadge({ status }: { status: string | null }) {
-  if (!status) return <span className="rounded px-2 py-0.5 text-xs bg-slate-100 text-slate-600">—</span>;
-  const cls = status.toUpperCase().includes("LAVAGEM") ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800";
-  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>{status}</span>;
-}
 
 export default async function LavagemPage() {
   const rows = await getLavagem();

@@ -1,42 +1,123 @@
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+  Gauge,
+  ShieldAlert,
+  Sparkles,
+  TrendingUp,
+  Truck,
+  Wrench,
+} from "lucide-react";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
+import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
-function Kpi({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div className={`rounded-md border p-4 ${color}`}>
-      <div className="text-3xl font-bold">{value}</div>
-      <div className="mt-1 text-xs font-medium">{label}</div>
-    </div>
-  );
-}
-
 export default async function PlanejamentoPage() {
-  const kpis = await getPlanejamentoOverview();
+  const k = await getPlanejamentoOverview();
 
-  const dispPct = kpis.disp_hoje != null ? `${(kpis.disp_hoje * 100).toFixed(1)}%` : "—";
-  const metaPct = kpis.disp_meta != null ? `${(kpis.disp_meta * 100).toFixed(0)}%` : "—";
+  const dispPct = k.disp_hoje != null ? `${(k.disp_hoje * 100).toFixed(1)}%` : "—";
+  const metaPct = k.disp_meta != null ? `${(k.disp_meta * 100).toFixed(0)}%` : "90%";
+  const noData = k.docs_vencidos + k.manut_atrasadas + k.lavagem_atrasada + k.pneus_total === 0;
+
+  if (noData) {
+    return (
+      <EmptyState
+        icon={Sparkles}
+        title="Sem dados de planejamento"
+        description="Rode o import da planilha para carregar os dados."
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Kpi label="Docs vencidos" value={kpis.docs_vencidos} color="bg-red-50 border-red-200 text-red-800" />
-        <Kpi label="Manutenções atrasadas" value={kpis.manut_atrasadas} color="bg-amber-50 border-amber-200 text-amber-800" />
-        <Kpi label="Lavagem atrasada" value={kpis.lavagem_atrasada} color="bg-amber-50 border-amber-200 text-amber-800" />
-        <Kpi label="Sem kit completo" value={kpis.sem_kit_completo} color="bg-orange-50 border-orange-200 text-orange-800" />
-        <Kpi label="Sem estepe" value={kpis.sem_estepe} color="bg-red-50 border-red-200 text-red-800" />
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Indicadores críticos
+        </h2>
+        <MetricGrid cols={5}>
+          <MetricCard
+            label="Docs vencidos"
+            value={k.docs_vencidos}
+            icon={FileText}
+            severity="CRITICO"
+            href="/planejamento/documentos"
+            hint="Tacógrafo, CRLV, DUT"
+          />
+          <MetricCard
+            label="Manutenções atrasadas"
+            value={k.manut_atrasadas}
+            icon={Wrench}
+            severity="ATENCAO"
+            href="/planejamento/manutencao"
+            hint={`${k.manut_ok} em dia`}
+          />
+          <MetricCard
+            label="Lavagem atrasada"
+            value={k.lavagem_atrasada}
+            icon={ClipboardCheck}
+            severity="ATENCAO"
+            href="/planejamento/lavagem"
+          />
+          <MetricCard
+            label="Sem kit completo"
+            value={k.sem_kit_completo}
+            icon={ShieldAlert}
+            severity="CRITICO"
+            href="/planejamento/seguranca"
+          />
+          <MetricCard
+            label="Sem estepe"
+            value={k.sem_estepe}
+            icon={AlertTriangle}
+            severity="CRITICO"
+            href="/planejamento/estepes"
+          />
+        </MetricGrid>
+      </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="Manutenções OK" value={kpis.manut_ok} color="bg-emerald-50 border-emerald-200 text-emerald-800" />
-        <Kpi label="Total pneus mapeados" value={kpis.pneus_total} color="bg-blue-50 border-blue-200 text-blue-800" />
-        <Kpi label="Disponibilidade (último dia)" value={dispPct} color="bg-blue-50 border-blue-200 text-blue-800" />
-        <Kpi label="Meta disponibilidade" value={metaPct} color="bg-slate-50 border-slate-200 text-slate-700" />
-      </div>
-
-      <div className="rounded-md border bg-blue-50 p-4 text-sm text-blue-800">
-        Use as abas acima para navegar pelos módulos detalhados de manutenção, documentos, pneus, lavagem e disponibilidade.
-      </div>
+      <section className="space-y-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Operação</h2>
+        <MetricGrid cols={4}>
+          <MetricCard
+            label="Disponibilidade"
+            value={dispPct}
+            icon={TrendingUp}
+            severity={
+              k.disp_hoje != null && k.disp_meta != null && k.disp_hoje >= k.disp_meta
+                ? "OK"
+                : "ATENCAO"
+            }
+            href="/planejamento/disponibilidade"
+            hint={`Meta ${metaPct}`}
+          />
+          <MetricCard
+            label="Manutenções OK"
+            value={k.manut_ok}
+            icon={CheckCircle2}
+            severity="OK"
+            href="/planejamento/manutencao"
+          />
+          <MetricCard
+            label="Pneus mapeados"
+            value={k.pneus_total}
+            icon={Truck}
+            severity="INFO"
+            href="/planejamento/pneus"
+          />
+          <MetricCard
+            label="Meta operacional"
+            value={metaPct}
+            icon={Gauge}
+            severity="NEUTRO"
+            hint="Disponibilidade alvo"
+          />
+        </MetricGrid>
+      </section>
     </div>
   );
 }
