@@ -18,6 +18,7 @@ Configure o FROTAS:
 
 ```env
 CHECKLIST_YOLO_ENDPOINT=http://localhost:8000/inspect
+CHECKLIST_ODOMETER_ENDPOINT=http://localhost:8000/odometer
 CHECKLIST_YOLO_TOKEN=dev-yolo-token
 CHECKLIST_VISION_SECRET=dev-vision-secret
 ```
@@ -29,6 +30,24 @@ YOLO_SERVICE_TOKEN=dev-yolo-token
 YOLO_MODEL_PATH=yolov8n.pt
 YOLO_MODEL_NAME=yolov8n-checklist
 YOLO_CONFIDENCE=0.35
+YOLO_OCR_GPU=false
+```
+
+## Leitura de hodometro
+
+O YOLO por si so detecta objetos/regioes. Para ler quilometragem, o servico usa este fluxo:
+
+1. tenta usar o modelo YOLO para recortar classes como `odometer`, `dashboard`, `display`, `painel` ou `meter`, caso seu modelo customizado tenha essas classes;
+2. se o modelo ainda for generico, usa recortes centrais da imagem;
+3. roda OCR local com EasyOCR;
+4. devolve `km_lido`, `confianca` e `leitura_segura`.
+
+Teste direto:
+
+```bash
+curl -X POST http://localhost:8000/odometer ^
+  -H "Authorization: Bearer dev-yolo-token" ^
+  -F "foto_km=@C:\caminho\painel.jpg"
 ```
 
 ## Processar fila

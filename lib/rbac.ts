@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { PERFIS_USUARIO, isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
+import { ensureUsuarioForAccess } from "@/lib/repos/usuarios";
 import { normalizeUserDisplayName } from "@/lib/user";
 
-export type PerfilUsuario = "MOTORISTA" | "PORTARIA" | "ADMIN" | "MANUTENCAO" | "GESTOR" | "DEV";
+export type { PerfilUsuario } from "@/lib/perfis";
 
 export type AppUser = {
   email: string;
@@ -30,7 +32,7 @@ function hasEmail(set: Set<string>, email: string): boolean {
   return set.has("*") || set.has(email.toLowerCase());
 }
 
-export function resolvePerfil(email: string): PerfilUsuario {
+export function resolvePerfilFromEnv(email: string): PerfilUsuario {
   const normalized = email.toLowerCase();
 
   if (hasEmail(DEV_EMAILS, normalized)) return "DEV";
@@ -41,17 +43,15 @@ export function resolvePerfil(email: string): PerfilUsuario {
   if (hasEmail(DRIVER_EMAILS, normalized)) return "MOTORISTA";
 
   const fallback = (process.env.FROTAS_DEFAULT_PROFILE ?? "").toUpperCase();
-  if (
-    fallback === "MOTORISTA" ||
-    fallback === "PORTARIA" ||
-    fallback === "MANUTENCAO" ||
-    fallback === "GESTOR" ||
-    fallback === "DEV"
-  ) {
+  if (isPerfilUsuario(fallback) && fallback !== "ADMIN") {
     return fallback;
   }
 
   return "MOTORISTA";
+}
+
+export function resolvePerfil(email: string): PerfilUsuario {
+  return resolvePerfilFromEnv(email);
 }
 
 export function canAccessAdmin(perfil: PerfilUsuario): boolean {
@@ -70,10 +70,21 @@ export async function requireAppUser(): Promise<AppUser> {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
+  const email = session.user.email.toLowerCase();
+  const name = normalizeUserDisplayName(session.user.name, email);
+  const usuario = await ensureUsuarioForAccess({
+    email,
+    nome: name,
+    perfil: resolvePerfilFromEnv(email),
+    ativo: true,
+  });
+
+  if (!usuario.ativo) redirect("/acesso-bloqueado");
+
   return {
-    email: session.user.email,
-    name: normalizeUserDisplayName(session.user.name, session.user.email),
-    perfil: resolvePerfil(session.user.email),
+    email,
+    name: usuario.nome || name,
+    perfil: usuario.perfil,
   };
 }
 
@@ -110,3 +121,9 @@ export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
 export function canWriteDocumentos(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "MANUTENCAO" || perfil === "DEV";
 }
+
+export function canManageUsers(perfil: PerfilUsuario): boolean {
+  return perfil === "ADMIN" || perfil === "DEV";
+}
+
+export { PERFIS_USUARIO };

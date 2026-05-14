@@ -13,26 +13,25 @@ export type ChecklistCatalogItem = {
 
 export const CHECKLIST_ITEMS: ChecklistCatalogItem[] = [
   { codigo: "iluminacao", nome: "Iluminacao", grupo: "Seguranca", obrigatorio: true, critico: true },
-  { codigo: "tacografo", nome: "Tacografo", grupo: "Seguranca", obrigatorio: true, critico: true },
-  { codigo: "kit_seguranca", nome: "Kit seguranca", grupo: "Seguranca", obrigatorio: true, critico: false },
-  { codigo: "extintor", nome: "Extintor", grupo: "Seguranca", obrigatorio: true, critico: true },
+  { codigo: "tacografo", nome: "Tacografo", grupo: "Seguranca", obrigatorio: false, critico: false },
+  {
+    codigo: "kit_seguranca",
+    nome: "Kit seguranca (triangulo, macaco, chave de roda e extintor)",
+    grupo: "Seguranca",
+    obrigatorio: true,
+    critico: false,
+  },
   { codigo: "limpador", nome: "Limpador de para-brisa", grupo: "Seguranca", obrigatorio: true, critico: false },
-  { codigo: "cinto", nome: "Cinto de seguranca", grupo: "Seguranca", obrigatorio: true, critico: true },
-  { codigo: "motor_oleo", nome: "Motor / oleo", grupo: "Mecanica", obrigatorio: true, critico: false },
-  { codigo: "freios", nome: "Freios / oleo", grupo: "Mecanica", obrigatorio: true, critico: true },
+  { codigo: "motor_oleo", nome: "Motor / Oleo", grupo: "Mecanica", obrigatorio: true, critico: false },
+  { codigo: "freios", nome: "Freios / Oleo", grupo: "Mecanica", obrigatorio: true, critico: true },
   { codigo: "radiador", nome: "Radiador / purgar", grupo: "Mecanica", obrigatorio: true, critico: false },
-  { codigo: "oleo_transmissao", nome: "Oleo transmissao", grupo: "Mecanica", obrigatorio: false, critico: false },
-  { codigo: "oleo_plataforma", nome: "Oleo plataforma", grupo: "Mecanica", obrigatorio: false, critico: false },
+  { codigo: "oleo_transmissao", nome: "Transmissao / Oleo", grupo: "Mecanica", obrigatorio: false, critico: false },
+  { codigo: "oleo_plataforma", nome: "Plataforma / Oleo", grupo: "Mecanica", obrigatorio: false, critico: false },
   { codigo: "arla", nome: "Arla", grupo: "Mecanica", obrigatorio: false, critico: false },
   { codigo: "pneus_step", nome: "Pneus / step", grupo: "Rodagem", obrigatorio: true, critico: true },
-  { codigo: "rodas", nome: "Rodas", grupo: "Rodagem", obrigatorio: true, critico: false },
-  { codigo: "suspensao", nome: "Suspensao visual", grupo: "Rodagem", obrigatorio: true, critico: false },
   { codigo: "documento", nome: "Documento do veiculo", grupo: "Documentacao", obrigatorio: true, critico: false },
-  { codigo: "licenciamento", nome: "Licenciamento", grupo: "Documentacao", obrigatorio: true, critico: true },
   { codigo: "cartao_combustivel", nome: "Cartao combustivel", grupo: "Documentacao", obrigatorio: false, critico: false },
-  { codigo: "cabine", nome: "Cabine", grupo: "Conservacao", obrigatorio: true, critico: false },
   { codigo: "bau", nome: "Bau", grupo: "Conservacao", obrigatorio: true, critico: false },
-  { codigo: "identificacao_visual", nome: "Identificacao visual", grupo: "Conservacao", obrigatorio: true, critico: false },
 ];
 
 export const CHECKLIST_GROUPS: ChecklistGrupo[] = [

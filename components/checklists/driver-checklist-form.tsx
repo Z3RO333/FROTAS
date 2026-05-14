@@ -1,8 +1,13 @@
 "use client";
 
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { Camera, ChevronRight, Info, Loader2, Search, Send } from "lucide-react";
-import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
+import {
+  CHECKLIST_MOTORISTA_INITIAL_STATE,
+  enviarChecklistMotoristaAction,
+} from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
@@ -23,10 +28,15 @@ type OcrState = {
   error?: string;
 };
 
-const STEPS = ["Selecionar veículo", "Realizar Checklist", "Registrar Hodômetro"] as const;
+const STEPS = ["Selecionar veiculo", "Realizar checklist", "Registrar hodometro"] as const;
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
 
 export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
+  const router = useRouter();
+  const [actionState, formAction] = useActionState(
+    enviarChecklistMotoristaAction,
+    CHECKLIST_MOTORISTA_INITIAL_STATE
+  );
   const [step, setStep] = useState(0);
   const [frotaId, setFrotaId] = useState("");
   const [frotaQuery, setFrotaQuery] = useState("");
@@ -34,7 +44,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrState, setOcrState] = useState<OcrState | null>(null);
   const [itemStatuses, setItemStatuses] = useState<Record<string, ChecklistItemStatus>>(
-    () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, "APTO" as ChecklistItemStatus]))
+    () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, "NAO_SE_APLICA" as ChecklistItemStatus]))
   );
   const [nivelCombustivel, setNivelCombustivel] = useState(0);
   const [nivelArla, setNivelArla] = useState(0);
@@ -43,6 +53,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     () => frotas.find((f) => String(f.id) === frotaId) ?? null,
     [frotaId, frotas]
   );
+
+  useEffect(() => {
+    if (actionState.ok) router.push(actionState.redirectTo);
+  }, [actionState, router]);
 
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
@@ -77,28 +91,27 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         confianca: 0,
         leitura_segura: false,
         precisa_digitacao_manual: true,
-        motivo: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
+        motivo: error instanceof Error ? error.message : "Nao conseguimos ler a imagem.",
         texto_visivel: null,
         observacoes_imagem: null,
-        error: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
+        error: error instanceof Error ? error.message : "Nao conseguimos ler a imagem.",
       });
     } finally {
       setOcrLoading(false);
     }
   }
 
-  function toggleItem(codigo: string) {
+  function setItemStatus(codigo: string, status: ChecklistItemStatus) {
     setItemStatuses((prev) => ({
       ...prev,
-      [codigo]: prev[codigo] === "APTO" ? "NAO_APTO" : "APTO",
+      [codigo]: prev[codigo] === status ? "NAO_SE_APLICA" : status,
     }));
   }
 
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
 
   return (
-    <form action={enviarChecklistMotoristaAction} className="mx-auto max-w-3xl space-y-5">
-      {/* Hidden fields managed by state */}
+    <form action={formAction} className="mx-auto max-w-3xl space-y-5">
       <input type="hidden" name="frota_id" value={frotaId} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
@@ -109,13 +122,17 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         />
       ))}
 
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Registrar checklist</h1>
-        <p className="text-sm text-muted-foreground">Registre o checklist de veículo.</p>
+        <p className="text-sm text-muted-foreground">Registre o checklist do veiculo.</p>
       </div>
 
-      {/* Step wizard */}
+      {!actionState.ok && actionState.error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+          {actionState.error}
+        </div>
+      ) : null}
+
       <div>
         <div className="flex items-center gap-1 text-sm">
           {STEPS.map((label, i) => (
@@ -145,23 +162,20 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         </div>
       </div>
 
-      {/* ── Step 0: Selecionar veículo ── */}
       <section hidden={step !== 0} className="space-y-4">
         <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Para começar, selecione um veículo para realizar o checklist.
+          Para comecar, selecione um veiculo para realizar o checklist.
         </div>
 
         {selected && (
           <div className="flex items-center justify-between gap-4 rounded-md border bg-white p-4 shadow-sm">
             <div>
-              <div className="font-semibold">
-                {selected.modelo ?? "Sem modelo"}
-              </div>
+              <div className="font-semibold">{selected.modelo ?? "Sem modelo"}</div>
               <div className="mt-0.5 text-sm text-muted-foreground">
                 Frota: <strong>{selected.frota_geral ?? selected.id}</strong>
-                {" · "}Placa: <strong>{selected.placa ?? "—"}</strong>
-                {selected.localizacao ? ` · Setor: ${selected.localizacao}` : ""}
+                {" - "}Placa: <strong>{selected.placa ?? "-"}</strong>
+                {selected.localizacao ? ` - Setor: ${selected.localizacao}` : ""}
               </div>
             </div>
             <Button type="button" onClick={() => setStep(1)}>
@@ -176,7 +190,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
-                placeholder="Pesquisar veículo..."
+                placeholder="Pesquisar veiculo..."
                 className="pl-9"
                 value={frotaQuery}
                 onChange={(e) => setFrotaQuery(e.target.value)}
@@ -185,10 +199,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
             </div>
             <p className="text-xs text-muted-foreground">
               {filteredFrotas.length} resultado{filteredFrotas.length !== 1 ? "s" : ""} mostrado
-              {filteredFrotas.length !== 1 ? "s" : ""}
-              {frotas.length > 50
-                ? ". Use o filtro de pesquisa se você não encontrar o que está procurando."
-                : "."}
+              {filteredFrotas.length !== 1 ? "s" : ""}.
             </p>
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
@@ -224,10 +235,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                       <td className={`p-3 font-medium ${isSelected ? "text-blue-600" : ""}`}>
                         {frota.frota_geral ?? frota.id}
                       </td>
-                      <td className={`p-3 ${isSelected ? "text-blue-600" : ""}`}>
-                        {frota.placa ?? "—"}
-                      </td>
-                      <td className="p-3 text-muted-foreground">{frota.modelo ?? "—"}</td>
+                      <td className={`p-3 ${isSelected ? "text-blue-600" : ""}`}>{frota.placa ?? "-"}</td>
+                      <td className="p-3 text-muted-foreground">{frota.modelo ?? "-"}</td>
                     </tr>
                   );
                 })}
@@ -237,78 +246,91 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         </div>
       </section>
 
-      {/* ── Step 1: Realizar Checklist ── */}
       <section hidden={step !== 1} className="space-y-4">
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          Marque as opções para concluir o checklist. Você também pode adicionar um comentário e até fotos no
-          final do formulário.
+          Todos os itens comecam desmarcados. Marque OK ou Problema nos itens obrigatorios.
         </div>
 
         <div className="space-y-6 rounded-md border bg-white p-5 shadow-sm">
-          {/* Fuel level selectors */}
           <div className="grid grid-cols-2 gap-6">
             <FuelLevelSelector
-              label="Nível combustível"
+              label="Nivel combustivel"
               value={nivelCombustivel}
               onChange={setNivelCombustivel}
             />
-            <FuelLevelSelector
-              label="Nível arla"
-              value={nivelArla}
-              onChange={setNivelArla}
-            />
+            <FuelLevelSelector label="Nivel arla" value={nivelArla} onChange={setNivelArla} />
           </div>
 
-          {/* Checklist items in 2-col grid */}
           <div className="grid gap-4 sm:grid-cols-2">
             {CHECKLIST_ITEMS.map((item) => {
-              const isApto = itemStatuses[item.codigo] !== "NAO_APTO";
+              const status = itemStatuses[item.codigo] ?? "NAO_SE_APLICA";
+              const isApto = status === "APTO";
+              const isProblem = status === "NAO_APTO";
               return (
-                <div key={item.codigo} className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
+                <div key={item.codigo} className="space-y-2 rounded-md border bg-slate-50 p-3">
+                  <div>
                     <span className="text-sm font-medium leading-tight">
                       {item.nome}
-                      {item.critico && (
-                        <span className="ml-1 text-xs text-red-500" title="Item crítico">
-                          ★
+                      {item.critico ? (
+                        <span className="ml-1 text-xs text-red-500" title="Item critico">
+                          *
                         </span>
-                      )}
+                      ) : null}
                     </span>
+                    <div className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                      {item.obrigatorio ? "Obrigatorio" : "Opcional"}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      role="switch"
-                      aria-checked={isApto}
-                      onClick={() => toggleItem(item.codigo)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
-                        isApto ? "bg-blue-600" : "bg-slate-200"
+                      aria-pressed={isApto}
+                      onClick={() => setItemStatus(item.codigo, "APTO")}
+                      className={`h-9 rounded-md border text-sm font-medium transition-colors ${
+                        isApto
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                       }`}
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                          isApto ? "translate-x-6" : "translate-x-1"
-                        }`}
-                      />
+                      OK
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={isProblem}
+                      onClick={() => setItemStatus(item.codigo, "NAO_APTO")}
+                      className={`h-9 rounded-md border text-sm font-medium transition-colors ${
+                        isProblem
+                          ? "border-red-500 bg-red-50 text-red-800"
+                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      Problema
                     </button>
                   </div>
-                  {!isApto && (
+
+                  {status === "NAO_SE_APLICA" ? (
+                    <p className="text-xs text-muted-foreground">Pendente de marcacao.</p>
+                  ) : null}
+
+                  {isProblem ? (
                     <>
-                      <p className="text-xs font-medium text-red-500">Não apto</p>
+                      <p className="text-xs font-medium text-red-500">Problema identificado</p>
                       <Input
                         name={`item_observacao_${item.codigo}`}
                         placeholder="Descreva o problema..."
                         className="h-8 text-xs"
                       />
                     </>
-                  )}
+                  ) : null}
                 </div>
               );
             })}
           </div>
 
-          {/* Observações gerais */}
           <div className="space-y-2">
-            <Label htmlFor="observacao_original">Observações</Label>
+            <Label htmlFor="observacao_original">Observacoes</Label>
             <textarea
               id="observacao_original"
               name="observacao_original"
@@ -317,25 +339,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
               placeholder="Ex.: farol dianteiro esquerdo queimado e pneu meio baixo"
             />
           </div>
-
-          {/* Adicionar foto (general) */}
-          <div>
-            <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-slate-50">
-              <Camera className="h-4 w-4" aria-hidden="true" />
-              Adicionar foto
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="sr-only"
-              />
-            </label>
-          </div>
         </div>
 
         <div className="flex justify-between">
           <Button type="button" variant="outline" onClick={() => setStep(0)}>
-            ← Voltar
+            Voltar
           </Button>
           <Button type="button" onClick={() => setStep(2)}>
             Prosseguir
@@ -344,19 +352,17 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         </div>
       </section>
 
-      {/* ── Step 2: Registrar Hodômetro ── */}
       <section hidden={step !== 2} className="space-y-4">
         <div className="space-y-5 rounded-md border bg-white p-5 shadow-sm">
           {selected && selected.km_atual == null && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              <strong>Primeiro KM desta frota.</strong> Foto do hodômetro é obrigatória. O valor será
+              <strong>Primeiro KM desta frota.</strong> Foto do hodometro e obrigatoria. O valor sera
               registrado como KM inicial e validado pelo administrador.
             </div>
           )}
 
-          {/* KM photo */}
           <div className="space-y-2">
-            <Label htmlFor="foto_km">Foto do painel / hodômetro</Label>
+            <Label htmlFor="foto_km">Foto do painel / hodometro</Label>
             <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 p-4 text-center text-sm text-muted-foreground hover:bg-slate-100">
               <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
               Tirar foto ou anexar imagem
@@ -364,7 +370,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 id="foto_km"
                 name="foto_km"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 capture="environment"
                 className="sr-only"
                 onChange={handleFotoKmChange}
@@ -386,16 +392,16 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 {ocrState.leitura_segura && ocrState.km_lido != null ? (
                   <strong>KM identificado: {formatNumber(ocrState.km_lido)}</strong>
                 ) : (
-                  <strong>Não foi possível ler a quilometragem. Digite manualmente.</strong>
+                  <strong>Nao foi possivel ler a quilometragem. Digite manualmente.</strong>
                 )}
-                {ocrState.motivo && (
-                  <div className="mt-1 text-xs opacity-80">{ocrState.motivo}</div>
-                )}
+                {ocrState.motivo ? <div className="mt-1 text-xs opacity-80">{ocrState.motivo}</div> : null}
+                {ocrState.texto_visivel ? (
+                  <div className="mt-1 text-xs opacity-80">Texto visivel: {ocrState.texto_visivel}</div>
+                ) : null}
               </div>
             ) : null}
           </div>
 
-          {/* KM input */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="km_informado">Quilometragem atual</Label>
@@ -410,11 +416,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 onChange={(e) => setKmValue(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Último KM registrado: {formatNumber(selected?.km_atual)}
+                Ultimo KM registrado: {formatNumber(selected?.km_atual)}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="justificativa_km">Justificativa de divergência</Label>
+              <Label htmlFor="justificativa_km">Justificativa de divergencia</Label>
               <textarea
                 id="justificativa_km"
                 name="justificativa_km"
@@ -424,15 +430,12 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
             </div>
           </div>
 
-          {/* Abastecimento */}
           <div className="space-y-3 rounded-md border bg-slate-50 p-4">
             <p className="text-sm font-medium">Abastecimento (opcional)</p>
-            <p className="text-xs text-muted-foreground">
-              Preencha apenas se houve abastecimento neste turno.
-            </p>
+            <p className="text-xs text-muted-foreground">Preencha apenas se houve abastecimento neste turno.</p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="tipo_combustivel" className="text-xs">Tipo de combustível</Label>
+                <Label htmlFor="tipo_combustivel" className="text-xs">Tipo de combustivel</Label>
                 <select
                   id="tipo_combustivel"
                   name="tipo_combustivel"
@@ -485,7 +488,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   id="foto_comprovante"
                   name="foto_comprovante"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   capture="environment"
                   className="sr-only"
                 />
@@ -496,15 +499,27 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
         <div className="flex justify-between">
           <Button type="button" variant="outline" onClick={() => setStep(1)}>
-            ← Voltar
+            Voltar
           </Button>
-          <Button type="submit">
-            <Send className="mr-2 h-4 w-4" aria-hidden="true" />
-            Enviar checklist
-          </Button>
+          <SubmitButton />
         </div>
       </section>
     </form>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? (
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+      )}
+      {pending ? "Enviando..." : "Enviar checklist"}
+    </Button>
   );
 }
 
@@ -546,11 +561,7 @@ function FuelLevelSelector({
         })}
       </div>
       <p className="text-xs text-muted-foreground">
-        {value === 0
-          ? hovered > 0
-            ? `${hovered}/4`
-            : "Não informado"
-          : `${value}/4`}
+        {value === 0 ? (hovered > 0 ? `${hovered}/4` : "Nao informado") : `${value}/4`}
       </p>
     </div>
   );

@@ -31,6 +31,21 @@ export async function listServicosRecentes(
   return data as Array<ServicoApp & { veiculo: { placa: string | null; codigo_frota: string } | null }>;
 }
 
+export async function listServicosByVeiculo(
+  codigoFrota: string,
+  limit = 20
+): Promise<ServicoApp[]> {
+  const { data, error } = await supabaseManutencao
+    .from("servicos_app")
+    .select("*")
+    .eq("id_veiculo", codigoFrota)
+    .order("data_servico", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`listServicosByVeiculo: ${error.message}`);
+  return (data ?? []) as ServicoApp[];
+}
+
 export async function registrarServico(input: {
   id_veiculo: string;
   tipo_servico: TipoServico;
