@@ -13,6 +13,10 @@ function isAuthorized(req: NextRequest): boolean {
   return Boolean(INTERNAL_SECRET && header === INTERNAL_SECRET);
 }
 
+function esc(s: string | null | undefined): string {
+  return (s ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -106,22 +110,22 @@ td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
   ${criticos.map((a) => `
   <tr>
     <td>${a.frota_id}</td>
-    <td><span class="badge badge-critico">${(a.criticidade_revisada ?? a.criticidade).replace("_", " ")}</span></td>
-    <td>${a.resumo_ia ?? "—"}</td>
-    <td>${a.acao_recomendada ?? "—"}</td>
+    <td><span class="badge badge-critico">${esc((a.criticidade_revisada ?? a.criticidade).replace("_", " "))}</span></td>
+    <td>${esc(a.resumo_ia)}</td>
+    <td>${esc(a.acao_recomendada)}</td>
   </tr>`).join("")}
   </table>` : "<p>Nenhum problema crítico hoje.</p>"}
 
   ${rankingFrotas.length > 0 ? `
   <h2>Frotas com mais problemas</h2>
   <table><tr><th>Frota</th><th>Placa</th><th>Problemas</th></tr>
-  ${rankingFrotas.map((f) => `<tr><td>${f.frota_geral ?? f.frota_id}</td><td>${f.placa ?? "—"}</td><td>${f.total_problemas}</td></tr>`).join("")}
+  ${rankingFrotas.map((f) => `<tr><td>${esc(f.frota_geral) !== "—" ? esc(f.frota_geral) : f.frota_id}</td><td>${esc(f.placa)}</td><td>${f.total_problemas}</td></tr>`).join("")}
   </table>` : ""}
 
   ${alertas.length > 0 ? `
   <h2>Alertas abertos (${alertas.length})</h2>
   <table><tr><th>Tipo</th><th>Frota</th><th>Descrição</th></tr>
-  ${alertas.map((a) => `<tr><td>${a.tipo}</td><td>${a.frota_geral ?? a.frota_id}</td><td>${a.descricao ?? "—"}</td></tr>`).join("")}
+  ${alertas.map((a) => `<tr><td>${esc(a.tipo)}</td><td>${esc(a.frota_geral) !== "—" ? esc(a.frota_geral) : a.frota_id}</td><td>${esc(a.descricao)}</td></tr>`).join("")}
   </table>` : ""}
 
   <p><a href="${APP_URL}/relatorios/checklists">Ver painel completo →</a></p>

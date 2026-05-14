@@ -137,20 +137,28 @@ async function processarChecklist(checklistId: number, forcar: boolean): Promise
       output.result.criticidade === "BLOQUEIO_SUGERIDO" ||
       output.result.manutencao_sugerida
     ) {
-      const tipo = output.result.bloqueio_sugerido
+      const tipo = output.result.criticidade === "BLOQUEIO_SUGERIDO"
         ? "BLOQUEIO_SUGERIDO"
         : output.result.manutencao_sugerida
           ? "MANUTENCAO"
           : "CRITICO";
 
-      await createAlerta({
-        frota_id: cl.frota_id,
-        checklist_id: checklistId,
-        analise_id: analiseId,
-        tipo,
-        titulo: `${tipo.replace("_", " ")} — Frota ${v?.codigo_frota ?? cl.frota_id}`,
-        descricao: output.result.resumo,
-      }).catch((err) => console.warn("[alertas] falha ao criar alerta", err));
+      const { count: alertaExistente } = await supabaseManutencao
+        .from("alertas_frota")
+        .select("id", { count: "exact", head: true })
+        .eq("checklist_id", checklistId)
+        .eq("status", "ABERTO");
+
+      if ((alertaExistente ?? 0) === 0) {
+        await createAlerta({
+          frota_id: cl.frota_id,
+          checklist_id: checklistId,
+          analise_id: analiseId,
+          tipo,
+          titulo: `${tipo.replace("_", " ")} — Frota ${v?.codigo_frota ?? cl.frota_id}`,
+          descricao: output.result.resumo,
+        }).catch((err) => console.warn("[alertas] falha ao criar alerta", err));
+      }
     }
 
     await setAnaliseStatus(checklistId, "CONCLUIDA");
