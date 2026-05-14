@@ -22,14 +22,14 @@ create table if not exists public.analises_checklist_ia (
   -- Flags
   manutencao_sugerida boolean not null default false,
   bloqueio_sugerido boolean not null default false,
-  confianca double precision,
+  confianca double precision check (confianca is null or (confianca >= 0 and confianca <= 1)),
 
   -- Metadados
   modelo_ia text,
   analisado_em timestamptz not null default now(),
   revisado_por text,
   revisado_em timestamptz,
-  criticidade_revisada text,
+  criticidade_revisada text check (criticidade_revisada is null or criticidade_revisada in ('OK','ATENCAO','CRITICO','MANUTENCAO','BLOQUEIO_SUGERIDO')),
   unique (checklist_id)
 );
 
@@ -74,6 +74,7 @@ create table if not exists public.logs_ia (
 
 create index if not exists logs_ia_operacao_idx on public.logs_ia (operacao, criado_em desc);
 create index if not exists logs_ia_checklist_idx on public.logs_ia (checklist_id);
+create index if not exists logs_ia_frota_idx on public.logs_ia (frota_id, criado_em desc);
 
 -- Coluna na checklists_frota para rastrear status da análise
 alter table public.checklists_frota
@@ -83,3 +84,56 @@ alter table public.checklists_frota
 create index if not exists checklists_analise_status_idx
   on public.checklists_frota (analise_status, criado_em asc)
   where analise_status = 'PENDENTE';
+
+-- Row Level Security
+alter table public.analises_checklist_ia enable row level security;
+alter table public.alertas_frota enable row level security;
+alter table public.logs_ia enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'analises_checklist_ia'
+      and policyname = 'service_role_only'
+  ) then
+    create policy "service_role_only"
+      on public.analises_checklist_ia
+      using (public.is_service_role())
+      with check (public.is_service_role());
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'alertas_frota'
+      and policyname = 'service_role_only'
+  ) then
+    create policy "service_role_only"
+      on public.alertas_frota
+      using (public.is_service_role())
+      with check (public.is_service_role());
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'logs_ia'
+      and policyname = 'service_role_only'
+  ) then
+    create policy "service_role_only"
+      on public.logs_ia
+      using (public.is_service_role())
+      with check (public.is_service_role());
+  end if;
+end $$;
