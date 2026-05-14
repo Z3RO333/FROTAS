@@ -1,52 +1,41 @@
 import "dotenv/config";
+import fs from "node:fs";
 import * as XLSX from "xlsx";
-import { execute, query } from "../lib/db";
+import { supabaseManutencao } from "../lib/supabase-manutencao";
 
 const PATH =
   process.env.PLANEJAMENTO_PATH ||
-  "C:\\Users\\21664\\Downloads\\PLANEJAMENTO DE MANUTENÇÃO- ATUAL.xlsx";
+  "C:\\Users\\21664\\Downloads\\PLANEJAMENTO DE MANUTENCAO- ATUAL.xlsx";
 const SHEET = "ALINHAMENTO E PREVENTIVA";
 
 const COL = {
-  EQUIP: 0,
   PLACA: 1,
   FROTA_GERAL: 2,
-  LOCAL: 3,
   SETOR: 4,
   KM_ATUAL: 21,
 } as const;
 
 const FORCE = process.env.FORCE === "1";
 
-function normalizePlaca(v: unknown): string | null {
-  if (v == null) return null;
-  const t = String(v).trim().toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
-  if (!t || t === "-") return null;
-  return t;
+function normalizePlaca(value: unknown): string | null {
+  if (value == null) return null;
+  const text = String(value).trim().toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+  if (!text || text === "-") return null;
+  return text;
 }
 
-function asString(v: unknown): string | null {
-  if (v == null) return null;
-  const t = String(v).trim();
-  if (!t || t === "-") return null;
-  return t;
+function asString(value: unknown): string | null {
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text || text === "-") return null;
+  return text;
 }
 
-function asInt(v: unknown): number | null {
-  if (v == null || v === "" || v === "-") return null;
-  const n = Number(v);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n);
-}
-
-// Escape para SQL literal (somente para inlinear strings curtas conhecidas, ex.: setor).
-function sqlString(v: string | null): string {
-  if (v == null) return "NULL";
-  return `'${v.replace(/'/g, "''")}'`;
-}
-
-function sqlInt(v: number | null): string {
-  return v == null ? "NULL" : String(v);
+function asInt(value: unknown): number | null {
+  if (value == null || value === "" || value === "-") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed);
 }
 
 type FrotaSnapshot = {
@@ -67,48 +56,41 @@ type RowChange = {
 
 (async () => {
   console.log(`Lendo ${PATH} (aba "${SHEET}")...`);
-  const wb = XLSX.readFile(PATH);
-  const ws = wb.Sheets[SHEET];
-  if (!ws) {
-    console.error(`Aba "${SHEET}" nao encontrada. Abas: ${wb.SheetNames.join(", ")}`);
+  const workbook = XLSX.read(fs.readFileSync(PATH));
+  const sheet = workbook.Sheets[SHEET];
+  if (!sheet) {
+    console.error(`Aba "${SHEET}" nao encontrada. Abas: ${workbook.SheetNames.join(", ")}`);
     process.exit(1);
   }
 
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { defval: null, header: 1 });
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { defval: null, header: 1 });
   console.log(`${rows.length} linhas na planilha (incluindo cabecalho)`);
 
   console.log("Carregando snapshot das frotas...");
-  const allFrotas = await query<{
-    id: number;
-    placa: string | null;
-    frota_geral: string | null;
-    km_atual: number | null;
-    localizacao: string | null;
-    km_origem: string | null;
-  }>(
-    `SELECT id, placa, frota_geral, km_atual, localizacao, km_origem
-     FROM manutencao.cd.frotas
-     WHERE ativo = TRUE`
-  );
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("id,placa,codigo_frota,km_atual,local,km_origem")
+    .eq("ativo", true)
+    .limit(50000);
+  if (error) throw error;
 
   const byPlaca = new Map<string, FrotaSnapshot>();
   const byFrotaGeral = new Map<string, FrotaSnapshot>();
-  for (const f of allFrotas) {
-    const placaNorm = normalizePlaca(f.placa);
+  for (const frota of data ?? []) {
+    const placaNorm = normalizePlaca(frota.placa);
     const snap: FrotaSnapshot = {
-      id: f.id,
+      id: Number(frota.id),
       placa_norm: placaNorm,
-      frota_geral: f.frota_geral,
-      km_atual: f.km_atual,
-      localizacao: f.localizacao,
-      km_origem: f.km_origem,
+      frota_geral: frota.codigo_frota,
+      km_atual: frota.km_atual,
+      localizacao: frota.local,
+      km_origem: frota.km_origem,
     };
     if (placaNorm) byPlaca.set(placaNorm, snap);
-    if (f.frota_geral) byFrotaGeral.set(String(f.frota_geral).trim(), snap);
+    if (frota.codigo_frota) byFrotaGeral.set(String(frota.codigo_frota).trim(), snap);
   }
-  console.log(`Carregadas ${allFrotas.length} frotas`);
+  console.log(`Carregadas ${data?.length ?? 0} frotas`);
 
-  // Coleta todas as mudancas em memoria
   const changes: RowChange[] = [];
   let semPlaca = 0;
   let semMatch = 0;
@@ -116,8 +98,8 @@ type RowChange = {
   let jaImportado = 0;
   const placasNaoEncontradas: string[] = [];
 
-  for (let i = 2; i < rows.length; i++) {
-    const row = rows[i] ?? [];
+  for (let index = 2; index < rows.length; index++) {
+    const row = rows[index] ?? [];
     const placaNorm = normalizePlaca(row[COL.PLACA]);
     if (!placaNorm) {
       semPlaca++;
@@ -154,22 +136,20 @@ type RowChange = {
     });
   }
 
-  // Deduplica por frota_id (XLSX pode ter linhas duplicadas para a mesma frota).
-  // Mantem a ultima ocorrencia para cada campo (KM/setor); mesclando se vier separado.
   const dedup = new Map<number, RowChange>();
   let duplicadas = 0;
-  for (const c of changes) {
-    const existing = dedup.get(c.id);
+  for (const change of changes) {
+    const existing = dedup.get(change.id);
     if (!existing) {
-      dedup.set(c.id, { ...c });
+      dedup.set(change.id, { ...change });
       continue;
     }
     duplicadas++;
-    if (c.novoKm != null) {
-      existing.novoKm = c.novoKm;
-      existing.kmAnterior = c.kmAnterior;
+    if (change.novoKm != null) {
+      existing.novoKm = change.novoKm;
+      existing.kmAnterior = change.kmAnterior;
     }
-    if (c.novoSetor != null) existing.novoSetor = c.novoSetor;
+    if (change.novoSetor != null) existing.novoSetor = change.novoSetor;
   }
   const uniqueChanges = Array.from(dedup.values());
 
@@ -184,54 +164,49 @@ type RowChange = {
     process.exit(0);
   }
 
-  // Single MERGE com VALUES inline (executa todas as updates em uma transacao Databricks).
-  const mergeValues = uniqueChanges
-    .map((c) => `(${c.id}, ${sqlInt(c.novoKm)}, ${sqlString(c.novoSetor)})`)
-    .join(",\n    ");
+  for (const change of uniqueChanges) {
+    const update = {
+      km_atual: change.novoKm ?? undefined,
+      km_origem: change.novoKm != null ? "IMPORTACAO" : undefined,
+      km_atualizado_em: change.novoKm != null ? new Date().toISOString() : undefined,
+      km_validado: change.novoKm != null ? true : undefined,
+      local: change.novoSetor ?? undefined,
+      atualizado_por: "import-planejamento",
+    };
 
-  const mergeSql = `MERGE INTO manutencao.cd.frotas t
-USING (
-  SELECT * FROM (VALUES
-    ${mergeValues}
-  ) AS src(id, km, setor)
-) s ON t.id = s.id
-WHEN MATCHED THEN UPDATE SET
-  t.km_atual = COALESCE(s.km, t.km_atual),
-  t.km_origem = CASE WHEN s.km IS NOT NULL THEN 'IMPORTACAO' ELSE t.km_origem END,
-  t.km_atualizado_em = CASE WHEN s.km IS NOT NULL THEN current_timestamp() ELSE t.km_atualizado_em END,
-  t.km_validado = CASE WHEN s.km IS NOT NULL THEN TRUE ELSE t.km_validado END,
-  t.localizacao = COALESCE(s.setor, t.localizacao),
-  t.atualizado_em = current_timestamp(),
-  t.atualizado_por = 'import-planejamento'`;
-
-  console.log(`\nExecutando MERGE em ${uniqueChanges.length} frotas...`);
-  await execute(mergeSql);
-  console.log("MERGE concluido.");
-
-  // INSERT em massa no historico_km_frota apenas para as mudancas que tem KM novo
-  const kmChanges = uniqueChanges.filter((c) => c.novoKm != null);
-  if (kmChanges.length > 0) {
-    const insertValues = kmChanges
-      .map((c) => {
-        const diff = c.kmAnterior != null && c.novoKm != null ? c.novoKm - c.kmAnterior : null;
-        return `(${c.id}, NULL, NULL, NULL, ${sqlInt(c.kmAnterior)}, ${sqlInt(c.novoKm)}, ${sqlInt(diff)}, 'IMPORTACAO', NULL, TRUE, 'import-planejamento', current_timestamp(), 'KM importado da planilha PLANEJAMENTO DE MANUTENCAO', current_timestamp())`;
-      })
-      .join(",\n  ");
-
-    const insertSql = `INSERT INTO manutencao.cd.historico_km_frota
-  (frota_id, checklist_id, motorista_id, motorista_nome, km_anterior, km_novo,
-   diferenca_km, origem, foto_km_url, validado, validado_por, validado_em,
-   observacao_validacao, criado_em)
-VALUES
-  ${insertValues}`;
-
-    console.log(`Inserindo ${kmChanges.length} entradas em historico_km_frota...`);
-    await execute(insertSql);
-    console.log("INSERT historico_km_frota concluido.");
+    const { error: updateError } = await supabaseManutencao
+      .from("veiculos")
+      .update(update)
+      .eq("id", change.id);
+    if (updateError) throw updateError;
   }
 
-  const kmUpdates = uniqueChanges.filter((c) => c.novoKm != null).length;
-  const setorUpdates = uniqueChanges.filter((c) => c.novoSetor != null).length;
+  const kmChanges = uniqueChanges.filter((change) => change.novoKm != null);
+  if (kmChanges.length > 0) {
+    const payload = kmChanges.map((change) => ({
+      frota_id: change.id,
+      checklist_id: null,
+      motorista_id: null,
+      motorista_nome: null,
+      km_anterior: change.kmAnterior,
+      km_novo: change.novoKm,
+      diferenca_km: change.kmAnterior != null && change.novoKm != null ? change.novoKm - change.kmAnterior : null,
+      origem: "IMPORTACAO",
+      foto_km_url: null,
+      validado: true,
+      validado_por: "import-planejamento",
+      validado_em: new Date().toISOString(),
+      observacao_validacao: "KM importado da planilha PLANEJAMENTO DE MANUTENCAO",
+    }));
+
+    const { error: historyError } = await supabaseManutencao
+      .from("historico_km_frota")
+      .insert(payload);
+    if (historyError) throw historyError;
+  }
+
+  const kmUpdates = uniqueChanges.filter((change) => change.novoKm != null).length;
+  const setorUpdates = uniqueChanges.filter((change) => change.novoSetor != null).length;
 
   console.log("\nResumo final:");
   console.log(`  Frotas afetadas:      ${uniqueChanges.length}`);
@@ -244,12 +219,12 @@ VALUES
 
   if (placasNaoEncontradas.length > 0) {
     console.log("\nPlacas/frotas nao encontradas no banco:");
-    for (const p of placasNaoEncontradas.slice(0, 30)) console.log(`  - ${p}`);
+    for (const placa of placasNaoEncontradas.slice(0, 30)) console.log(`  - ${placa}`);
     if (placasNaoEncontradas.length > 30) console.log(`  ...e mais ${placasNaoEncontradas.length - 30}`);
   }
 
   process.exit(0);
-})().catch((e) => {
-  console.error(e);
+})().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

@@ -1,6 +1,6 @@
 import { CHECKLIST_ITEMS, type ChecklistStatusGeral, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import { gravidadePendencia, KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
-import { query, SCHEMA_FQN } from "@/lib/db";
+import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { createAbastecimento } from "@/lib/repos/abastecimentos";
 import { aplicarResumoAbastecimento, aplicarResumoChecklist, getFrota } from "@/lib/repos/frotas";
 import {
@@ -9,11 +9,55 @@ import {
   type KmOrigem,
 } from "@/lib/repos/historico-km";
 
-const CHECKLISTS_T = `${SCHEMA_FQN}.checklists_frota`;
-const ITENS_T = `${SCHEMA_FQN}.checklist_itens`;
-const PENDENCIAS_T = `${SCHEMA_FQN}.pendencias_frota`;
-const FROTAS_T = `${SCHEMA_FQN}.frotas`;
-const MOVIMENTACOES_T = `${SCHEMA_FQN}.movimentacoes_frota`;
+type VeiculoLite = {
+  id: number;
+  codigo_frota: string | null;
+  placa: string | null;
+  modelo: string | null;
+  status: string | null;
+  vendido: boolean | null;
+  ativo: boolean | null;
+};
+
+type ChecklistDbRow = {
+  id: number;
+  frota_id: number;
+  motorista_id: string;
+  motorista_nome: string | null;
+  data_checklist: string | null;
+  km_informado: number | null;
+  km_lido_ocr: number | null;
+  ocr_confianca: number | null;
+  km_confirmado: boolean | null;
+  foto_km_url: string | null;
+  status_geral: ChecklistStatusGeral;
+  observacao_original: string | null;
+  observacao_corrigida_ia: string | null;
+  criado_em: string | null;
+};
+
+type PendenciaDbRow = {
+  id: number;
+  frota_id: number;
+  checklist_id: number;
+  item_nome: string;
+  gravidade: string;
+  status: string;
+  responsavel_id: string | null;
+  criado_em: string | null;
+  resolvido_em: string | null;
+};
+
+type MovimentacaoDbRow = {
+  id: number;
+  frota_id: number;
+  motorista_id: string | null;
+  checklist_id: number | null;
+  tipo_movimentacao: "SAIDA" | "ENTRADA" | null;
+  data_hora: string | null;
+  usuario_portaria_id: string | null;
+  observacao: string | null;
+};
 
 export type ChecklistListRow = {
   id: number;
@@ -133,57 +177,130 @@ export type RegistrarMovimentacaoInput = {
   observacao?: string | null;
 };
 
-async function safeQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T): Promise<T> {
   try {
-    return await query<T>(sql, params);
+    return await cb();
   } catch (error) {
-    console.warn("[checklists] consulta indisponivel", error);
-    return [];
+    console.warn(`[checklists] ${label} indisponivel`, error);
+    return fallback;
   }
 }
 
+function todayRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+async function fetchVeiculosByIds(ids: number[]): Promise<Map<number, VeiculoLite>> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("id,codigo_frota,placa,modelo,status,vendido,ativo")
+    .in("id", uniqueIds);
+
+  if (error) throw error;
+  return new Map((data ?? []).map((item) => [Number(item.id), item as VeiculoLite]));
+}
+
+function mapChecklist(row: ChecklistDbRow, veiculo?: VeiculoLite): ChecklistListRow {
+  return {
+    ...row,
+    frota_geral: veiculo?.codigo_frota ?? null,
+    placa: veiculo?.placa ?? null,
+    modelo: veiculo?.modelo ?? null,
+  };
+}
+
 export async function listDriverChecklists(email: string, limit = 20): Promise<ChecklistListRow[]> {
-  return safeQuery<ChecklistListRow>(
-    `SELECT c.*, f.frota_geral, f.placa, f.modelo
-     FROM ${CHECKLISTS_T} c
-     LEFT JOIN ${FROTAS_T} f ON f.id = c.frota_id
-     WHERE c.motorista_id = ?
-     ORDER BY c.criado_em DESC
-     LIMIT ${limit}`,
-    [email]
-  );
+  return safeSupabase("listagem do motorista", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("checklists_frota")
+      .select("*")
+      .eq("motorista_id", email)
+      .order("criado_em", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    const rows = (data ?? []) as ChecklistDbRow[];
+    const veiculos = await fetchVeiculosByIds(rows.map((row) => row.frota_id));
+    return rows.map((row) => mapChecklist(row, veiculos.get(row.frota_id)));
+  }, []);
 }
 
 export async function listAdminChecklists(limit = 100): Promise<ChecklistListRow[]> {
-  return safeQuery<ChecklistListRow>(
-    `SELECT c.*, f.frota_geral, f.placa, f.modelo
-     FROM ${CHECKLISTS_T} c
-     LEFT JOIN ${FROTAS_T} f ON f.id = c.frota_id
-     ORDER BY c.criado_em DESC
-     LIMIT ${limit}`
-  );
+  return safeSupabase("listagem admin", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("checklists_frota")
+      .select("*")
+      .order("criado_em", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    const rows = (data ?? []) as ChecklistDbRow[];
+    const veiculos = await fetchVeiculosByIds(rows.map((row) => row.frota_id));
+    return rows.map((row) => mapChecklist(row, veiculos.get(row.frota_id)));
+  }, []);
 }
 
 export async function listChecklistItems(checklistId: number): Promise<ChecklistItemRow[]> {
-  return safeQuery<ChecklistItemRow>(
-    `SELECT *
-     FROM ${ITENS_T}
-     WHERE checklist_id = ?
-     ORDER BY id`,
-    [checklistId]
-  );
+  return safeSupabase("itens do checklist", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("checklist_itens")
+      .select("*")
+      .eq("checklist_id", checklistId)
+      .order("id", { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as ChecklistItemRow[];
+  }, []);
 }
 
 export async function listOpenPendencias(limit = 100): Promise<PendenciaRow[]> {
-  return safeQuery<PendenciaRow>(
-    `SELECT p.*, f.frota_geral, f.placa, c.motorista_id, c.motorista_nome
-     FROM ${PENDENCIAS_T} p
-     LEFT JOIN ${FROTAS_T} f ON f.id = p.frota_id
-     LEFT JOIN ${CHECKLISTS_T} c ON c.id = p.checklist_id
-     WHERE p.status IN ('ABERTA', 'EM_TRATATIVA')
-     ORDER BY p.criado_em DESC
-     LIMIT ${limit}`
-  );
+  return safeSupabase("pendencias abertas", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("pendencias_frota")
+      .select("*")
+      .in("status", ["ABERTA", "EM_TRATATIVA"])
+      .order("criado_em", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    const pendencias = (data ?? []) as PendenciaDbRow[];
+    const [veiculos, checklists] = await Promise.all([
+      fetchVeiculosByIds(pendencias.map((row) => row.frota_id)),
+      fetchChecklistsByIds(pendencias.map((row) => row.checklist_id)),
+    ]);
+
+    return pendencias.map((row) => {
+      const checklist = checklists.get(row.checklist_id);
+      const veiculo = veiculos.get(row.frota_id);
+      return {
+        ...row,
+        frota_geral: veiculo?.codigo_frota ?? null,
+        placa: veiculo?.placa ?? null,
+        motorista_id: checklist?.motorista_id ?? null,
+        motorista_nome: checklist?.motorista_nome ?? null,
+      };
+    });
+  }, []);
+}
+
+async function fetchChecklistsByIds(ids: number[]): Promise<Map<number, ChecklistDbRow>> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const { data, error } = await supabaseManutencao
+    .from("checklists_frota")
+    .select("*")
+    .in("id", uniqueIds);
+
+  if (error) throw error;
+  return new Map(((data ?? []) as ChecklistDbRow[]).map((item) => [Number(item.id), item]));
 }
 
 export async function checklistDashboardKpis(): Promise<{
@@ -193,112 +310,153 @@ export async function checklistDashboardKpis(): Promise<{
   criticos_abertos: number;
   divergencias_km: number;
 }> {
-  const [checklists, pendencias, divergencias] = await Promise.all([
-    safeQuery<{
-      total_hoje: number | null;
-      aprovados_hoje: number | null;
-      pendentes_hoje: number | null;
-    }>(
-      `SELECT
-        COUNT(*) AS total_hoje,
-        SUM(CASE WHEN status_geral = 'APROVADO' THEN 1 ELSE 0 END) AS aprovados_hoje,
-        SUM(CASE WHEN status_geral IN ('COM_OBSERVACAO', 'NAO_APTO', 'CRITICO') THEN 1 ELSE 0 END) AS pendentes_hoje
-       FROM ${CHECKLISTS_T}
-       WHERE CAST(data_checklist AS DATE) = current_date()`
-    ),
-    safeQuery<{ total: number | null }>(
-      `SELECT COUNT(*) AS total
-       FROM ${PENDENCIAS_T}
-       WHERE gravidade = 'CRITICA' AND status IN ('ABERTA', 'EM_TRATATIVA')`
-    ),
-    countPendingKmValidations().catch(() => 0),
-  ]);
+  return safeSupabase("kpis", async () => {
+    const { start, end } = todayRange();
+    const [checklists, pendencias, divergencias] = await Promise.all([
+      supabaseManutencao
+        .from("checklists_frota")
+        .select("status_geral")
+        .gte("data_checklist", start)
+        .lt("data_checklist", end),
+      supabaseManutencao
+        .from("pendencias_frota")
+        .select("id", { count: "exact", head: true })
+        .eq("gravidade", "CRITICA")
+        .in("status", ["ABERTA", "EM_TRATATIVA"]),
+      countPendingKmValidations().catch(() => 0),
+    ]);
 
-  return {
-    total_hoje: Number(checklists[0]?.total_hoje ?? 0),
-    aprovados_hoje: Number(checklists[0]?.aprovados_hoje ?? 0),
-    pendentes_hoje: Number(checklists[0]?.pendentes_hoje ?? 0),
-    divergencias_km: Number(divergencias ?? 0),
-    criticos_abertos: Number(pendencias[0]?.total ?? 0),
-  };
+    if (checklists.error) throw checklists.error;
+    if (pendencias.error) throw pendencias.error;
+
+    const rows = (checklists.data ?? []) as Pick<ChecklistDbRow, "status_geral">[];
+    return {
+      total_hoje: rows.length,
+      aprovados_hoje: rows.filter((row) => row.status_geral === "APROVADO").length,
+      pendentes_hoje: rows.filter((row) => row.status_geral !== "APROVADO").length,
+      criticos_abertos: pendencias.count ?? 0,
+      divergencias_km: Number(divergencias ?? 0),
+    };
+  }, {
+    total_hoje: 0,
+    aprovados_hoje: 0,
+    pendentes_hoje: 0,
+    criticos_abertos: 0,
+    divergencias_km: 0,
+  });
 }
 
 export async function listPortariaToday(): Promise<PortariaRow[]> {
-  const rows = await safeQuery<Omit<PortariaRow, "status_portaria">>(
-    `WITH latest_checklist AS (
-       SELECT *
-       FROM (
-         SELECT
-           c.*,
-           ROW_NUMBER() OVER (PARTITION BY c.frota_id ORDER BY c.data_checklist DESC, c.id DESC) AS rn
-         FROM ${CHECKLISTS_T} c
-         WHERE CAST(c.data_checklist AS DATE) = current_date()
-       ) ranked
-       WHERE rn = 1
-     ),
-     pendencias_criticas AS (
-       SELECT checklist_id, MIN(item_nome) AS pendencia_critica_item
-       FROM ${PENDENCIAS_T}
-       WHERE gravidade = 'CRITICA' AND status IN ('ABERTA', 'EM_TRATATIVA')
-       GROUP BY checklist_id
-     ),
-     latest_movimentacao AS (
-       SELECT *
-       FROM (
-         SELECT
-           m.*,
-           ROW_NUMBER() OVER (PARTITION BY m.frota_id ORDER BY m.data_hora DESC, m.id DESC) AS rn
-         FROM ${MOVIMENTACOES_T} m
-         WHERE CAST(m.data_hora AS DATE) = current_date()
-       ) ranked
-       WHERE rn = 1
-     )
-     SELECT
-       f.id AS frota_id,
-       f.frota_geral,
-       f.placa,
-       f.modelo,
-       f.status AS status_frota,
-       c.id AS checklist_id,
-       c.motorista_id,
-       c.motorista_nome,
-       c.data_checklist,
-       c.km_informado,
-       c.status_geral,
-       p.pendencia_critica_item,
-       m.tipo_movimentacao AS ultimo_tipo_movimentacao,
-       m.data_hora AS ultimo_movimento_em
-     FROM ${FROTAS_T} f
-     LEFT JOIN latest_checklist c ON c.frota_id = f.id
-     LEFT JOIN pendencias_criticas p ON p.checklist_id = c.id
-     LEFT JOIN latest_movimentacao m ON m.frota_id = f.id
-     WHERE f.ativo = TRUE AND f.vendido = FALSE
-     ORDER BY
-       CASE WHEN c.id IS NULL THEN 1 ELSE 0 END,
-       c.data_checklist DESC,
-       f.frota_geral`
-  );
+  return safeSupabase("portaria", async () => {
+    const { start, end } = todayRange();
+    const [veiculosResult, checklistsResult, movimentosResult] = await Promise.all([
+      supabaseManutencao
+        .from("veiculos")
+        .select("id,codigo_frota,placa,modelo,status,vendido,ativo")
+        .eq("ativo", true)
+        .eq("vendido", false)
+        .order("codigo_frota", { ascending: true }),
+      supabaseManutencao
+        .from("checklists_frota")
+        .select("*")
+        .gte("data_checklist", start)
+        .lt("data_checklist", end)
+        .order("data_checklist", { ascending: false })
+        .order("id", { ascending: false }),
+      supabaseManutencao
+        .from("movimentacoes_frota")
+        .select("*")
+        .gte("data_hora", start)
+        .lt("data_hora", end)
+        .order("data_hora", { ascending: false })
+        .order("id", { ascending: false }),
+    ]);
 
-  return rows.map((row) => ({
-    ...row,
-    status_portaria: statusPortariaFromRow(row),
-  }));
+    if (veiculosResult.error) throw veiculosResult.error;
+    if (checklistsResult.error) throw checklistsResult.error;
+    if (movimentosResult.error) throw movimentosResult.error;
+
+    const veiculos = (veiculosResult.data ?? []) as VeiculoLite[];
+    const checklists = (checklistsResult.data ?? []) as ChecklistDbRow[];
+    const movimentos = (movimentosResult.data ?? []) as MovimentacaoDbRow[];
+    const checklistIds = checklists.map((row) => row.id);
+    const pendencias = await fetchPendenciasCriticasByChecklistIds(checklistIds);
+
+    const checklistByFrota = new Map<number, ChecklistDbRow>();
+    for (const checklist of checklists) {
+      if (!checklistByFrota.has(checklist.frota_id)) {
+        checklistByFrota.set(checklist.frota_id, checklist);
+      }
+    }
+
+    const movimentoByFrota = new Map<number, MovimentacaoDbRow>();
+    for (const movimento of movimentos) {
+      if (!movimentoByFrota.has(movimento.frota_id)) {
+        movimentoByFrota.set(movimento.frota_id, movimento);
+      }
+    }
+
+    return veiculos.map((veiculo) => {
+      const checklist = checklistByFrota.get(veiculo.id);
+      const movimento = movimentoByFrota.get(veiculo.id);
+      const row: Omit<PortariaRow, "status_portaria"> = {
+        frota_id: veiculo.id,
+        frota_geral: veiculo.codigo_frota,
+        placa: veiculo.placa,
+        modelo: veiculo.modelo,
+        status_frota: veiculo.status,
+        checklist_id: checklist?.id ?? null,
+        motorista_id: checklist?.motorista_id ?? null,
+        motorista_nome: checklist?.motorista_nome ?? null,
+        data_checklist: checklist?.data_checklist ?? null,
+        km_informado: checklist?.km_informado ?? null,
+        status_geral: checklist?.status_geral ?? null,
+        pendencia_critica_item: checklist ? pendencias.get(checklist.id) ?? null : null,
+        ultimo_tipo_movimentacao: movimento?.tipo_movimentacao ?? null,
+        ultimo_movimento_em: movimento?.data_hora ?? null,
+      };
+
+      return { ...row, status_portaria: statusPortariaFromRow(row) };
+    });
+  }, []);
+}
+
+async function fetchPendenciasCriticasByChecklistIds(ids: number[]): Promise<Map<number, string>> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const { data, error } = await supabaseManutencao
+    .from("pendencias_frota")
+    .select("checklist_id,item_nome")
+    .in("checklist_id", uniqueIds)
+    .eq("gravidade", "CRITICA")
+    .in("status", ["ABERTA", "EM_TRATATIVA"])
+    .order("id", { ascending: true });
+
+  if (error) throw error;
+  const map = new Map<number, string>();
+  for (const row of data ?? []) {
+    if (!map.has(Number(row.checklist_id))) {
+      map.set(Number(row.checklist_id), String(row.item_nome ?? ""));
+    }
+  }
+  return map;
 }
 
 export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInput): Promise<void> {
-  await query(
-    `INSERT INTO ${MOVIMENTACOES_T}
-      (frota_id, motorista_id, checklist_id, tipo_movimentacao, data_hora, usuario_portaria_id, observacao, criado_em)
-     VALUES (?, ?, ?, ?, current_timestamp(), ?, ?, current_timestamp())`,
-    [
-      input.frota_id,
-      input.motorista_id,
-      input.checklist_id,
-      input.tipo_movimentacao,
-      input.usuario_portaria_id,
-      input.observacao ?? null,
-    ]
-  );
+  const { error } = await supabaseManutencao
+    .from("movimentacoes_frota")
+    .insert({
+      frota_id: input.frota_id,
+      motorista_id: input.motorista_id,
+      checklist_id: input.checklist_id,
+      tipo_movimentacao: input.tipo_movimentacao,
+      data_hora: new Date().toISOString(),
+      usuario_portaria_id: input.usuario_portaria_id,
+      observacao: input.observacao ?? null,
+    });
+
+  if (error) throw error;
 }
 
 function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): StatusPortaria {
@@ -323,68 +481,73 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   const kmMenor = diff != null && diff < 0;
 
   const kmOrigem: KmOrigem = isPrimeiroKm ? "CHECKLIST_INICIAL" : "CHECKLIST_MOTORISTA";
-  // Primeiro KM, KM menor que o anterior ou variação incomum exigem validação do admin.
   const kmAutoValidado = !isPrimeiroKm && !variacaoIncomum && !kmMenor;
 
-  await query(
-    `INSERT INTO ${CHECKLISTS_T}
-      (frota_id, motorista_id, motorista_nome, data_checklist, km_informado, km_lido_ocr, ocr_confianca, km_confirmado, foto_km_url, status_geral, observacao_original, observacao_corrigida_ia, criado_em)
-     VALUES (?, ?, ?, current_timestamp(), ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp())`,
-    [
-      input.frota_id,
-      input.motorista_id,
-      input.motorista_nome,
-      input.km_informado,
-      input.km_lido_ocr ?? null,
-      input.ocr_confianca ?? null,
-      input.km_confirmado,
-      input.foto_km_url ?? null,
-      input.status_geral,
-      input.observacao_original ?? null,
-      input.observacao_corrigida_ia ?? null,
-    ]
-  );
+  const { data: created, error: checklistError } = await supabaseManutencao
+    .from("checklists_frota")
+    .insert({
+      frota_id: input.frota_id,
+      motorista_id: input.motorista_id,
+      motorista_nome: input.motorista_nome,
+      data_checklist: new Date().toISOString(),
+      km_informado: input.km_informado,
+      km_lido_ocr: input.km_lido_ocr ?? null,
+      ocr_confianca: input.ocr_confianca ?? null,
+      km_confirmado: input.km_confirmado,
+      foto_km_url: input.foto_km_url ?? null,
+      status_geral: input.status_geral,
+      observacao_original: input.observacao_original ?? null,
+      observacao_corrigida_ia: input.observacao_corrigida_ia ?? null,
+    })
+    .select("id")
+    .single();
 
-  const created = await query<{ id: number }>(
-    `SELECT id
-     FROM ${CHECKLISTS_T}
-     WHERE frota_id = ? AND motorista_id = ?
-     ORDER BY id DESC
-     LIMIT 1`,
-    [input.frota_id, input.motorista_id]
-  );
-  const checklistId = Number(created[0]?.id);
+  if (checklistError) throw checklistError;
+  const checklistId = Number(created?.id);
   if (!checklistId) throw new Error("Checklist nao foi criado");
 
-  for (const itemInput of input.itens) {
+  const itensPayload = input.itens.flatMap((itemInput) => {
     const catalogItem = CHECKLIST_ITEMS.find((item) => item.codigo === itemInput.item_codigo);
-    if (!catalogItem) continue;
+    if (!catalogItem) return [];
+    return [{
+      checklist_id: checklistId,
+      item_codigo: catalogItem.codigo,
+      item_nome: catalogItem.nome,
+      grupo: catalogItem.grupo,
+      status: itemInput.status,
+      obrigatorio: catalogItem.obrigatorio,
+      critico: catalogItem.critico,
+      observacao: itemInput.observacao ?? null,
+      foto_url: itemInput.foto_url ?? null,
+    }];
+  });
 
-    await query(
-      `INSERT INTO ${ITENS_T}
-        (checklist_id, item_codigo, item_nome, grupo, status, obrigatorio, critico, observacao, foto_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        checklistId,
-        catalogItem.codigo,
-        catalogItem.nome,
-        catalogItem.grupo,
-        itemInput.status,
-        catalogItem.obrigatorio,
-        catalogItem.critico,
-        itemInput.observacao ?? null,
-        itemInput.foto_url ?? null,
-      ]
-    );
+  if (itensPayload.length > 0) {
+    const { error } = await supabaseManutencao.from("checklist_itens").insert(itensPayload);
+    if (error) throw error;
+  }
 
-    if (itemInput.status === "NAO_APTO") {
-      await query(
-        `INSERT INTO ${PENDENCIAS_T}
-          (frota_id, checklist_id, item_nome, gravidade, status, responsavel_id, criado_em, resolvido_em)
-         VALUES (?, ?, ?, ?, 'ABERTA', NULL, current_timestamp(), NULL)`,
-        [input.frota_id, checklistId, catalogItem.nome, gravidadePendencia(catalogItem)]
-      );
-    }
+  const pendenciasPayload = itensPayload
+    .filter((item) => item.status === "NAO_APTO")
+    .map((item) => ({
+      frota_id: input.frota_id,
+      checklist_id: checklistId,
+      item_nome: item.item_nome,
+      gravidade: gravidadePendencia({
+        codigo: item.item_codigo,
+        nome: item.item_nome,
+        grupo: item.grupo,
+        obrigatorio: item.obrigatorio,
+        critico: item.critico,
+      }),
+      status: "ABERTA",
+      responsavel_id: null,
+      resolvido_em: null,
+    }));
+
+  if (pendenciasPayload.length > 0) {
+    const { error } = await supabaseManutencao.from("pendencias_frota").insert(pendenciasPayload);
+    if (error) throw error;
   }
 
   await appendKmHistory({
@@ -449,7 +612,6 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
 function resolveStatusOperacional(status: ChecklistStatusGeral): string {
   switch (status) {
     case "CRITICO":
-      return "BLOQUEADA_CHECKLIST";
     case "NAO_APTO":
       return "BLOQUEADA_CHECKLIST";
     case "COM_OBSERVACAO":

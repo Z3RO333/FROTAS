@@ -1,42 +1,36 @@
 import "dotenv/config";
-import { query } from "../lib/db";
+import { supabaseManutencao } from "../lib/supabase-manutencao";
 
 async function main() {
-  const rows = await query<{
-    enviado_em: string;
-    tipo: string;
-    destinatarios: string;
-    assunto: string;
-    status: string;
-    erro_msg: string | null;
-  }>(
-    `SELECT enviado_em, tipo, destinatarios, assunto, status, erro_msg
-     FROM manutencao.cd.email_logs
-     ORDER BY enviado_em DESC
-     LIMIT 5`
-  );
+  const { data, error } = await supabaseManutencao
+    .from("email_logs")
+    .select("enviado_em,tipo,destinatarios,assunto,status,erro_msg")
+    .order("enviado_em", { ascending: false })
+    .limit(5);
 
-  if (rows.length === 0) {
+  if (error) throw error;
+
+  if (!data?.length) {
     console.log("Nenhum log de envio encontrado.");
     return;
   }
 
-  for (const r of rows) {
+  for (const row of data) {
     console.log("---");
-    console.log("Quando      :", r.enviado_em);
-    console.log("Tipo        :", r.tipo);
-    console.log("Destinatários:", r.destinatarios);
-    console.log("Assunto     :", r.assunto);
-    console.log("Status      :", r.status);
-    if (r.status === "erro") {
-      console.log("ERRO REAL   :", r.erro_msg);
+    console.log("Quando       :", row.enviado_em);
+    console.log("Tipo         :", row.tipo);
+    console.log("Destinatarios:", row.destinatarios);
+    console.log("Assunto      :", row.assunto);
+    console.log("Status       :", row.status);
+    if (row.status === "erro") {
+      console.log("ERRO REAL    :", row.erro_msg);
     }
   }
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error(error);
     process.exit(1);
   });

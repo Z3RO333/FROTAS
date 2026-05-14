@@ -1,33 +1,37 @@
 import "dotenv/config";
-import { query } from "../lib/db";
+import { supabaseManutencao } from "../lib/supabase-manutencao";
 
 async function main() {
-  console.log("1) SELECT sem parâmetros...");
-  const a = await query<{ n: number }>(`SELECT 1 AS n`);
-  console.log("   ok →", a[0]);
+  console.log("1) Conectando no Supabase...");
+  const { count, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("id", { count: "exact", head: true });
 
-  console.log("2) SELECT com 1 parâmetro string...");
-  const probe = "test'\\'-injection-attempt-- /*";
-  const b = await query<{ s: string }>(`SELECT ? AS s`, [probe]);
-  console.log("   enviado :", probe);
-  console.log("   recebido:", b[0]?.s);
-  console.log("   match   :", b[0]?.s === probe ? "✓" : "✗");
+  if (error) throw error;
+  console.log(`   ok - ${count ?? 0} veiculos cadastrados`);
 
-  console.log("3) SELECT com múltiplos parâmetros (number + string)...");
-  const c = await query<{ id: number; label: string }>(`SELECT ? AS id, ? AS label`, [42, "fr_test"]);
-  console.log("   ok →", c[0]);
+  console.log("2) Validando tabelas operacionais...");
+  const tables = [
+    "checklists_frota",
+    "historico_km_frota",
+    "movimentacoes_frota",
+    "abastecimentos_frota",
+    "unidades_operacionais",
+    "email_logs",
+  ];
 
-  console.log("4) Query real na tabela frotas com filtro parametrizado...");
-  const d = await query<{ total: number }>(
-    `SELECT COUNT(*) AS total FROM manutencao.cd.frotas WHERE ativo = ? AND vendido = ?`,
-    [true, false]
-  );
-  console.log("   ok →", d[0]);
+  for (const table of tables) {
+    const { error: tableError } = await supabaseManutencao
+      .from(table)
+      .select("*", { count: "exact", head: true });
+    if (tableError) throw tableError;
+    console.log(`   ok - ${table}`);
+  }
 }
 
 main()
   .then(() => process.exit(0))
-  .catch((e) => {
-    console.error("ERRO:", e);
+  .catch((error) => {
+    console.error("ERRO:", error);
     process.exit(1);
   });

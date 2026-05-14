@@ -1,4 +1,4 @@
-import { execute } from "@/lib/db";
+import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 export async function logEmail(args: {
   tipo: "geral" | "individual";
@@ -9,18 +9,17 @@ export async function logEmail(args: {
   status: "enviado" | "erro";
   erroMsg?: string | null;
 }) {
-  await execute(
-    `INSERT INTO manutencao.cd.email_logs
-      (tipo, frota_id, destinatarios, assunto, enviado_em, enviado_por, status, erro_msg)
-     VALUES (?, ?, ?, ?, current_timestamp(), ?, ?, ?)`,
-    [
-      args.tipo,
-      args.frotaId ?? null,
-      args.destinatarios,
-      args.assunto,
-      args.enviadoPor,
-      args.status,
-      args.erroMsg ?? null,
-    ]
-  );
+  const { error } = await supabaseManutencao
+    .from("email_logs")
+    .insert({
+      tipo: args.tipo,
+      frota_id: args.frotaId ?? null,
+      destinatarios: args.destinatarios,
+      assunto: args.assunto,
+      enviado_por: args.enviadoPor,
+      status: args.status,
+      erro_msg: args.erroMsg ?? null,
+    });
+
+  if (error) throw error;
 }
