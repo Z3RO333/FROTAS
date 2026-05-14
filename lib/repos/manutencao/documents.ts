@@ -26,7 +26,7 @@ export async function listDocuments(filters: {
 }
 
 export async function createDocument(
-  input: Omit<DocumentRecord, "id" | "created_at">,
+  input: Omit<DocumentRecord, "id" | "created_at" | "created_by">,
   createdBy: string
 ): Promise<DocumentRecord> {
   const { data, error } = await supabaseManutencao
