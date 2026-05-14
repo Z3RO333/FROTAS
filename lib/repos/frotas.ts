@@ -102,6 +102,8 @@ export type Kpis = {
   total_atencao: number;
   total_critico: number;
   total_manutencao: number;
+  total_manutencao_atrasada: number;
+  total_manutencao_longa: number;
   total_sem_km: number;
   total_acima_7: number;
   total_cadastro_incompleto: number;
@@ -298,13 +300,26 @@ export async function kpis(): Promise<Kpis> {
   const frotas = (await allFrotas()).filter((frota) => frota.ativo && !frota.vendido);
   const ages = frotas.map(idade).filter((value): value is number => value != null);
   const kms = frotas.map((frota) => frota.km_atual).filter((value): value is number => value != null);
+  const agora = Date.now();
+  const LONGA_MS = 7 * 86400000;
+  const emManutencao = frotas.filter((frota) => frota.status === "manutencao");
   return {
     total_ativos: frotas.length,
     total_disponiveis: frotas.filter((frota) => operacional(frota) === "disponivel").length,
     total_indisponiveis: frotas.filter((frota) => ["manutencao", "indisponivel"].includes(operacional(frota))).length,
     total_atencao: frotas.filter((frota) => condition(frota) === "atencao").length,
     total_critico: frotas.filter((frota) => condition(frota) === "critico").length,
-    total_manutencao: frotas.filter((frota) => frota.status === "manutencao").length,
+    total_manutencao: emManutencao.length,
+    total_manutencao_atrasada: emManutencao.filter((frota) => {
+      if (!frota.manutencao_prev_retorno) return false;
+      const d = new Date(frota.manutencao_prev_retorno).getTime();
+      return Number.isFinite(d) && d < agora;
+    }).length,
+    total_manutencao_longa: emManutencao.filter((frota) => {
+      if (!frota.manutencao_iniciado_em) return false;
+      const d = new Date(frota.manutencao_iniciado_em).getTime();
+      return Number.isFinite(d) && agora - d >= LONGA_MS;
+    }).length,
     total_sem_km: frotas.filter((frota) => frota.km_atual == null).length,
     total_acima_7: frotas.filter((frota) => (idade(frota) ?? 0) >= 7).length,
     total_cadastro_incompleto: frotas.filter(cadastroIncompleto).length,
