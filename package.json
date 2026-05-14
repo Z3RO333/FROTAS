@@ -11,7 +11,9 @@
     "test": "vitest run",
     "db:init": "tsx scripts/create-schema.ts",
     "import": "tsx scripts/import-xlsx.ts",
-    "import:unidades": "tsx scripts/import-relatorio-unidades.ts"
+    "import:unidades": "tsx scripts/import-relatorio-unidades.ts",
+    "migrate:pneus": "tsx scripts/migrate-supabase-pneus.ts",
+    "migrate:docs": "tsx scripts/migrate-supabase-docs.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.0",
