@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Any, Literal
 
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+import cv2
+import numpy as np
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field, HttpUrl
 
 try:
     from ultralytics import YOLO
 except ImportError:  # pragma: no cover - only happens when deps are not installed
     YOLO = None  # type: ignore[assignment]
+
+try:
+    import easyocr
+except ImportError:  # pragma: no cover - only happens when deps are not installed
+    easyocr = None  # type: ignore[assignment]
 
 
 SERVICE_NAME = "frotas-yolo-checklist"
@@ -22,6 +30,7 @@ MAX_IMAGE_BYTES = 12 * 1024 * 1024
 
 app = FastAPI(title=SERVICE_NAME, version="0.1.0")
 _model: Any | None = None
+_ocr_reader: Any | None = None
 
 
 class ChecklistVisionRequest(BaseModel):
@@ -52,6 +61,16 @@ class ChecklistVisionResponse(BaseModel):
     detections: list[Detection]
 
 
+class OdometerReadingResponse(BaseModel):
+    km_lido: int | None
+    confianca: float = Field(ge=0, le=1)
+    leitura_segura: bool
+    precisa_digitacao_manual: bool
+    motivo: str | None
+    texto_visivel: str | None
+    observacoes_imagem: str | None
+
+
 def require_token(authorization: str | None = Header(default=None)) -> None:
     token = os.getenv("YOLO_SERVICE_TOKEN", "").strip()
     if not token:
@@ -72,6 +91,18 @@ def get_model() -> Any:
     model_path = os.getenv("YOLO_MODEL_PATH", DEFAULT_MODEL).strip() or DEFAULT_MODEL
     _model = YOLO(model_path)
     return _model
+
+
+def get_ocr_reader() -> Any:
+    global _ocr_reader
+    if _ocr_reader is not None:
+        return _ocr_reader
+    if easyocr is None:
+        raise RuntimeError("easyocr is not installed")
+
+    gpu = os.getenv("YOLO_OCR_GPU", "false").strip().lower() in {"1", "true", "yes"}
+    _ocr_reader = easyocr.Reader(["en"], gpu=gpu, verbose=False)
+    return _ocr_reader
 
 
 async def download_image(url: str) -> Path:
@@ -145,6 +176,113 @@ def run_yolo(image_path: Path) -> tuple[str, list[Detection]]:
     return model_name(), detections
 
 
+def run_odometer_ocr(image_path: Path) -> OdometerReadingResponse:
+    image = cv2.imread(str(image_path))
+    if image is None:
+      raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Could not read image")
+
+    crops = odometer_crops(image_path, image)
+    variants: list[np.ndarray] = []
+    for crop in crops:
+        variants.extend(preprocess_for_digits(crop))
+
+    reader = get_ocr_reader()
+    candidates: list[tuple[int, float, str]] = []
+    visible_parts: list[str] = []
+
+    for variant in variants[:8]:
+        results = reader.readtext(variant, detail=1, paragraph=False, allowlist="0123456789., ")
+        for (_box, text, confidence) in results:
+            clean_text = str(text).strip()
+            if clean_text:
+                visible_parts.append(clean_text)
+            for value in extract_number_candidates(clean_text):
+                candidates.append((value, float(confidence), clean_text))
+
+    if not candidates:
+        return OdometerReadingResponse(
+            km_lido=None,
+            confianca=0,
+            leitura_segura=False,
+            precisa_digitacao_manual=True,
+            motivo="YOLO/OCR nao encontrou numeros de hodometro legiveis.",
+            texto_visivel=" ".join(visible_parts)[:500] or None,
+            observacoes_imagem="Tente foto mais proxima, sem reflexo e com o painel centralizado.",
+        )
+
+    value, confidence, text = sorted(candidates, key=lambda item: (item[1], len(str(item[0]))), reverse=True)[0]
+    safe = confidence >= 0.55 and value >= 100
+    return OdometerReadingResponse(
+        km_lido=value,
+        confianca=max(0.0, min(1.0, confidence)),
+        leitura_segura=safe,
+        precisa_digitacao_manual=not safe,
+        motivo=None if safe else "OCR encontrou numero, mas a confianca esta baixa. Confirme digitando manualmente.",
+        texto_visivel=text,
+        observacoes_imagem="Leitura local via YOLO/OCR.",
+    )
+
+
+def odometer_crops(image_path: Path, image: np.ndarray) -> list[np.ndarray]:
+    crops: list[np.ndarray] = []
+    h, w = image.shape[:2]
+
+    # If a custom model has odometer/dashboard/display classes, use it to crop the panel first.
+    try:
+        _model_name, detections = run_yolo(image_path)
+        target_names = ("odometer", "hodometro", "dashboard", "display", "speedometer", "painel", "meter")
+        for detection in detections:
+            if not any(name in detection.class_name.lower() for name in target_names):
+                continue
+            x1 = max(0, int(detection.box.x))
+            y1 = max(0, int(detection.box.y))
+            x2 = min(w, int(detection.box.x + detection.box.width))
+            y2 = min(h, int(detection.box.y + detection.box.height))
+            if x2 > x1 and y2 > y1:
+                crops.append(image[y1:y2, x1:x2])
+    except Exception:
+        pass
+
+    if crops:
+        return crops
+
+    # Generic fallback for phones pointed at a dashboard: full image and central zones.
+    return [
+        image,
+        image[int(h * 0.15): int(h * 0.85), int(w * 0.05): int(w * 0.95)],
+        image[int(h * 0.25): int(h * 0.75), int(w * 0.15): int(w * 0.85)],
+    ]
+
+
+def preprocess_for_digits(image: np.ndarray) -> list[np.ndarray]:
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    scale = max(1.0, 1000 / max(gray.shape[:2]))
+    resized = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    denoised = cv2.bilateralFilter(resized, 7, 50, 50)
+    equalized = cv2.equalizeHist(denoised)
+    thresh = cv2.adaptiveThreshold(
+        equalized,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        7,
+    )
+    inverted = cv2.bitwise_not(thresh)
+    return [resized, equalized, thresh, inverted]
+
+
+def extract_number_candidates(text: str) -> list[int]:
+    candidates: list[int] = []
+    for match in re.finditer(r"[0-9][0-9., ]{2,}[0-9]", text):
+        digits = re.sub(r"\D", "", match.group(0))
+        if 3 <= len(digits) <= 8:
+            value = int(digits)
+            if 0 <= value <= 2_000_000:
+                candidates.append(value)
+    return candidates
+
+
 def model_name() -> str:
     return os.getenv("YOLO_MODEL_NAME", os.getenv("YOLO_MODEL_PATH", DEFAULT_MODEL)).strip() or DEFAULT_MODEL
 
@@ -181,3 +319,33 @@ async def inspect(payload: ChecklistVisionRequest) -> ChecklistVisionResponse:
         summary=summarize(payload.source_type, detections),
         detections=detections,
     )
+
+
+@app.post("/odometer", response_model=OdometerReadingResponse, dependencies=[Depends(require_token)])
+async def odometer(foto_km: UploadFile = File(...)) -> OdometerReadingResponse:
+    content_type = foto_km.content_type or ""
+    if content_type and not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"File is not an image: {content_type}",
+        )
+
+    data = await foto_km.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Image is empty")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image is too large")
+
+    suffix = extension_from_content_type(content_type)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        tmp.write(data)
+        tmp.flush()
+    finally:
+        tmp.close()
+
+    image_path = Path(tmp.name)
+    try:
+        return run_odometer_ocr(image_path)
+    finally:
+        image_path.unlink(missing_ok=True)
