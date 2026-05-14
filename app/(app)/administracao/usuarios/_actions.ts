@@ -19,13 +19,16 @@ const UpdateUsuarioSchema = UsuarioSchema.extend({
 });
 
 function readUsuarioForm(formData: FormData) {
+  // O form envia "ativo" duas vezes (hidden=false + checkbox=true quando marcado).
+  // Usamos getAll para detectar se o checkbox foi marcado, independente da ordem.
+  const ativoValues = formData.getAll("ativo").map((v) => String(v));
   return {
     id: String(formData.get("id") ?? ""),
     nome: String(formData.get("nome") ?? ""),
     email: String(formData.get("email") ?? ""),
     matricula: String(formData.get("matricula") ?? ""),
     perfil: String(formData.get("perfil") ?? ""),
-    ativo: formData.get("ativo") === "true",
+    ativo: ativoValues.includes("true"),
   };
 }
 
