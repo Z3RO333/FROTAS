@@ -1,5 +1,10 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
+const SEVERITY_ORDER = ["OK", "ATENCAO", "CRITICO", "MANUTENCAO", "BLOQUEIO_SUGERIDO"];
+function worstCriticidade(a: string, b: string): string {
+  return SEVERITY_ORDER.indexOf(b) > SEVERITY_ORDER.indexOf(a) ? b : a;
+}
+
 export type RelatorioKpis = {
   total_checklists: number;
   ok: number;
@@ -90,7 +95,7 @@ export async function getRankingFrotas(date: string, limit = 10): Promise<FrotaP
     const existing = frotaMap.get(r.frota_id) ?? { total: 0, criticidade: "OK" };
     frotaMap.set(r.frota_id, {
       total: existing.total + (Array.isArray(r.problemas_detectados) ? r.problemas_detectados.length : 0),
-      criticidade: r.criticidade,
+      criticidade: worstCriticidade(existing.criticidade, r.criticidade),
     });
   }
 
@@ -148,22 +153,19 @@ export async function getRankingMotoristas(date: string, limit = 10): Promise<Mo
 }
 
 export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
-  const dias: EvolucaoDiaria[] = [];
   const hoje = new Date();
 
-  for (let i = 6; i >= 0; i--) {
+  const promises = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(hoje);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const kpis = await getRelatorioKpis(dateStr);
-    dias.push({
-      data: dateStr,
+    d.setDate(d.getDate() - (6 - i));
+    return getRelatorioKpis(d.toISOString().slice(0, 10)).then((kpis) => ({
+      data: d.toISOString().slice(0, 10),
       total: kpis.total_checklists,
       ok: kpis.ok,
       atencao: kpis.atencao,
       critico: kpis.critico,
-    });
-  }
+    }));
+  });
 
-  return dias;
+  return Promise.all(promises);
 }
