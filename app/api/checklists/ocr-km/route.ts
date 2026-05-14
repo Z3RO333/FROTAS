@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyzeOdometerImage } from "@/lib/ai/odometer";
+import { analyzeOdometerImage, calcStatusLeitura } from "@/lib/ai/odometer";
 import { auth } from "@/lib/auth";
 import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
 
@@ -17,8 +17,17 @@ export async function POST(request: Request) {
     }
 
     validateImageFile(file, "Foto do hodômetro");
+
+    const kmAnteriorRaw = formData.get("km_anterior");
+    const kmAnterior =
+      kmAnteriorRaw != null && String(kmAnteriorRaw).trim() !== ""
+        ? parseInt(String(kmAnteriorRaw), 10) || null
+        : null;
+
     const reading = await analyzeOdometerImage(file);
-    return NextResponse.json(reading);
+    const status_leitura = calcStatusLeitura(reading, kmAnterior);
+
+    return NextResponse.json({ ...reading, status_leitura, km_anterior_usado: kmAnterior });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Não foi possível analisar a foto.";
     return NextResponse.json({ error: message }, { status: 400 });
