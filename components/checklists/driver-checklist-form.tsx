@@ -534,6 +534,20 @@ function FuelLevelSelector({
 }) {
   const [hovered, setHovered] = useState(0);
 
+  // 1 = amarelo (baixo), 2-3 = azul (médio), 4 = verde (cheio)
+  const toneFor = (level: number) => {
+    if (level === 1) return { fill: "border-amber-500 bg-amber-500", preview: "border-amber-300 bg-amber-100" };
+    if (level === 4) return { fill: "border-emerald-500 bg-emerald-500", preview: "border-emerald-300 bg-emerald-100" };
+    return { fill: "border-blue-500 bg-blue-500", preview: "border-blue-300 bg-blue-100" };
+  };
+
+  const labelTone = (lvl: number) => {
+    if (lvl === 1) return "text-amber-600 font-medium";
+    if (lvl === 4) return "text-emerald-600 font-medium";
+    if (lvl > 0) return "text-blue-600 font-medium";
+    return "text-muted-foreground";
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{label}</p>
@@ -541,6 +555,9 @@ function FuelLevelSelector({
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
           const previewed = hovered > 0 && level <= hovered && !filled;
+          // Cor baseada no nível MÁXIMO selecionado/previsto, não no segmento individual
+          const refLevel = filled ? value : hovered;
+          const tone = toneFor(refLevel);
           return (
             <button
               key={level}
@@ -549,19 +566,19 @@ function FuelLevelSelector({
               onMouseEnter={() => setHovered(level)}
               onMouseLeave={() => setHovered(0)}
               className={`h-8 flex-1 rounded border-2 transition-colors ${
-                filled
-                  ? "border-blue-500 bg-blue-500"
-                  : previewed
-                    ? "border-blue-300 bg-blue-100"
-                    : "border-slate-200 bg-white"
+                filled ? tone.fill : previewed ? tone.preview : "border-slate-200 bg-white"
               }`}
               aria-label={`${level}/4 do tanque`}
             />
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {value === 0 ? (hovered > 0 ? `${hovered}/4` : "Nao informado") : `${value}/4`}
+      <p className={`text-xs ${labelTone(value > 0 ? value : hovered)}`}>
+        {value === 0
+          ? hovered > 0
+            ? `${hovered}/4`
+            : "Não informado"
+          : `${value}/4${value === 1 ? " · Baixo" : value === 4 ? " · Cheio" : ""}`}
       </p>
     </div>
   );
