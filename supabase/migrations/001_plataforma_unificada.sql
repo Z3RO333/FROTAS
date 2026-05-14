@@ -7,8 +7,7 @@
 
 create or replace function public.is_service_role()
 returns boolean language sql stable as $$
-  select current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
-     or auth.role() = 'service_role';
+  select auth.role() = 'service_role';
 $$;
 
 -- MÓDULO: VEÍCULOS / MANUTENÇÃO
@@ -84,6 +83,7 @@ create table if not exists public.servicos_km_base_app (
   tipo_servico text not null,
   km_base     numeric(12,0) not null,
   data_base   timestamptz not null default now(),
+  created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   unique (id_veiculo, tipo_servico)
 );
@@ -344,8 +344,6 @@ create index if not exists idx_alinhamentos_servico
   on public.alinhamentos_app (id_servico);
 create index if not exists idx_lavagens_servico
   on public.lavagens_app (id_servico);
-create index if not exists idx_km_base_veiculo_tipo
-  on public.servicos_km_base_app (id_veiculo, tipo_servico);
 create index if not exists idx_numero_fogo_placa
   on public.numero_fogo (placa);
 create index if not exists idx_numero_fogo_data
