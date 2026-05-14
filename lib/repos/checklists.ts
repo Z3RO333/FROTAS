@@ -523,6 +523,18 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   const frotaAtual = await getFrota(input.frota_id);
   if (!frotaAtual) throw new Error(`Frota ${input.frota_id} nao encontrada`);
 
+  // Bloqueio operacional: frota em manutenção não pode receber checklist
+  if (
+    frotaAtual.status === "manutencao" &&
+    frotaAtual.manutencao_bloqueia_checklist !== false
+  ) {
+    throw new Error(
+      `Frota em manutenção desde ${frotaAtual.manutencao_iniciado_em?.slice(0, 10) ?? "—"}: ${frotaAtual.manutencao_motivo ?? "sem motivo"}. Aguarde liberação ou contate o administrador.`
+    );
+  }
+  if (frotaAtual.vendido) throw new Error("Frota vendida não pode receber checklist.");
+  if (!frotaAtual.ativo) throw new Error("Frota inativa/baixada não pode receber checklist.");
+
   const kmAnterior = frotaAtual.km_atual;
   const isPrimeiroKm = kmAnterior == null;
   const diff = kmAnterior != null ? input.km_informado - kmAnterior : null;

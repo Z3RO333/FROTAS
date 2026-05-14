@@ -31,6 +31,14 @@ export type Frota = {
   ultimo_abastecimento_em: string | null;
   ultimo_abastecimento_litros: number | null;
   status_operacional: string | null;
+  manutencao_motivo: string | null;
+  manutencao_tipo: string | null;
+  manutencao_oficina: string | null;
+  manutencao_prev_retorno: string | null;
+  manutencao_observacao: string | null;
+  manutencao_iniciado_em: string | null;
+  manutencao_iniciado_por: string | null;
+  manutencao_bloqueia_checklist: boolean | null;
 };
 
 type VeiculoRow = {
@@ -61,6 +69,14 @@ type VeiculoRow = {
   ultimo_abastecimento_em: string | null;
   ultimo_abastecimento_litros: number | null;
   status_operacional: string | null;
+  manutencao_motivo: string | null;
+  manutencao_tipo: string | null;
+  manutencao_oficina: string | null;
+  manutencao_prev_retorno: string | null;
+  manutencao_observacao: string | null;
+  manutencao_iniciado_em: string | null;
+  manutencao_iniciado_por: string | null;
+  manutencao_bloqueia_checklist: boolean | null;
 };
 
 export type FrotaFilters = {
@@ -150,6 +166,20 @@ function fromVeiculo(row: VeiculoRow): Frota {
     ultimo_abastecimento_litros:
       row.ultimo_abastecimento_litros != null ? Number(row.ultimo_abastecimento_litros) : null,
     status_operacional: row.status_operacional,
+    manutencao_motivo: (row as VeiculoRow & { manutencao_motivo?: string | null }).manutencao_motivo ?? null,
+    manutencao_tipo: (row as VeiculoRow & { manutencao_tipo?: string | null }).manutencao_tipo ?? null,
+    manutencao_oficina: (row as VeiculoRow & { manutencao_oficina?: string | null }).manutencao_oficina ?? null,
+    manutencao_prev_retorno:
+      (row as VeiculoRow & { manutencao_prev_retorno?: string | null }).manutencao_prev_retorno ?? null,
+    manutencao_observacao:
+      (row as VeiculoRow & { manutencao_observacao?: string | null }).manutencao_observacao ?? null,
+    manutencao_iniciado_em:
+      (row as VeiculoRow & { manutencao_iniciado_em?: string | null }).manutencao_iniciado_em ?? null,
+    manutencao_iniciado_por:
+      (row as VeiculoRow & { manutencao_iniciado_por?: string | null }).manutencao_iniciado_por ?? null,
+    manutencao_bloqueia_checklist:
+      (row as VeiculoRow & { manutencao_bloqueia_checklist?: boolean | null })
+        .manutencao_bloqueia_checklist ?? null,
   };
 }
 
