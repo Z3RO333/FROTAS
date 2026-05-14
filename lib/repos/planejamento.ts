@@ -183,6 +183,45 @@ export async function getDisponibilidadePorTipo(): Promise<DisponibilidadeTipoRo
   return (data ?? []) as DisponibilidadeTipoRow[];
 }
 
+export type PneuVeiculoGroup = {
+  equipamento: string | null;
+  frota_numero: string | null;
+  total_pneus: number;
+  marcado: number;
+  pneus: PneuRow[];
+};
+
+export async function listVeiculosComPneus(limit = 50): Promise<PneuVeiculoGroup[]> {
+  const { data } = await supabaseManutencao
+    .from("fact_pneus")
+    .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
+    .order("equipamento")
+    .order("posicao")
+    .limit(2000);
+
+  const rows = (data ?? []) as PneuRow[];
+  const groups = new Map<string, PneuVeiculoGroup>();
+
+  for (const r of rows) {
+    const key = r.equipamento ?? r.frota_numero ?? "?";
+    const g = groups.get(key) ?? {
+      equipamento: r.equipamento,
+      frota_numero: r.frota_numero,
+      total_pneus: 0,
+      marcado: 0,
+      pneus: [],
+    };
+    g.total_pneus++;
+    if (r.marcado) g.marcado++;
+    g.pneus.push(r);
+    groups.set(key, g);
+  }
+
+  return [...groups.values()]
+    .sort((a, b) => b.total_pneus - a.total_pneus)
+    .slice(0, limit);
+}
+
 export async function getPneus(): Promise<PneuRow[]> {
   const { data } = await supabaseManutencao
     .from("fact_pneus")
