@@ -600,6 +600,19 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     input.motorista_id
   );
 
+  const internalSecret = process.env.FROTAS_INTERNAL_SECRET;
+  if (internalSecret) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    fetch(`${baseUrl}/api/checklists/analyze`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": internalSecret,
+      },
+      body: JSON.stringify({ checklist_id: checklistId }),
+    }).catch((err) => console.warn("[analyze] falha ao disparar análise assíncrona", err));
+  }
+
   return {
     checklist_id: checklistId,
     km_origem: kmOrigem,
