@@ -1,23 +1,19 @@
+import { MetricGridSkeleton, Skeleton, TableSkeleton } from "@/components/ui/loading-skeleton";
+
 export default function DashboardLoading() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-        <div className="h-9 w-80 animate-pulse rounded bg-slate-200" />
-        <div className="h-4 w-72 animate-pulse rounded bg-slate-200" />
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-3 w-96" />
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-lg border bg-white" />
-        ))}
-      </div>
-
-      <div className="h-40 animate-pulse rounded-lg border bg-white" />
-
+      <MetricGridSkeleton count={5} />
+      <MetricGridSkeleton count={5} />
+      <MetricGridSkeleton count={4} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="h-72 animate-pulse rounded-lg border bg-white" />
-        <div className="h-72 animate-pulse rounded-lg border bg-white" />
+        <TableSkeleton rows={4} cols={3} />
+        <TableSkeleton rows={4} cols={3} />
       </div>
     </div>
   );
