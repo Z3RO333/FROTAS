@@ -122,7 +122,14 @@ Analise e classifique.`.trim();
 
     const result = response.output_parsed;
     if (!result) {
-      return { result: FALLBACK, tokens_entrada: 0, tokens_saida: 0, duracao_ms: Date.now() - inicio, modelo, erro: "Resposta vazia da IA" };
+      return {
+        result: FALLBACK,
+        tokens_entrada: response.usage?.input_tokens ?? 0,
+        tokens_saida: response.usage?.output_tokens ?? 0,
+        duracao_ms: Date.now() - inicio,
+        modelo,
+        erro: "Resposta vazia da IA",
+      };
     }
 
     return {
@@ -134,6 +141,7 @@ Analise e classifique.`.trim();
       erro: null,
     };
   } catch (err) {
+    console.warn("[ai/checklist] falha ao analisar checklist", err);
     return {
       result: FALLBACK,
       tokens_entrada: 0,
