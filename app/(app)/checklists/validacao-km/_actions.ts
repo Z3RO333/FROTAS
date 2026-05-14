@@ -25,7 +25,7 @@ export async function aprovarKmAction(formData: FormData) {
   const observacao = (formData.get("observacao") as string | null)?.trim() || null;
 
   const entry = await getKmEntry(id);
-  if (!entry) throw new Error("Registro de KM nao encontrado.");
+  if (!entry) throw new Error("Registro de KM não encontrado.");
   if (entry.validado) return;
 
   await approveKmEntry(id, user.email, observacao);
@@ -48,10 +48,10 @@ export async function corrigirKmAction(formData: FormData) {
   const id = IdSchema.parse(formData.get("id"));
   const kmCorrigido = KmSchema.parse(formData.get("km_corrigido"));
   const observacao = ((formData.get("observacao") as string | null) ?? "").trim();
-  if (!observacao) throw new Error("Informe uma justificativa para a correcao do KM.");
+  if (!observacao) throw new Error("Informe uma justificativa para a correção do KM.");
 
   const entry = await getKmEntry(id);
-  if (!entry) throw new Error("Registro de KM nao encontrado.");
+  if (!entry) throw new Error("Registro de KM não encontrado.");
 
   await correctKmEntry(id, kmCorrigido, user.email, observacao);
 

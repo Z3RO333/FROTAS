@@ -15,9 +15,9 @@ import {
 } from "@/lib/repos/manutencao/documents";
 
 const DocumentSchema = z.object({
-  frota: z.string().trim().min(1, "Frota obrigatoria"),
-  placa: z.string().trim().min(1, "Placa obrigatoria"),
-  modelo: z.string().trim().min(1, "Modelo obrigatorio"),
+  frota: z.string().trim().min(1, "Frota obrigatória"),
+  placa: z.string().trim().min(1, "Placa obrigatória"),
+  modelo: z.string().trim().min(1, "Modelo obrigatório"),
 });
 
 export type DocumentActionResult = { ok: true } | { ok: false; error: string };
@@ -70,7 +70,7 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
 
   try {
     const current = await getDocumentById(id);
-    if (!current) return { ok: false, error: "Documento nao encontrado." };
+    if (!current) return { ok: false, error: "Documento não encontrado." };
 
     const input = DocumentSchema.partial().parse(readDocumentFields(formData));
     const dutFile = readOptionalFile(formData, "dut_file");
@@ -131,7 +131,7 @@ function normalizePlate(value: string): string {
 }
 
 function getActionErrorMessage(error: unknown): string {
-  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados invalidos.";
+  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados inválidos.";
   if (error instanceof Error) return error.message;
   return "Erro inesperado ao processar documento.";
 }

@@ -31,8 +31,8 @@ export function DeleteFrotaButton({ id, label }: { id: number; label: string }) 
         <DialogHeader>
           <DialogTitle>Excluir frota?</DialogTitle>
           <DialogDescription>
-            A frota <strong>{label}</strong> sera marcada como inativa e deixara de aparecer na lista
-            padrao.
+            A frota <strong>{label}</strong> será marcada como inativa e deixará de aparecer na lista
+            padrão.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

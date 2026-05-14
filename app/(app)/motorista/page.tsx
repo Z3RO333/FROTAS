@@ -49,13 +49,13 @@ export default async function MotoristaHomePage() {
               <Link href="/motorista/checklist" className="rounded-md border bg-slate-50 p-4 transition-colors hover:bg-blue-50">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-2xl font-semibold">{frota.frota_geral ?? `Frota #${frota.id}`}</h2>
-                  <Badge variant="outline">{frota.status ?? "disponivel"}</Badge>
+                  <Badge variant="outline">{frota.status ?? "disponível"}</Badge>
                 </div>
                 <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <Info label="Modelo" value={frota.modelo} />
                   <Info label="Placa" value={frota.placa} />
                   <Info label="Setor" value={frota.localizacao} />
-                  <Info label="Ultimo KM" value={formatNumber(frota.km_atual)} />
+                  <Info label="Último KM" value={formatNumber(frota.km_atual)} />
                 </div>
               </Link>
               <div className="flex flex-col gap-2">
@@ -68,7 +68,7 @@ export default async function MotoristaHomePage() {
                 <Button asChild variant="outline">
                   <Link href="/motorista/checklists">
                     <History className="h-4 w-4" aria-hidden="true" />
-                    Meus ultimos checklists
+                    Meus últimos checklists
                   </Link>
                 </Button>
                 <Button variant="outline" disabled>
@@ -79,14 +79,14 @@ export default async function MotoristaHomePage() {
             </>
           ) : (
             <div className="md:col-span-2 rounded-md border bg-slate-50 p-4 text-sm text-muted-foreground">
-              Nenhuma frota disponivel para checklist.
+              Nenhuma frota disponível para checklist.
             </div>
           )}
         </CardContent>
       </Card>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Historico rapido</h2>
+        <h2 className="text-lg font-semibold">Histórico rápido</h2>
         <div className="grid gap-3">
           {ultimos.length > 0 ? (
             ultimos.map((checklist) => (

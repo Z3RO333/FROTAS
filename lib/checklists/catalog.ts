@@ -12,26 +12,26 @@ export type ChecklistCatalogItem = {
 };
 
 export const CHECKLIST_ITEMS: ChecklistCatalogItem[] = [
-  { codigo: "iluminacao", nome: "Iluminacao", grupo: "Seguranca", obrigatorio: true, critico: true },
-  { codigo: "tacografo", nome: "Tacografo", grupo: "Seguranca", obrigatorio: false, critico: false },
+  { codigo: "iluminacao", nome: "Iluminação", grupo: "Seguranca", obrigatorio: true, critico: true },
+  { codigo: "tacografo", nome: "Tacógrafo", grupo: "Seguranca", obrigatorio: false, critico: false },
   {
     codigo: "kit_seguranca",
-    nome: "Kit seguranca (triangulo, macaco, chave de roda e extintor)",
+    nome: "Kit segurança (triângulo, macaco, chave de roda e extintor)",
     grupo: "Seguranca",
     obrigatorio: true,
     critico: false,
   },
   { codigo: "limpador", nome: "Limpador de para-brisa", grupo: "Seguranca", obrigatorio: true, critico: false },
-  { codigo: "motor_oleo", nome: "Motor / Oleo", grupo: "Mecanica", obrigatorio: true, critico: false },
-  { codigo: "freios", nome: "Freios / Oleo", grupo: "Mecanica", obrigatorio: true, critico: true },
+  { codigo: "motor_oleo", nome: "Motor / Óleo", grupo: "Mecanica", obrigatorio: true, critico: false },
+  { codigo: "freios", nome: "Freios / Óleo", grupo: "Mecanica", obrigatorio: true, critico: true },
   { codigo: "radiador", nome: "Radiador / purgar", grupo: "Mecanica", obrigatorio: true, critico: false },
-  { codigo: "oleo_transmissao", nome: "Transmissao / Oleo", grupo: "Mecanica", obrigatorio: false, critico: false },
-  { codigo: "oleo_plataforma", nome: "Plataforma / Oleo", grupo: "Mecanica", obrigatorio: false, critico: false },
+  { codigo: "oleo_transmissao", nome: "Transmissão / Óleo", grupo: "Mecanica", obrigatorio: false, critico: false },
+  { codigo: "oleo_plataforma", nome: "Plataforma / Óleo", grupo: "Mecanica", obrigatorio: false, critico: false },
   { codigo: "arla", nome: "Arla", grupo: "Mecanica", obrigatorio: false, critico: false },
   { codigo: "pneus_step", nome: "Pneus / step", grupo: "Rodagem", obrigatorio: true, critico: true },
-  { codigo: "documento", nome: "Documento do veiculo", grupo: "Documentacao", obrigatorio: true, critico: false },
-  { codigo: "cartao_combustivel", nome: "Cartao combustivel", grupo: "Documentacao", obrigatorio: false, critico: false },
-  { codigo: "bau", nome: "Bau", grupo: "Conservacao", obrigatorio: true, critico: false },
+  { codigo: "documento", nome: "Documento do veículo", grupo: "Documentacao", obrigatorio: true, critico: false },
+  { codigo: "cartao_combustivel", nome: "Cartão combustível", grupo: "Documentacao", obrigatorio: false, critico: false },
+  { codigo: "bau", nome: "Baú", grupo: "Conservacao", obrigatorio: true, critico: false },
 ];
 
 export const CHECKLIST_GROUPS: ChecklistGrupo[] = [
