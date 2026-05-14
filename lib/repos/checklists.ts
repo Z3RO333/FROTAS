@@ -164,6 +164,8 @@ export type CreateChecklistInput = {
   tipo_combustivel?: string | null;
   litros_combustivel?: number | null;
   litros_arla?: number | null;
+  nivel_combustivel?: number | null;
+  nivel_arla?: number | null;
   foto_comprovante_abastecimento_url?: string | null;
 };
 
@@ -692,6 +694,8 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     km_diff: diff,
     km_validado: kmAutoValidado,
     litros_combustivel: input.litros_combustivel ?? null,
+    nivel_combustivel: input.nivel_combustivel ?? null,
+    nivel_arla: input.nivel_arla ?? null,
     itens_nao_aptos: itensNaoAptos.length,
     itens_criticos: itensCriticos.length,
   }).catch((err) => console.warn("[veiculo-eventos] falha", err));

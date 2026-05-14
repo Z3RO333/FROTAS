@@ -39,6 +39,12 @@ export type Frota = {
   manutencao_iniciado_em: string | null;
   manutencao_iniciado_por: string | null;
   manutencao_bloqueia_checklist: boolean | null;
+  combustivel_atual_nivel: number | null;
+  combustivel_atualizado_em: string | null;
+  combustivel_origem: string | null;
+  arla_atual_nivel: number | null;
+  arla_atualizado_em: string | null;
+  arla_origem: string | null;
 };
 
 type VeiculoRow = {
@@ -182,6 +188,19 @@ function fromVeiculo(row: VeiculoRow): Frota {
     manutencao_bloqueia_checklist:
       (row as VeiculoRow & { manutencao_bloqueia_checklist?: boolean | null })
         .manutencao_bloqueia_checklist ?? null,
+    combustivel_atual_nivel:
+      (row as VeiculoRow & { combustivel_atual_nivel?: number | null }).combustivel_atual_nivel ??
+      null,
+    combustivel_atualizado_em:
+      (row as VeiculoRow & { combustivel_atualizado_em?: string | null })
+        .combustivel_atualizado_em ?? null,
+    combustivel_origem:
+      (row as VeiculoRow & { combustivel_origem?: string | null }).combustivel_origem ?? null,
+    arla_atual_nivel:
+      (row as VeiculoRow & { arla_atual_nivel?: number | null }).arla_atual_nivel ?? null,
+    arla_atualizado_em:
+      (row as VeiculoRow & { arla_atualizado_em?: string | null }).arla_atualizado_em ?? null,
+    arla_origem: (row as VeiculoRow & { arla_origem?: string | null }).arla_origem ?? null,
   };
 }
 
