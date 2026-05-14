@@ -53,9 +53,8 @@ async function processarChecklist(checklistId: number, forcar: boolean): Promise
     if (existente) return "ja_analisado";
   }
 
-  await setAnaliseStatus(checklistId, "PROCESSANDO");
-
   try {
+    await setAnaliseStatus(checklistId, "PROCESSANDO");
     const { data: checklistRows, error: clError } = await supabaseManutencao
       .from("checklists_frota")
       .select("id,frota_id,motorista_id,data_checklist,observacao_original,km_informado,status_geral")
@@ -118,7 +117,7 @@ async function processarChecklist(checklistId: number, forcar: boolean): Promise
       payload_saida: output.result,
     });
 
-    if (!output.result) {
+    if (output.erro !== null || !output.result) {
       await setAnaliseStatus(checklistId, "ERRO");
       return "erro_ia";
     }
