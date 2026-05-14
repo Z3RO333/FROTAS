@@ -48,12 +48,12 @@ type EixoSlots = {
 function detectAxles(pneus: PneuRow[]): {
   front?: { left?: PneuRow; right?: PneuRow };
   rearAxles: EixoSlots[];
-  step?: PneuRow;
+  steps: PneuRow[];
 } {
   let frontLeft: PneuRow | undefined;
   let frontRight: PneuRow | undefined;
   const axles: Record<number, EixoSlots> = {};
-  let step: PneuRow | undefined;
+  const steps: PneuRow[] = [];
 
   for (const p of pneus) {
     const n = normPos(p.posicao);
@@ -63,9 +63,11 @@ function detectAxles(pneus: PneuRow[]): {
       axles[1] = { ...(axles[1] ?? {}), right_outer: p };
     } else if (n === "TE") {
       axles[1] = { ...(axles[1] ?? {}), left_outer: p };
-    } else if (n === "STEP" || n === "ESTEPE") step = p;
-    else {
-      const match = n.match(/^(TDE|TDI|TEE|TEI)(?:_(\d)_EIXO)?$/);
+    } else if (n.startsWith("STEP") || n.startsWith("ESTEPE")) {
+      steps.push(p);
+    } else {
+      // Aceita: TDE, TDE_1_EIXO, TDE_1_EIX, TDE_1_IEX (typo), TDE_2_EIX, TDE_3_EIX...
+      const match = n.match(/^(TDE|TDI|TEE|TEI)(?:_(\d+).*)?$/);
       if (!match) continue;
       const tipo = match[1];
       const eixo = match[2] ? Number(match[2]) : 1;
@@ -85,7 +87,7 @@ function detectAxles(pneus: PneuRow[]): {
   return {
     front: frontLeft || frontRight ? { left: frontLeft, right: frontRight } : undefined,
     rearAxles,
-    step,
+    steps,
   };
 }
 
@@ -107,12 +109,13 @@ function AxleRow({ slot }: { slot: EixoSlots }) {
 }
 
 export function TireMap({ pneus, className }: Props) {
-  const { front, rearAxles, step } = detectAxles(pneus);
+  const { front, rearAxles, steps } = detectAxles(pneus);
+  const hasFront = !!front;
 
   return (
     <div className={cn("rounded-lg border bg-white p-6", className)}>
       <div className="mb-3 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Frente
+        {hasFront ? "Frente" : "Carreta / Reboque"}
       </div>
 
       <div className="flex flex-col items-center gap-3">
@@ -135,12 +138,16 @@ export function TireMap({ pneus, className }: Props) {
         ))}
       </div>
 
-      {step && (
+      {steps.length > 0 && (
         <div className="mt-5 flex flex-col items-center border-t pt-3">
           <span className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Estepe
+            {steps.length > 1 ? `${steps.length} estepes` : "Estepe"}
           </span>
-          <Tire pneu={step} label="STEP" />
+          <div className="flex gap-2">
+            {steps.map((s, i) => (
+              <Tire key={i} pneu={s} label={s.posicao.length <= 5 ? s.posicao : "STEP"} />
+            ))}
+          </div>
         </div>
       )}
 
