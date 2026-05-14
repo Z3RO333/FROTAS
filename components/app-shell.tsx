@@ -39,6 +39,15 @@ const MANUTENCAO_NAV: NavItem[] = [
 const OPERACAO_NAV: NavItem[] = [{ href: "/operacao", label: "Operacao", icon: "Gauge" }];
 const DOCUMENTOS_NAV: NavItem[] = [{ href: "/documentos", label: "Documentos", icon: "FileText" }];
 
+const PLANEJAMENTO_NAV: NavItem[] = [
+  { href: "/planejamento", label: "Visão Geral", icon: "LayoutDashboard" },
+  { href: "/planejamento/manutencao", label: "Manutenção", icon: "Wrench" },
+  { href: "/planejamento/documentos", label: "Documentos", icon: "FileText" },
+  { href: "/planejamento/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
+  { href: "/planejamento/pneus", label: "Pneus", icon: "Truck" },
+  { href: "/planejamento/lavagem", label: "Lavagem", icon: "ClipboardCheck" },
+];
+
 const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista", label: "Inicio", icon: "Home" },
   { href: "/motorista/checklist", label: "Fazer checklist", icon: "ClipboardCheck" },
@@ -67,6 +76,7 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   if (canAccessManutencao(perfil)) sections.push({ title: "Manutencao", items: MANUTENCAO_NAV });
   if (canAccessOperacao(perfil)) sections.push({ title: "Operacao", items: OPERACAO_NAV });
   if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
+  if (canAccessManutencao(perfil)) sections.push({ title: "Planejamento", items: PLANEJAMENTO_NAV });
 
   if (perfil === "DEV") {
     sections.push({
