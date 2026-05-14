@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
@@ -68,20 +68,15 @@ export default async function FrotasPage({
     <div className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Operação</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Operacao</p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Tabela de frotas</h1>
           <p className="text-sm text-muted-foreground">{total} frota(s) encontrada(s)</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <EnviarRelatorioDialog
-            title="Enviar relatório geral"
+            title="Enviar relatorio geral"
             action={enviarRelatorioGeralAction}
-            trigger={
-              <Button variant="outline">
-                <Mail className="h-4 w-4" aria-hidden="true" />
-                Enviar relatório
-              </Button>
-            }
+            triggerVariant="outline"
           />
           <Button asChild>
             <Link href="/frotas/novo">

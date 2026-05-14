@@ -3,9 +3,9 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { sendRelatorioGeral, sendRelatorioIndividual } from "@/lib/email";
 import { createFrota, getFrota, listFrotasForReport, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
+import { requireAdminUser } from "@/lib/rbac";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
 
@@ -47,9 +47,8 @@ const EmailListSchema = z
 type RelatorioActionResult = { ok: true } | { ok: false; error: string };
 
 async function requireUser(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.email) throw new Error("Não autenticado");
-  return session.user.email;
+  const user = await requireAdminUser();
+  return user.email;
 }
 
 function formObject(formData: FormData): Record<string, unknown> {
