@@ -8,7 +8,7 @@ import { createUsuario, getUsuarioById, updateUsuario } from "@/lib/repos/usuari
 
 const UsuarioSchema = z.object({
   nome: z.string().trim().optional(),
-  email: z.string().trim().email("E-mail invalido"),
+  email: z.string().trim().email("E-mail inválido"),
   matricula: z.string().trim().optional(),
   perfil: z.enum(PERFIS_USUARIO),
   ativo: z.boolean(),
@@ -51,10 +51,10 @@ export async function createUsuarioAction(formData: FormData) {
     ensureCanAssignPerfil(actor.perfil, input.perfil);
     await createUsuario(input, actor.email);
     revalidatePath("/administracao/usuarios");
-    redirectBack("sucesso", "Usuario criado com perfil manual.");
+    redirectBack("sucesso", "Usuário criado com perfil manual.");
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    redirectBack("erro", error instanceof Error ? error.message : "Nao foi possivel criar o usuario.");
+    redirectBack("erro", error instanceof Error ? error.message : "Não foi possível criar o usuário.");
   }
 }
 
@@ -65,14 +65,14 @@ export async function updateUsuarioAction(formData: FormData) {
   try {
     const input = UpdateUsuarioSchema.parse(readUsuarioForm(formData));
     const target = await getUsuarioById(input.id);
-    if (!target) redirectBack("erro", "Usuario nao encontrado.");
+    if (!target) redirectBack("erro", "Usuário não encontrado.");
     if (target.perfil === "DEV" && actor.perfil !== "DEV") {
-      redirectBack("erro", "Somente DEV pode alterar usuarios DEV.");
+      redirectBack("erro", "Somente DEV pode alterar usuários DEV.");
     }
     ensureCanAssignPerfil(actor.perfil, input.perfil);
 
     if (target.email === actor.email && !input.ativo) {
-      redirectBack("erro", "Voce nao pode desativar seu proprio usuario.");
+      redirectBack("erro", "Você não pode desativar seu próprio usuário.");
     }
 
     await updateUsuario(
@@ -87,10 +87,10 @@ export async function updateUsuarioAction(formData: FormData) {
       actor.email
     );
     revalidatePath("/administracao/usuarios");
-    redirectBack("sucesso", "Usuario atualizado.");
+    redirectBack("sucesso", "Usuário atualizado.");
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    redirectBack("erro", error instanceof Error ? error.message : "Nao foi possivel atualizar o usuario.");
+    redirectBack("erro", error instanceof Error ? error.message : "Não foi possível atualizar o usuário.");
   }
 }
 

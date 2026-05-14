@@ -34,7 +34,7 @@ export default async function MeusChecklistsPage() {
                     {formatDate(checklist.data_checklist)} - {checklist.frota_geral ?? checklist.placa ?? "Frota"}
                   </h2>
                   <div className="mt-2 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-                    <Metric icon={<Truck className="h-4 w-4" />} value={checklist.modelo ?? "Modelo nao informado"} />
+                    <Metric icon={<Truck className="h-4 w-4" />} value={checklist.modelo ?? "Modelo não informado"} />
                     <Metric icon={<Gauge className="h-4 w-4" />} value={`KM ${formatNumber(checklist.km_informado)}`} />
                     <Metric icon={<CalendarClock className="h-4 w-4" />} value={checklist.criado_em ?? "-"} />
                   </div>
@@ -50,7 +50,7 @@ export default async function MeusChecklistsPage() {
           ))
         ) : (
           <div className="rounded-md border bg-white p-6 text-sm text-muted-foreground">
-            Voce ainda nao possui checklists registrados.
+            Você ainda não possui checklists registrados.
           </div>
         )}
       </div>

@@ -29,15 +29,15 @@ export async function registrarMovimentacaoPortariaAction(formData: FormData) {
   );
 
   if (!row || !row.checklist_id || !row.motorista_id) {
-    throw new Error("Checklist valido de hoje nao encontrado para esta frota.");
+    throw new Error("Checklist válido de hoje não encontrado para esta frota.");
   }
 
   if (parsed.tipo_movimentacao === "SAIDA" && row.status_portaria !== "LIBERADA_SAIDA") {
-    throw new Error("Saida bloqueada: a frota nao esta liberada pela regra da portaria.");
+    throw new Error("Saída bloqueada: a frota não está liberada pela regra da portaria.");
   }
 
   if (parsed.tipo_movimentacao === "ENTRADA" && row.status_portaria !== "SAIDA_REGISTRADA") {
-    throw new Error("Entrada permitida somente depois de uma saida registrada.");
+    throw new Error("Entrada permitida somente depois de uma saída registrada.");
   }
 
   await registrarMovimentacaoFrota({

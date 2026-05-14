@@ -14,8 +14,8 @@ export default async function PendenciasPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administracao</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Pendencias e nao conformidades</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Pendências e não conformidades</h1>
       </div>
 
       <div className="grid gap-3">
@@ -40,7 +40,7 @@ export default async function PendenciasPage() {
                     Liberar frota
                   </Button>
                   <Button variant="outline" disabled>
-                    Abrir manutencao
+                    Abrir manutenção
                   </Button>
                   <Button disabled>Resolver</Button>
                 </div>
@@ -49,7 +49,7 @@ export default async function PendenciasPage() {
           ))
         ) : (
           <div className="rounded-md border bg-white p-6 text-sm text-muted-foreground">
-            Nenhuma pendencia aberta.
+            Nenhuma pendência aberta.
           </div>
         )}
       </div>

@@ -25,19 +25,19 @@ export default async function ChecklistsAdminPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administracao</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
         <h1 className="text-3xl font-semibold tracking-tight">Checklists de frotas</h1>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <Kpi title="Hoje" value={kpis.total_hoje} icon={<ClipboardCheck className="h-4 w-4" />} />
         <Kpi title="Aprovados" value={kpis.aprovados_hoje} icon={<ShieldCheck className="h-4 w-4" />} />
-        <Kpi title="Pendencias" value={kpis.pendentes_hoje} icon={<AlertTriangle className="h-4 w-4" />} />
-        <Kpi title="Criticas abertas" value={kpis.criticos_abertos} icon={<AlertTriangle className="h-4 w-4" />} />
+        <Kpi title="Pendências" value={kpis.pendentes_hoje} icon={<AlertTriangle className="h-4 w-4" />} />
+        <Kpi title="Críticas abertas" value={kpis.criticos_abertos} icon={<AlertTriangle className="h-4 w-4" />} />
         <Link href="/checklists/validacao-km" className="rounded-md focus:outline-none focus:ring-2 focus:ring-ring">
-          <Kpi title="Divergencias KM" value={kpis.divergencias_km} icon={<Gauge className="h-4 w-4" />} />
+          <Kpi title="Divergências KM" value={kpis.divergencias_km} icon={<Gauge className="h-4 w-4" />} />
         </Link>
-        <Kpi title="Visao IA na fila" value={vision.queued + vision.processing} icon={<Eye className="h-4 w-4" />} />
+        <Kpi title="Visão IA na fila" value={vision.queued + vision.processing} icon={<Eye className="h-4 w-4" />} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
@@ -81,7 +81,7 @@ export default async function ChecklistsAdminPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Pendencias recentes</h2>
+          <h2 className="text-lg font-semibold">Pendências recentes</h2>
           {pendencias.length > 0 ? (
             pendencias.map((pendencia) => (
               <article key={pendencia.id} className="rounded-md border bg-white p-4 shadow-sm">
@@ -97,7 +97,7 @@ export default async function ChecklistsAdminPage() {
               </article>
             ))
           ) : (
-            <div className="rounded-md border bg-white p-4 text-sm text-muted-foreground">Sem pendencias abertas.</div>
+            <div className="rounded-md border bg-white p-4 text-sm text-muted-foreground">Sem pendências abertas.</div>
           )}
         </section>
       </div>

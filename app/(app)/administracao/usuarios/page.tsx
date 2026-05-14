@@ -36,15 +36,15 @@ export default async function UsuariosPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administracao</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Usuarios e cargos</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Usuários e cargos</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Perfis agora sao definidos manualmente no banco. O e-mail corporativo autentica a pessoa,
-            mas quem decide o cargo no FROTAS e esta tela.
+            Perfis agora são definidos manualmente no banco. O e-mail corporativo autentica a pessoa,
+            mas quem decide o cargo no FROTAS é esta tela.
           </p>
         </div>
         <Badge variant="outline" className="w-fit bg-white px-3 py-1 text-slate-700">
-          {usuarios.length} usuario(s)
+          {usuarios.length} usuário(s)
         </Badge>
       </div>
 
@@ -53,7 +53,7 @@ export default async function UsuariosPage({
 
       <Card className="overflow-hidden">
         <CardHeader className="border-b bg-white">
-          <CardTitle className="text-lg">Novo usuario</CardTitle>
+          <CardTitle className="text-lg">Novo usuário</CardTitle>
         </CardHeader>
         <CardContent className="p-4">
           <form action={createUsuarioAction} className="grid gap-3 lg:grid-cols-[1.1fr_1.2fr_.8fr_.8fr_auto] lg:items-end">
@@ -63,7 +63,7 @@ export default async function UsuariosPage({
             <Field label="E-mail">
               <Input name="email" type="email" placeholder="nome@bemol.com.br" required />
             </Field>
-            <Field label="Matricula">
+            <Field label="Matrícula">
               <Input name="matricula" placeholder="Opcional" />
             </Field>
             <Field label="Cargo">
@@ -84,9 +84,9 @@ export default async function UsuariosPage({
       <Card className="overflow-hidden">
         <CardHeader className="border-b bg-white">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="text-lg">Usuarios cadastrados</CardTitle>
+            <CardTitle className="text-lg">Usuários cadastrados</CardTitle>
             <form className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_180px_150px_auto]" action="/administracao/usuarios">
-              <Input name="search" placeholder="Buscar nome, e-mail ou matricula" defaultValue={sp.search ?? ""} />
+              <Input name="search" placeholder="Buscar nome, e-mail ou matrícula" defaultValue={sp.search ?? ""} />
               <PerfilSelect name="perfil" defaultValue={perfil ?? ""} includeAll />
               <select
                 name="ativo"
@@ -105,15 +105,15 @@ export default async function UsuariosPage({
           <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.6fr_.75fr_auto] lg:gap-3">
             <span>Nome</span>
             <span>E-mail</span>
-            <span>Matricula</span>
+            <span>Matrícula</span>
             <span>Cargo</span>
             <span>Status</span>
             <span>Criado em</span>
-            <span className="text-right">Acao</span>
+            <span className="text-right">Ação</span>
           </div>
 
           {usuarios.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Nenhum usuario encontrado.</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</div>
           ) : (
             <div className="divide-y">
               {usuarios.map((usuario) => (
@@ -161,7 +161,7 @@ function UsuarioRow({
       </div>
 
       <div>
-        <MobileLabel>Matricula</MobileLabel>
+        <MobileLabel>Matrícula</MobileLabel>
         <Input name="matricula" defaultValue={usuario.matricula ?? ""} disabled={!canEditDev} />
       </div>
 

@@ -71,10 +71,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         <div className="grid gap-0 xl:grid-cols-[420px_1fr]">
           <div className="bg-slate-950 p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-200">Documentos</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Central documental</h1>
-            <p className="mt-3 text-sm text-slate-300">
-              Consulte DUT e CRLV, envie PDFs para Storage privado e abra arquivos sensiveis por URL assinada.
-            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Central de Documentos</h1>
             {canWrite ? <DocumentUploadDialog /> : null}
           </div>
 
@@ -110,7 +107,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         <div className="border-b bg-slate-50 px-4 py-3">
           <h2 className="font-semibold text-slate-950">Resultado da consulta</h2>
           <p className="text-sm text-muted-foreground">
-            {filtered.length} registro{filtered.length !== 1 ? "s" : ""} visivel{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} registro{filtered.length !== 1 ? "s" : ""} visível{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
         <Table>
@@ -122,8 +119,8 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
               <TableHead>Status</TableHead>
               <TableHead>DUT</TableHead>
               <TableHead>CRLV</TableHead>
-              <TableHead>Atualizacao</TableHead>
-              {canWrite ? <TableHead className="w-[150px] text-right">Acoes</TableHead> : null}
+              <TableHead>Atualização</TableHead>
+              {canWrite ? <TableHead className="w-[150px] text-right">Ações</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -208,13 +205,13 @@ function DocumentUploadDialog() {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Novo documento</DialogTitle>
-          <DialogDescription>DUT e CRLV ficam no bucket privado e sao gravados como caminhos de Storage.</DialogDescription>
+          <DialogDescription>Envie os PDFs vinculados à frota.</DialogDescription>
         </DialogHeader>
         <form ref={formRef} action={submit} className="grid gap-4 sm:grid-cols-2">
           <Field name="frota" label="Frota" placeholder="Ex: 1234" required />
           <Field name="placa" label="Placa" placeholder="ABC1D23" required />
           <div className="sm:col-span-2">
-            <Field name="modelo" label="Modelo" placeholder="Modelo do veiculo" required />
+            <Field name="modelo" label="Modelo" placeholder="Modelo do veículo" required />
           </div>
           <FileField name="dut_file" label="DUT em PDF" />
           <FileField name="crlv_file" label="CRLV em PDF" />
@@ -277,7 +274,7 @@ function DocumentEditDialog({ document }: { document: DocumentRecordWithSignedUr
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : "Salvar alteracoes"}
+            {pending ? "Salvando..." : "Salvar alterações"}
             </Button>
           </DialogFooter>
         </form>
@@ -295,7 +292,7 @@ function DocumentDeleteDialog({ document }: { document: DocumentRecordWithSigned
     startTransition(async () => {
       const result = await deleteDocumentAction(document.id);
       handleActionResult(result, {
-        success: "Documento excluido",
+        success: "Documento excluído",
         onSuccess: () => {
           setOpen(false);
           router.refresh();
@@ -315,7 +312,7 @@ function DocumentDeleteDialog({ document }: { document: DocumentRecordWithSigned
         <DialogHeader>
           <DialogTitle>Excluir documento?</DialogTitle>
           <DialogDescription>
-            A frota {document.frota} tera o registro removido e os PDFs vinculados serao apagados do Storage privado.
+            A frota {document.frota} terá o registro e os PDFs vinculados removidos.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -323,7 +320,7 @@ function DocumentDeleteDialog({ document }: { document: DocumentRecordWithSigned
             Cancelar
           </Button>
           <Button type="button" variant="destructive" disabled={pending} onClick={submit}>
-            {pending ? "Excluindo..." : "Confirmar exclusao"}
+            {pending ? "Excluindo..." : "Confirmar exclusão"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -360,7 +357,7 @@ function DocumentMobileCard({ document, canWrite }: { document: DocumentRecordWi
 }
 
 function DocumentActions({ signedUrl, label }: { signedUrl: string | null; label: string }) {
-  if (!signedUrl) return <span className="text-xs text-muted-foreground">Indisponivel</span>;
+  if (!signedUrl) return <span className="text-xs text-muted-foreground">Indisponível</span>;
 
   return (
     <div className="flex flex-wrap gap-1.5">

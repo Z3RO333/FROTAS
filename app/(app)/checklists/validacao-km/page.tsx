@@ -14,7 +14,7 @@ const ORIGEM_LABEL: Record<string, { label: string; tone: string }> = {
   CHECKLIST_INICIAL: { label: "Primeiro KM", tone: "bg-amber-100 text-amber-900" },
   CHECKLIST_MOTORISTA: { label: "Checklist", tone: "bg-blue-100 text-blue-900" },
   AJUSTE_ADMIN: { label: "Ajuste admin", tone: "bg-slate-100 text-slate-900" },
-  IMPORTACAO: { label: "Importacao", tone: "bg-slate-100 text-slate-900" },
+  IMPORTACAO: { label: "Importação", tone: "bg-slate-100 text-slate-900" },
   OCR_HODOMETRO: { label: "OCR", tone: "bg-violet-100 text-violet-900" },
 };
 
@@ -26,12 +26,12 @@ function motivoDaPendencia(entry: {
 }): string {
   if (entry.origem === "CHECKLIST_INICIAL") return "Primeiro KM cadastrado via checklist.";
   if (entry.diferenca_km != null && entry.diferenca_km < 0) {
-    return `KM informado (${formatNumber(entry.km_novo)}) e menor que o ultimo registrado (${formatNumber(entry.km_anterior)}).`;
+    return `KM informado (${formatNumber(entry.km_novo)}) é menor que o último registrado (${formatNumber(entry.km_anterior)}).`;
   }
   if (entry.diferenca_km != null && entry.diferenca_km > 1500) {
-    return `Variacao incomum: +${formatNumber(entry.diferenca_km)} km em relacao ao ultimo (${formatNumber(entry.km_anterior)}).`;
+    return `Variação incomum: +${formatNumber(entry.diferenca_km)} km em relação ao último (${formatNumber(entry.km_anterior)}).`;
   }
-  return "Aguardando validacao do administrador.";
+  return "Aguardando validação do administrador.";
 }
 
 export default async function ValidacaoKmPage() {
@@ -41,18 +41,18 @@ export default async function ValidacaoKmPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administracao</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Validacao de KM</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Validação de KM</h1>
         <p className="text-sm text-muted-foreground">
-          Aprove o primeiro KM cadastrado pelo motorista, KM regressivo ou variacoes incomuns antes que entrem no
-          historico oficial da frota.
+          Aprove o primeiro KM cadastrado pelo motorista, KM regressivo ou variações incomuns antes que entrem no
+          histórico oficial da frota.
         </p>
       </div>
 
       {pendentes.length === 0 ? (
         <div className="flex items-center gap-3 rounded-md border bg-white p-6 shadow-sm">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
-          <span className="text-sm text-muted-foreground">Nenhuma validacao pendente.</span>
+          <span className="text-sm text-muted-foreground">Nenhuma validação pendente.</span>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -83,11 +83,11 @@ export default async function ValidacaoKmPage() {
                   <Stat label="KM anterior" value={formatNumber(entry.km_anterior)} />
                   <Stat label="KM informado" value={formatNumber(entry.km_novo)} highlight />
                   <Stat
-                    label="Diferenca"
+                    label="Diferença"
                     value={entry.diferenca_km != null ? `${entry.diferenca_km > 0 ? "+" : ""}${formatNumber(entry.diferenca_km)}` : "-"}
                   />
                   <Stat
-                    label="Foto do hodometro"
+                    label="Foto do hodômetro"
                     value={entry.foto_km_url ? "Anexada" : "Sem foto"}
                     tone={entry.foto_km_url ? "text-emerald-700" : "text-red-700"}
                   />
@@ -100,11 +100,11 @@ export default async function ValidacaoKmPage() {
                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                   <form action={aprovarKmAction} className="space-y-2 rounded-md border bg-emerald-50/40 p-3">
                     <input type="hidden" name="id" value={entry.id} />
-                    <Label htmlFor={`obs-aprovar-${entry.id}`}>Observacao (opcional)</Label>
+                    <Label htmlFor={`obs-aprovar-${entry.id}`}>Observação (opcional)</Label>
                     <Input id={`obs-aprovar-${entry.id}`} name="observacao" placeholder="Ex.: foto OK" />
                     <Button type="submit" className="w-full bg-emerald-700 hover:bg-emerald-700/90">
                       <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                      Aprovar como valido
+                      Aprovar como válido
                     </Button>
                   </form>
 
@@ -123,11 +123,11 @@ export default async function ValidacaoKmPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor={`obs-corrigir-${entry.id}`}>Justificativa (obrigatoria)</Label>
+                        <Label htmlFor={`obs-corrigir-${entry.id}`}>Justificativa (obrigatória)</Label>
                         <Input
                           id={`obs-corrigir-${entry.id}`}
                           name="observacao"
-                          placeholder="Motivo da correcao"
+                          placeholder="Motivo da correção"
                           required
                         />
                       </div>
