@@ -12,10 +12,11 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABELS: Record<StatusPortaria, string> = {
   PENDENTE_CHECKLIST: "Pendente",
-  CHECKLIST_REALIZADO: "Com observacao",
+  CHECKLIST_REALIZADO: "Com observação",
   LIBERADA_SAIDA: "Liberada",
   BLOQUEADA_CHECKLIST: "Bloqueada",
-  SAIDA_REGISTRADA: "Saida registrada",
+  BLOQUEADA_MANUTENCAO: "Em manutenção",
+  SAIDA_REGISTRADA: "Saída registrada",
   ENTRADA_REGISTRADA: "Entrada registrada",
 };
 
@@ -24,6 +25,7 @@ const STATUS_CLASS: Record<StatusPortaria, string> = {
   CHECKLIST_REALIZADO: "border-amber-200 bg-amber-50 text-amber-800",
   LIBERADA_SAIDA: "border-emerald-200 bg-emerald-50 text-emerald-800",
   BLOQUEADA_CHECKLIST: "border-red-200 bg-red-50 text-red-800",
+  BLOQUEADA_MANUTENCAO: "border-violet-300 bg-violet-50 text-violet-800",
   SAIDA_REGISTRADA: "border-blue-200 bg-blue-50 text-blue-800",
   ENTRADA_REGISTRADA: "border-violet-200 bg-violet-50 text-violet-800",
 };
@@ -41,8 +43,11 @@ export default async function PortariaPage({
   const kpis = {
     checklistsHoje: rows.filter((row) => row.checklist_id).length,
     liberadas: rows.filter((row) => row.status_portaria === "LIBERADA_SAIDA").length,
-    bloqueadas: rows.filter((row) => row.status_portaria === "BLOQUEADA_CHECKLIST").length,
+    bloqueadas:
+      rows.filter((row) => row.status_portaria === "BLOQUEADA_CHECKLIST").length +
+      rows.filter((row) => row.status_portaria === "BLOQUEADA_MANUTENCAO").length,
     pendentes: rows.filter((row) => row.status_portaria === "PENDENTE_CHECKLIST").length,
+    emManutencao: rows.filter((row) => row.status_portaria === "BLOQUEADA_MANUTENCAO").length,
   };
 
   return (
@@ -82,7 +87,7 @@ export default async function PortariaPage({
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Horario</th>
+                <th className="px-4 py-3">Horário</th>
                 <th className="px-4 py-3">Frota</th>
                 <th className="px-4 py-3">Placa</th>
                 <th className="px-4 py-3">Motorista</th>
@@ -138,10 +143,26 @@ function PortariaCard({ row }: { row: PortariaRow }) {
         <StatusBadge status={row.status_portaria} />
       </div>
       <div className="mt-3 grid gap-2 text-sm">
-        <Info label="Motorista" value={row.motorista_nome ?? row.motorista_id ?? "-"} />
-        <Info label="Checklist" value={row.checklist_id ? `Hoje as ${formatTime(row.data_checklist)}` : "Pendente"} />
-        <Info label="KM" value={formatNumber(row.km_informado)} />
-        {row.pendencia_critica_item ? <Info label="Motivo" value={row.pendencia_critica_item} /> : null}
+        {row.status_portaria === "BLOQUEADA_MANUTENCAO" ? (
+          <div className="rounded-md border border-violet-300 bg-violet-50 p-2.5 text-xs">
+            <div className="font-semibold text-violet-900">Frota em manutenção</div>
+            {row.manutencao_motivo && (
+              <div className="mt-0.5 text-violet-800">{row.manutencao_motivo}</div>
+            )}
+            {row.manutencao_prev_retorno && (
+              <div className="mt-0.5 text-violet-700">
+                Prev. retorno: {row.manutencao_prev_retorno}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <Info label="Motorista" value={row.motorista_nome ?? row.motorista_id ?? "-"} />
+            <Info label="Checklist" value={row.checklist_id ? `Hoje às ${formatTime(row.data_checklist)}` : "Pendente"} />
+            <Info label="KM" value={formatNumber(row.km_informado)} />
+            {row.pendencia_critica_item ? <Info label="Motivo" value={row.pendencia_critica_item} /> : null}
+          </>
+        )}
       </div>
       <div className="mt-4">
         <MovementAction row={row} />
@@ -152,7 +173,7 @@ function PortariaCard({ row }: { row: PortariaRow }) {
 
 function MovementAction({ row }: { row: PortariaRow }) {
   if (row.status_portaria === "LIBERADA_SAIDA") {
-    return <MovementForm row={row} tipo="SAIDA" label="Registrar saida" icon={<LogOut className="h-4 w-4" />} />;
+    return <MovementForm row={row} tipo="SAIDA" label="Registrar saída" icon={<LogOut className="h-4 w-4" />} />;
   }
 
   if (row.status_portaria === "SAIDA_REGISTRADA") {
@@ -161,7 +182,7 @@ function MovementAction({ row }: { row: PortariaRow }) {
 
   return (
     <Button type="button" variant="outline" disabled>
-      Nao liberar
+      Não liberar
     </Button>
   );
 }

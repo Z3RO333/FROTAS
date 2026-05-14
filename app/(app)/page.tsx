@@ -79,6 +79,13 @@ export default async function DashboardPage() {
             icon={Wrench}
             severity="MANUTENCAO"
             href="/frotas?operacional=manutencao"
+            hint={
+              k.total_manutencao_atrasada > 0
+                ? `${k.total_manutencao_atrasada} com retorno atrasado`
+                : k.total_manutencao_longa > 0
+                  ? `${k.total_manutencao_longa} há mais de 7 dias`
+                  : undefined
+            }
           />
           <MetricCard
             label="Indisponíveis"

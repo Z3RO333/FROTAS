@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/table";
 import { BemolTruck } from "@/components/frotas/bemol-truck";
 import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
+import { EnviarManutencaoDialog } from "@/components/frotas/manutencao/enviar-manutencao-dialog";
+import { RetornarOperacaoDialog } from "@/components/frotas/manutencao/retornar-operacao-dialog";
 import type { Frota } from "@/lib/repos/frotas";
 import { calcularIdade } from "@/lib/rules";
 import {
@@ -159,7 +161,17 @@ function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
       <TableCell className="max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</TableCell>
       <TableCell className="text-right tabular-nums">{formatNumber(frota.km_atual)}</TableCell>
       <TableCell>
-        <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+        <div className="flex flex-col items-start gap-1">
+          <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+          {frota.status === "manutencao" && frota.manutencao_motivo && (
+            <span
+              className="max-w-[180px] truncate text-[10px] text-violet-700"
+              title={frota.manutencao_motivo}
+            >
+              {frota.manutencao_motivo}
+            </span>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
@@ -297,9 +309,22 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
           <Button variant="outline" asChild>
             <Link href={`/frotas/${frota.id}`}>
               <History className="h-4 w-4" aria-hidden="true" />
-              Histórico completo
+              Visão 360º
             </Link>
           </Button>
+          {frota.status === "manutencao" ? (
+            <RetornarOperacaoDialog
+              frotaId={frota.id}
+              frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`}
+              size="default"
+            />
+          ) : !frota.vendido && frota.ativo ? (
+            <EnviarManutencaoDialog
+              frotaId={frota.id}
+              frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`}
+              size="default"
+            />
+          ) : null}
         </div>
       </div>
     </SheetContent>

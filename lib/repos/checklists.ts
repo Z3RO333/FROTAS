@@ -18,6 +18,9 @@ type VeiculoLite = {
   status: string | null;
   vendido: boolean | null;
   ativo: boolean | null;
+  manutencao_motivo?: string | null;
+  manutencao_prev_retorno?: string | null;
+  manutencao_bloqueia_checklist?: boolean | null;
 };
 
 type ChecklistDbRow = {
@@ -114,6 +117,7 @@ export type StatusPortaria =
   | "CHECKLIST_REALIZADO"
   | "LIBERADA_SAIDA"
   | "BLOQUEADA_CHECKLIST"
+  | "BLOQUEADA_MANUTENCAO"
   | "SAIDA_REGISTRADA"
   | "ENTRADA_REGISTRADA";
 
@@ -132,6 +136,8 @@ export type PortariaRow = {
   pendencia_critica_item: string | null;
   ultimo_tipo_movimentacao: "SAIDA" | "ENTRADA" | null;
   ultimo_movimento_em: string | null;
+  manutencao_motivo: string | null;
+  manutencao_prev_retorno: string | null;
   status_portaria: StatusPortaria;
 };
 
@@ -401,7 +407,9 @@ export async function listPortariaToday(): Promise<PortariaRow[]> {
     const [veiculosResult, checklistsResult, movimentosResult] = await Promise.all([
       supabaseManutencao
         .from("veiculos")
-        .select("id,codigo_frota,placa,modelo,status,vendido,ativo")
+        .select(
+          "id,codigo_frota,placa,modelo,status,vendido,ativo,manutencao_motivo,manutencao_prev_retorno,manutencao_bloqueia_checklist"
+        )
         .eq("ativo", true)
         .eq("vendido", false)
         .order("codigo_frota", { ascending: true }),
@@ -463,9 +471,19 @@ export async function listPortariaToday(): Promise<PortariaRow[]> {
         pendencia_critica_item: checklist ? pendencias.get(checklist.id) ?? null : null,
         ultimo_tipo_movimentacao: movimento?.tipo_movimentacao ?? null,
         ultimo_movimento_em: movimento?.data_hora ?? null,
+        manutencao_motivo: veiculo.manutencao_motivo ?? null,
+        manutencao_prev_retorno: veiculo.manutencao_prev_retorno ?? null,
       };
 
-      return { ...row, status_portaria: statusPortariaFromRow(row) };
+      const emManutencao =
+        veiculo.status === "manutencao" && veiculo.manutencao_bloqueia_checklist !== false;
+
+      return {
+        ...row,
+        status_portaria: emManutencao
+          ? "BLOQUEADA_MANUTENCAO"
+          : statusPortariaFromRow(row),
+      };
     });
   }, []);
 }

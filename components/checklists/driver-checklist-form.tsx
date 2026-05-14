@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -28,7 +28,7 @@ type OcrState = {
   error?: string;
 };
 
-const STEPS = ["Selecionar veiculo", "Realizar checklist", "Registrar hodometro"] as const;
+const STEPS = ["Selecionar veículo", "Realizar checklist", "Registrar hodômetro"] as const;
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
 
 export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
@@ -91,10 +91,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         confianca: 0,
         leitura_segura: false,
         precisa_digitacao_manual: true,
-        motivo: error instanceof Error ? error.message : "Nao conseguimos ler a imagem.",
+        motivo: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
         texto_visivel: null,
         observacoes_imagem: null,
-        error: error instanceof Error ? error.message : "Nao conseguimos ler a imagem.",
+        error: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
       });
     } finally {
       setOcrLoading(false);
@@ -124,7 +124,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Registrar checklist</h1>
-        <p className="text-sm text-muted-foreground">Registre o checklist do veiculo.</p>
+        <p className="text-sm text-muted-foreground">Registre o checklist do veículo.</p>
       </div>
 
       {!actionState.ok && actionState.error ? (
@@ -165,7 +165,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       <section hidden={step !== 0} className="space-y-4">
         <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Para comecar, selecione um veiculo para realizar o checklist.
+          Para começar, selecione um veículo para realizar o checklist.
         </div>
 
         {selected && (
@@ -190,7 +190,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <Input
-                placeholder="Pesquisar veiculo..."
+                placeholder="Pesquisar veículo..."
                 className="pl-9"
                 value={frotaQuery}
                 onChange={(e) => setFrotaQuery(e.target.value)}
@@ -215,28 +215,66 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
               <tbody>
                 {filteredFrotas.map((frota) => {
                   const isSelected = String(frota.id) === frotaId;
+                  const fAny = frota as Frota & {
+                    manutencao_motivo?: string | null;
+                    manutencao_bloqueia_checklist?: boolean | null;
+                  };
+                  const bloqueada =
+                    frota.status === "manutencao" && fAny.manutencao_bloqueia_checklist !== false;
+                  const bloqueadaVenda = frota.vendido || !frota.ativo;
+                  const indisponivel = bloqueada || bloqueadaVenda;
+
                   return (
                     <tr
                       key={frota.id}
-                      onClick={() => setFrotaId(String(frota.id))}
-                      className={`cursor-pointer border-b transition-colors last:border-0 hover:bg-slate-50 ${
-                        isSelected ? "bg-blue-50" : ""
+                      onClick={() => {
+                        if (indisponivel) return;
+                        setFrotaId(String(frota.id));
+                      }}
+                      className={`border-b transition-colors last:border-0 ${
+                        indisponivel
+                          ? "cursor-not-allowed bg-slate-50/70 opacity-60"
+                          : `cursor-pointer hover:bg-slate-50 ${isSelected ? "bg-blue-50" : ""}`
                       }`}
+                      title={
+                        bloqueada
+                          ? `Em manutenção: ${fAny.manutencao_motivo ?? "sem motivo"}`
+                          : bloqueadaVenda
+                            ? "Frota indisponível"
+                            : undefined
+                      }
                     >
                       <td className="p-3">
                         <input
                           type="checkbox"
                           readOnly
-                          checked={isSelected}
+                          checked={isSelected && !indisponivel}
+                          disabled={indisponivel}
                           className="h-4 w-4 accent-blue-600"
                           aria-label={`Selecionar frota ${frota.frota_geral}`}
                         />
                       </td>
-                      <td className={`p-3 font-medium ${isSelected ? "text-blue-600" : ""}`}>
+                      <td className={`p-3 font-medium ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
                         {frota.frota_geral ?? frota.id}
                       </td>
-                      <td className={`p-3 ${isSelected ? "text-blue-600" : ""}`}>{frota.placa ?? "-"}</td>
-                      <td className="p-3 text-muted-foreground">{frota.modelo ?? "-"}</td>
+                      <td className={`p-3 ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
+                        {frota.placa ?? "-"}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{frota.modelo ?? "-"}</span>
+                          {bloqueada && (
+                            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800 ring-1 ring-inset ring-violet-200">
+                              EM MANUTENÇÃO
+                            </span>
+                          )}
+                          {bloqueadaVenda && (
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                              INDISPONÍVEL
+                            </span>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -249,17 +287,17 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       <section hidden={step !== 1} className="space-y-4">
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          Todos os itens comecam desmarcados. Marque OK ou Problema nos itens obrigatorios.
+          Todos os itens começam desmarcados. Marque OK ou Problema nos itens obrigatórios.
         </div>
 
         <div className="space-y-6 rounded-md border bg-white p-5 shadow-sm">
           <div className="grid grid-cols-2 gap-6">
             <FuelLevelSelector
-              label="Nivel combustivel"
+              label="Nível combustível"
               value={nivelCombustivel}
               onChange={setNivelCombustivel}
             />
-            <FuelLevelSelector label="Nivel arla" value={nivelArla} onChange={setNivelArla} />
+            <FuelLevelSelector label="Nível arla" value={nivelArla} onChange={setNivelArla} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -273,13 +311,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                     <span className="text-sm font-medium leading-tight">
                       {item.nome}
                       {item.critico ? (
-                        <span className="ml-1 text-xs text-red-500" title="Item critico">
+                        <span className="ml-1 text-xs text-red-500" title="Item crítico">
                           *
                         </span>
                       ) : null}
                     </span>
                     <div className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      {item.obrigatorio ? "Obrigatorio" : "Opcional"}
+                      {item.obrigatorio ? "Obrigatório" : "Opcional"}
                     </div>
                   </div>
 
@@ -311,7 +349,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   </div>
 
                   {status === "NAO_SE_APLICA" ? (
-                    <p className="text-xs text-muted-foreground">Pendente de marcacao.</p>
+                    <p className="text-xs text-muted-foreground">Pendente de marcação.</p>
                   ) : null}
 
                   {isProblem ? (
@@ -330,7 +368,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="observacao_original">Observacoes</Label>
+            <Label htmlFor="observacao_original">Observações</Label>
             <textarea
               id="observacao_original"
               name="observacao_original"
@@ -356,13 +394,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         <div className="space-y-5 rounded-md border bg-white p-5 shadow-sm">
           {selected && selected.km_atual == null && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              <strong>Primeiro KM desta frota.</strong> Foto do hodometro e obrigatoria. O valor sera
+              <strong>Primeiro KM desta frota.</strong> Foto do hodômetro é obrigatória. O valor será
               registrado como KM inicial e validado pelo administrador.
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="foto_km">Foto do painel / hodometro</Label>
+            <Label htmlFor="foto_km">Foto do painel / hodômetro</Label>
             <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 p-4 text-center text-sm text-muted-foreground hover:bg-slate-100">
               <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
               Tirar foto ou anexar imagem
@@ -392,11 +430,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 {ocrState.leitura_segura && ocrState.km_lido != null ? (
                   <strong>KM identificado: {formatNumber(ocrState.km_lido)}</strong>
                 ) : (
-                  <strong>Nao foi possivel ler a quilometragem. Digite manualmente.</strong>
+                  <strong>Não foi possível ler a quilometragem. Digite manualmente.</strong>
                 )}
                 {ocrState.motivo ? <div className="mt-1 text-xs opacity-80">{ocrState.motivo}</div> : null}
                 {ocrState.texto_visivel ? (
-                  <div className="mt-1 text-xs opacity-80">Texto visivel: {ocrState.texto_visivel}</div>
+                  <div className="mt-1 text-xs opacity-80">Texto visível: {ocrState.texto_visivel}</div>
                 ) : null}
               </div>
             ) : null}
@@ -416,11 +454,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 onChange={(e) => setKmValue(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Ultimo KM registrado: {formatNumber(selected?.km_atual)}
+                Último KM registrado: {formatNumber(selected?.km_atual)}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="justificativa_km">Justificativa de divergencia</Label>
+              <Label htmlFor="justificativa_km">Justificativa de divergência</Label>
               <textarea
                 id="justificativa_km"
                 name="justificativa_km"
@@ -435,7 +473,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
             <p className="text-xs text-muted-foreground">Preencha apenas se houve abastecimento neste turno.</p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">
-                <Label htmlFor="tipo_combustivel" className="text-xs">Tipo de combustivel</Label>
+                <Label htmlFor="tipo_combustivel" className="text-xs">Tipo de combustível</Label>
                 <select
                   id="tipo_combustivel"
                   name="tipo_combustivel"
@@ -555,7 +593,7 @@ function FuelLevelSelector({
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
           const previewed = hovered > 0 && level <= hovered && !filled;
-          // Cor baseada no nível MÁXIMO selecionado/previsto, não no segmento individual
+          // Cor baseada no nível máximo selecionado/previsto, não no segmento individual
           const refLevel = filled ? value : hovered;
           const tone = toneFor(refLevel);
           return (
@@ -583,3 +621,4 @@ function FuelLevelSelector({
     </div>
   );
 }
+
