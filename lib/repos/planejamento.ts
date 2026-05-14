@@ -61,6 +61,8 @@ export type PneuRow = {
   dt_montagem: string | null;
   status: string | null;
   marcado: boolean | null;
+  numero_fogo_anterior?: string | null;
+  marca_anterior?: string | null;
 };
 
 export type LavagemRow = {
