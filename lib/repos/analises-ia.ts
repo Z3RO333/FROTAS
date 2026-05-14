@@ -21,7 +21,7 @@ export type AnaliseIaRow = {
   analisado_em: string;
   revisado_por: string | null;
   revisado_em: string | null;
-  criticidade_revisada: string | null;
+  criticidade_revisada: "OK" | "ATENCAO" | "CRITICO" | "MANUTENCAO" | "BLOQUEIO_SUGERIDO" | null;
 };
 
 export type SaveAnaliseInput = {
@@ -75,8 +75,12 @@ export async function getAnaliseByChecklist(checklistId: number): Promise<Analis
 }
 
 export async function listAnalisesDia(date: string): Promise<AnaliseIaRow[]> {
-  const start = `${date}T00:00:00.000Z`;
-  const end = `${date}T23:59:59.999Z`;
+  // Use a UTC-4 buffer to cover all Brazilian timezones (UTC-3 to UTC-5).
+  // Midnight BRT (UTC-3) = 03:00 UTC; to be safe we go back 4 h before midnight
+  // and extend 28 h forward, capturing the full calendar day for any BR timezone.
+  const base = new Date(`${date}T00:00:00.000Z`);
+  const start = new Date(base.getTime() - 4 * 60 * 60 * 1000).toISOString();
+  const end = new Date(base.getTime() + 28 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabaseManutencao
     .from("analises_checklist_ia")
     .select("*")
@@ -132,7 +136,7 @@ export async function saveLogIa(input: {
 export async function revisarAnalise(
   analiseId: number,
   revisadoPor: string,
-  criticidadeRevisada: string
+  criticidadeRevisada: "OK" | "ATENCAO" | "CRITICO" | "MANUTENCAO" | "BLOQUEIO_SUGERIDO"
 ): Promise<void> {
   const { error } = await supabaseManutencao
     .from("analises_checklist_ia")
