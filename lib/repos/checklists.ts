@@ -8,6 +8,7 @@ import {
   countPendingKmValidations,
   type KmOrigem,
 } from "@/lib/repos/historico-km";
+import { recordChecklistEnviado } from "@/lib/services/veiculo-eventos";
 
 type VeiculoLite = {
   id: number;
@@ -247,6 +248,23 @@ export async function listAdminChecklists(limit = 100): Promise<ChecklistListRow
   }, []);
 }
 
+export async function listChecklistsByFrota(frotaId: number, limit = 10): Promise<ChecklistListRow[]> {
+  return safeSupabase("checklists da frota", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("checklists_frota")
+      .select("*")
+      .eq("frota_id", frotaId)
+      .order("data_checklist", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    const rows = (data ?? []) as ChecklistDbRow[];
+    const veiculos = await fetchVeiculosByIds(rows.map((row) => row.frota_id));
+    return rows.map((row) => mapChecklist(row, veiculos.get(row.frota_id)));
+  }, []);
+}
+
 export async function listChecklistItems(checklistId: number): Promise<ChecklistItemRow[]> {
   return safeSupabase("itens do checklist", async () => {
     const { data, error } = await supabaseManutencao
@@ -267,6 +285,37 @@ export async function listOpenPendencias(limit = 100): Promise<PendenciaRow[]> {
       .select("*")
       .in("status", ["ABERTA", "EM_TRATATIVA"])
       .order("criado_em", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    const pendencias = (data ?? []) as PendenciaDbRow[];
+    const [veiculos, checklists] = await Promise.all([
+      fetchVeiculosByIds(pendencias.map((row) => row.frota_id)),
+      fetchChecklistsByIds(pendencias.map((row) => row.checklist_id)),
+    ]);
+
+    return pendencias.map((row) => {
+      const checklist = checklists.get(row.checklist_id);
+      const veiculo = veiculos.get(row.frota_id);
+      return {
+        ...row,
+        frota_geral: veiculo?.codigo_frota ?? null,
+        placa: veiculo?.placa ?? null,
+        motorista_id: checklist?.motorista_id ?? null,
+        motorista_nome: checklist?.motorista_nome ?? null,
+      };
+    });
+  }, []);
+}
+
+export async function listPendenciasByFrota(frotaId: number, limit = 20): Promise<PendenciaRow[]> {
+  return safeSupabase("pendencias da frota", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("pendencias_frota")
+      .select("*")
+      .eq("frota_id", frotaId)
+      .order("criado_em", { ascending: false })
+      .order("id", { ascending: false })
       .limit(limit);
 
     if (error) throw error;
@@ -599,6 +648,23 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     },
     input.motorista_id
   );
+
+  // Event sourcing — registra eventos do checklist no veículo
+  const itensNaoAptos = itensPayload.filter((i) => i.status === "NAO_APTO");
+  const itensCriticos = itensNaoAptos.filter((i) => i.critico);
+  await recordChecklistEnviado({
+    checklist_id: checklistId,
+    veiculo_id: input.frota_id,
+    motorista_id: input.motorista_id,
+    status_geral: input.status_geral,
+    km_anterior: kmAnterior,
+    km_novo: input.km_informado,
+    km_diff: diff,
+    km_validado: kmAutoValidado,
+    litros_combustivel: input.litros_combustivel ?? null,
+    itens_nao_aptos: itensNaoAptos.length,
+    itens_criticos: itensCriticos.length,
+  }).catch((err) => console.warn("[veiculo-eventos] falha", err));
 
   const internalSecret = process.env.FROTAS_INTERNAL_SECRET;
   if (internalSecret) {
