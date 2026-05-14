@@ -25,59 +25,76 @@ import {
 } from "@/lib/rbac";
 
 type NavItem = { href: string; label: string; icon: ElementType };
+type NavSection = { title: string; items: NavItem[] };
 
-const BASE_ADMIN_NAV: NavItem[] = [
+const COCKPIT_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/pendencias", label: "Pendencias", icon: AlertTriangle },
+];
+
+const FROTA_NAV: NavItem[] = [
   { href: "/frotas", label: "Frotas", icon: List },
+  { href: "/unidades", label: "Unidades", icon: Building2 },
+  { href: "/frotas/vendidos", label: "Vendidos", icon: ShoppingCart },
+];
+
+const CHECKLIST_NAV: NavItem[] = [
   { href: "/checklists", label: "Checklists", icon: ClipboardCheck },
   { href: "/checklists/validacao-km", label: "Validar KM", icon: Gauge },
-  { href: "/pendencias", label: "Pendências", icon: AlertTriangle },
-  { href: "/unidades", label: "Unidades", icon: Building2 },
   { href: "/portaria", label: "Portaria", icon: DoorOpen },
-  { href: "/frotas/vendidos", label: "Vendidos", icon: ShoppingCart },
 ];
 
 const MANUTENCAO_NAV: NavItem[] = [
   { href: "/pneus", label: "Pneus", icon: Truck },
-  { href: "/manutencao", label: "Serviços", icon: Wrench },
+  { href: "/manutencao", label: "Servicos", icon: Wrench },
   { href: "/equipamentos", label: "Equipamentos", icon: Settings },
   { href: "/oficinas", label: "Oficinas", icon: MapPin },
 ];
 
-const OPERACAO_NAV: NavItem[] = [{ href: "/operacao", label: "Operação", icon: Gauge }];
+const OPERACAO_NAV: NavItem[] = [{ href: "/operacao", label: "Operacao", icon: Gauge }];
 const DOCUMENTOS_NAV: NavItem[] = [{ href: "/documentos", label: "Documentos", icon: FileText }];
 
 const MOTORISTA_NAV: NavItem[] = [
-  { href: "/motorista", label: "Início", icon: Home },
+  { href: "/motorista", label: "Inicio", icon: Home },
   { href: "/motorista/checklist", label: "Fazer checklist", icon: ClipboardCheck },
   { href: "/motorista/checklists", label: "Meus checklists", icon: List },
+  { href: "/documentos", label: "Documentos", icon: FileText },
 ];
 
-const PORTARIA_NAV: NavItem[] = [{ href: "/portaria", label: "Liberação", icon: DoorOpen }];
+const PORTARIA_NAV: NavItem[] = [{ href: "/portaria", label: "Liberacao", icon: DoorOpen }];
 
-function buildNav(perfil: PerfilUsuario): NavItem[] {
-  if (perfil === "MOTORISTA") return MOTORISTA_NAV;
+function buildSections(perfil: PerfilUsuario): NavSection[] {
+  if (perfil === "MOTORISTA") return [{ title: "Motorista", items: MOTORISTA_NAV }];
+
   if (perfil === "PORTARIA") {
-    const nav: NavItem[] = [...PORTARIA_NAV];
-    if (canAccessOperacao(perfil)) nav.push(...OPERACAO_NAV);
-    if (canAccessDocumentos(perfil)) nav.push(...DOCUMENTOS_NAV);
-    return nav;
+    const sections: NavSection[] = [{ title: "Portaria", items: PORTARIA_NAV }];
+    if (canAccessOperacao(perfil)) sections.push({ title: "Operacao", items: OPERACAO_NAV });
+    if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
+    return sections;
   }
 
-  const nav: NavItem[] = [...BASE_ADMIN_NAV];
-  if (canAccessManutencao(perfil)) nav.push(...MANUTENCAO_NAV);
-  if (canAccessOperacao(perfil)) nav.push(...OPERACAO_NAV);
-  if (canAccessDocumentos(perfil)) nav.push(...DOCUMENTOS_NAV);
+  const sections: NavSection[] = [
+    { title: "Cockpit", items: COCKPIT_NAV },
+    { title: "Frota", items: FROTA_NAV },
+    { title: "Checklists", items: CHECKLIST_NAV },
+  ];
+
+  if (canAccessManutencao(perfil)) sections.push({ title: "Manutencao", items: MANUTENCAO_NAV });
+  if (canAccessOperacao(perfil)) sections.push({ title: "Operacao", items: OPERACAO_NAV });
+  if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
 
   if (perfil === "DEV") {
-    nav.push(
-      { href: "/motorista", label: "Início motorista", icon: Home },
-      { href: "/motorista/checklist", label: "Checklist motorista", icon: ClipboardCheck },
-      { href: "/motorista/checklists", label: "Histórico motorista", icon: List }
-    );
+    sections.push({
+      title: "Motorista",
+      items: [
+        { href: "/motorista", label: "Inicio motorista", icon: Home },
+        { href: "/motorista/checklist", label: "Checklist motorista", icon: ClipboardCheck },
+        { href: "/motorista/checklists", label: "Historico motorista", icon: List },
+      ],
+    });
   }
 
-  return nav;
+  return sections;
 }
 
 export function AppShell({
@@ -91,32 +108,67 @@ export function AppShell({
   perfil: PerfilUsuario;
   children: React.ReactNode;
 }) {
-  const nav = buildNav(perfil);
+  const sections = buildSections(perfil);
+  const quickLinks = sections.flatMap((section) => section.items).slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="border-b bg-primary text-primary-foreground lg:border-b-0 lg:border-r lg:border-blue-950/20">
-        <div className="flex h-16 items-center gap-3 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white/10">
-            <Truck className="h-5 w-5" aria-hidden="true" />
+    <div className="min-h-screen bg-slate-100 text-foreground lg:grid lg:grid-cols-[280px_1fr]">
+      <aside className="border-b bg-slate-950 text-white lg:border-b-0 lg:border-r lg:border-slate-900">
+        <div className="border-b border-white/10 px-5 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-500/15 ring-1 ring-blue-300/20">
+              <Truck className="h-5 w-5 text-blue-100" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold tracking-wide">FROTAS</div>
+              <div className="text-xs text-slate-400">Plataforma operacional</div>
+            </div>
           </div>
-          <div className="font-semibold">Frotas Bemol</div>
+
+          <div className="mt-4 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Perfil</div>
+            <div className="mt-1 text-sm font-medium text-white">{perfil}</div>
+          </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0">
-          {nav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-primary-foreground/90 transition-colors hover:bg-white/10 hover:text-primary-foreground"
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              {label}
-            </Link>
+
+        <nav className="flex gap-2 overflow-x-auto px-3 py-3 lg:block lg:space-y-5 lg:overflow-visible lg:px-4 lg:py-5">
+          {sections.map((section) => (
+            <div key={section.title} className="min-w-max lg:min-w-0">
+              <div className="mb-2 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 lg:block">
+                {section.title}
+              </div>
+              <div className="flex gap-1 lg:block lg:space-y-1">
+                {section.items.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white lg:w-full"
+                  >
+                    <Icon className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </aside>
+
       <div className="flex min-w-0 flex-col">
-        <header className="flex h-14 items-center justify-end border-b bg-white px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b bg-white/95 px-4 backdrop-blur lg:px-6">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Frotas Bemol</div>
+            <div className="mt-1 hidden items-center gap-1 overflow-x-auto text-sm text-muted-foreground md:flex">
+              {quickLinks.map((item, index) => (
+                <span key={item.href} className="inline-flex items-center gap-1">
+                  {index > 0 ? <span className="text-slate-300">/</span> : null}
+                  <Link href={item.href} className="whitespace-nowrap hover:text-blue-700">
+                    {item.label}
+                  </Link>
+                </span>
+              ))}
+            </div>
+          </div>
           <UserMenu email={email} name={name} />
         </header>
         <main className="flex-1 overflow-auto p-4 lg:p-8">{children}</main>

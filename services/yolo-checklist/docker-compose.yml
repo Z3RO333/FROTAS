@@ -1,0 +1,12 @@
+services:
+  yolo-checklist:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      YOLO_SERVICE_TOKEN: ${YOLO_SERVICE_TOKEN:-dev-yolo-token}
+      YOLO_MODEL_PATH: ${YOLO_MODEL_PATH:-yolov8n.pt}
+      YOLO_MODEL_NAME: ${YOLO_MODEL_NAME:-yolov8n-checklist}
+      YOLO_CONFIDENCE: ${YOLO_CONFIDENCE:-0.35}
+    volumes:
+      - ./models:/models:ro

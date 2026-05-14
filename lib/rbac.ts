@@ -104,7 +104,7 @@ export function canAccessOperacao(perfil: PerfilUsuario): boolean {
 }
 
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
-  return perfil !== "MOTORISTA";
+  return true;
 }
 
 export function canWriteDocumentos(perfil: PerfilUsuario): boolean {

@@ -78,10 +78,16 @@ export interface DocumentRecord {
   frota: string;
   placa: string;
   modelo: string;
-  dut_url: string;
-  crlv_url: string;
+  dut_url: string | null;
+  crlv_url: string | null;
   created_at: string;
   created_by: string | null;
+  updated_at?: string | null;
+}
+
+export interface DocumentRecordWithSignedUrls extends DocumentRecord {
+  dut_signed_url: string | null;
+  crlv_signed_url: string | null;
 }
 
 export interface DemandaApp {

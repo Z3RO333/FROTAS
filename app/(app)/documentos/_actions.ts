@@ -4,35 +4,134 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canWriteDocumentos, requireAppUser } from "@/lib/rbac";
-import { createDocument, deleteDocument, updateDocument } from "@/lib/repos/manutencao/documents";
+import {
+  createDocument,
+  deleteDocument,
+  getDocumentById,
+  removeDocumentFiles,
+  replaceDocumentFiles,
+  updateDocument,
+  uploadDocumentFile,
+} from "@/lib/repos/manutencao/documents";
 
 const DocumentSchema = z.object({
-  frota: z.string().min(1, "Frota obrigatória"),
-  placa: z.string().min(1, "Placa obrigatória"),
-  modelo: z.string().min(1, "Modelo obrigatório"),
-  dut_url: z.string().url("URL DUT inválida"),
-  crlv_url: z.string().url("URL CRLV inválida"),
+  frota: z.string().trim().min(1, "Frota obrigatoria"),
+  placa: z.string().trim().min(1, "Placa obrigatoria"),
+  modelo: z.string().trim().min(1, "Modelo obrigatorio"),
 });
 
-export async function createDocumentAction(formData: FormData) {
+export type DocumentActionResult = { ok: true } | { ok: false; error: string };
+
+export async function createDocumentAction(formData: FormData): Promise<DocumentActionResult> {
   const user = await requireAppUser();
   if (!canWriteDocumentos(user.perfil)) redirect("/");
-  const input = DocumentSchema.parse(Object.fromEntries(formData));
-  await createDocument(input, user.email);
-  revalidatePath("/documentos");
+
+  try {
+    const input = DocumentSchema.parse(readDocumentFields(formData));
+    const dutFile = readOptionalFile(formData, "dut_file");
+    const crlvFile = readOptionalFile(formData, "crlv_file");
+
+    if (!dutFile && !crlvFile) {
+      return { ok: false, error: "Envie ao menos um PDF de DUT ou CRLV." };
+    }
+
+    const uploadedPaths: string[] = [];
+    try {
+      const dutPath = dutFile ? await uploadDocumentFile(dutFile, input.placa, "dut") : null;
+      if (dutPath) uploadedPaths.push(dutPath);
+
+      const crlvPath = crlvFile ? await uploadDocumentFile(crlvFile, input.placa, "crlv") : null;
+      if (crlvPath) uploadedPaths.push(crlvPath);
+
+      await createDocument(
+        {
+          ...input,
+          placa: normalizePlate(input.placa),
+          dut_url: dutPath,
+          crlv_url: crlvPath,
+        },
+        user.email
+      );
+    } catch (error) {
+      await removeDocumentFiles(uploadedPaths);
+      throw error;
+    }
+
+    revalidatePath("/documentos");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: getActionErrorMessage(error) };
+  }
 }
 
-export async function updateDocumentAction(id: string, formData: FormData) {
+export async function updateDocumentAction(id: string, formData: FormData): Promise<DocumentActionResult> {
   const user = await requireAppUser();
   if (!canWriteDocumentos(user.perfil)) redirect("/");
-  const input = DocumentSchema.partial().parse(Object.fromEntries(formData));
-  await updateDocument(id, input);
-  revalidatePath("/documentos");
+
+  try {
+    const current = await getDocumentById(id);
+    if (!current) return { ok: false, error: "Documento nao encontrado." };
+
+    const input = DocumentSchema.partial().parse(readDocumentFields(formData));
+    const dutFile = readOptionalFile(formData, "dut_file");
+    const crlvFile = readOptionalFile(formData, "crlv_file");
+    const placa = input.placa ?? current.placa;
+
+    const replacement = await replaceDocumentFiles(current, { dut: dutFile, crlv: crlvFile }, placa);
+
+    try {
+      await updateDocument(id, {
+        ...input,
+        placa: input.placa ? normalizePlate(input.placa) : undefined,
+        dut_url: replacement.dut_url,
+        crlv_url: replacement.crlv_url,
+      });
+      await removeDocumentFiles(replacement.oldPaths);
+    } catch (error) {
+      await removeDocumentFiles(replacement.uploadedPaths);
+      throw error;
+    }
+
+    revalidatePath("/documentos");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: getActionErrorMessage(error) };
+  }
 }
 
-export async function deleteDocumentAction(id: string) {
+export async function deleteDocumentAction(id: string): Promise<DocumentActionResult> {
   const user = await requireAppUser();
   if (!canWriteDocumentos(user.perfil)) redirect("/");
-  await deleteDocument(id);
-  revalidatePath("/documentos");
+
+  try {
+    await deleteDocument(id);
+    revalidatePath("/documentos");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: getActionErrorMessage(error) };
+  }
+}
+
+function readDocumentFields(formData: FormData) {
+  return {
+    frota: String(formData.get("frota") ?? ""),
+    placa: String(formData.get("placa") ?? ""),
+    modelo: String(formData.get("modelo") ?? ""),
+  };
+}
+
+function readOptionalFile(formData: FormData, key: string): File | null {
+  const value = formData.get(key);
+  if (!value || typeof value === "string" || value.size === 0) return null;
+  return value;
+}
+
+function normalizePlate(value: string): string {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function getActionErrorMessage(error: unknown): string {
+  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados invalidos.";
+  if (error instanceof Error) return error.message;
+  return "Erro inesperado ao processar documento.";
 }

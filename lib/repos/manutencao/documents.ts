@@ -1,14 +1,22 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
-import type { DocumentRecord } from "./types";
+import type { DocumentRecord, DocumentRecordWithSignedUrls } from "./types";
 
 const T = "documents";
+const DOCUMENTS_BUCKET = "documents";
+const SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 15;
+const MAX_PDF_BYTES = 25 * 1024 * 1024;
+
+export type DocumentUpsertInput = Pick<DocumentRecord, "frota" | "placa" | "modelo"> & {
+  dut_url?: string | null;
+  crlv_url?: string | null;
+};
 
 export async function listDocuments(filters: {
   frota?: string;
   placa?: string;
   page?: number;
   pageSize?: number;
-} = {}): Promise<{ rows: DocumentRecord[]; total: number }> {
+} = {}): Promise<{ rows: DocumentRecordWithSignedUrls[]; total: number }> {
   const { frota, placa, page = 1, pageSize = 25 } = filters;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -22,11 +30,12 @@ export async function listDocuments(filters: {
     .range(from, to);
 
   if (error) throw new Error(`listDocuments: ${error.message}`);
-  return { rows: (data ?? []) as DocumentRecord[], total: count ?? 0 };
+  const rows = await Promise.all(((data ?? []) as DocumentRecord[]).map(withSignedUrls));
+  return { rows, total: count ?? 0 };
 }
 
 export async function createDocument(
-  input: Omit<DocumentRecord, "id" | "created_at" | "created_by">,
+  input: DocumentUpsertInput,
   createdBy: string
 ): Promise<DocumentRecord> {
   const { data, error } = await supabaseManutencao
@@ -40,13 +49,147 @@ export async function createDocument(
 
 export async function updateDocument(
   id: string,
-  input: Partial<Pick<DocumentRecord, "frota" | "placa" | "modelo" | "dut_url" | "crlv_url">>
+  input: Partial<DocumentUpsertInput>
 ): Promise<void> {
   const { error } = await supabaseManutencao.from(T).update(input).eq("id", id);
   if (error) throw new Error(`updateDocument: ${error.message}`);
 }
 
 export async function deleteDocument(id: string): Promise<void> {
+  const current = await getDocumentById(id);
+  if (current) {
+    await removeDocumentFiles([current.dut_url, current.crlv_url]);
+  }
+
   const { error } = await supabaseManutencao.from(T).delete().eq("id", id);
   if (error) throw new Error(`deleteDocument: ${error.message}`);
+}
+
+export async function getDocumentById(id: string): Promise<DocumentRecord | null> {
+  const { data, error } = await supabaseManutencao.from(T).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`getDocumentById: ${error.message}`);
+  return (data as DocumentRecord | null) ?? null;
+}
+
+export async function uploadDocumentFile(file: File, placa: string, kind: "dut" | "crlv"): Promise<string> {
+  validatePdfFile(file, kind);
+
+  const plateSegment = toStorageSegment(placa);
+  if (!plateSegment) throw new Error("Placa invalida para gerar caminho de armazenamento.");
+
+  const unique = `${Date.now()}-${crypto.randomUUID()}`;
+  const path = `${plateSegment}/${kind}-${unique}.pdf`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const { error } = await supabaseManutencao.storage.from(DOCUMENTS_BUCKET).upload(path, buffer, {
+    cacheControl: "3600",
+    contentType: "application/pdf",
+    upsert: false,
+  });
+
+  if (error) throw new Error(`uploadDocumentFile: ${error.message}`);
+  return path;
+}
+
+export async function replaceDocumentFiles(
+  current: DocumentRecord,
+  files: { dut?: File | null; crlv?: File | null },
+  placa: string
+): Promise<{ dut_url?: string | null; crlv_url?: string | null; uploadedPaths: string[]; oldPaths: Array<string | null> }> {
+  const uploadedPaths: string[] = [];
+  const oldPaths: Array<string | null> = [];
+  const updates: { dut_url?: string | null; crlv_url?: string | null } = {};
+
+  if (files.dut) {
+    const path = await uploadDocumentFile(files.dut, placa, "dut");
+    uploadedPaths.push(path);
+    oldPaths.push(current.dut_url);
+    updates.dut_url = path;
+  }
+
+  if (files.crlv) {
+    const path = await uploadDocumentFile(files.crlv, placa, "crlv");
+    uploadedPaths.push(path);
+    oldPaths.push(current.crlv_url);
+    updates.crlv_url = path;
+  }
+
+  return { ...updates, uploadedPaths, oldPaths };
+}
+
+export async function removeDocumentFiles(paths: Array<string | null | undefined>): Promise<void> {
+  const storagePaths = paths
+    .map(normalizeDocumentStoragePath)
+    .filter((path): path is string => Boolean(path));
+
+  if (storagePaths.length === 0) return;
+
+  const { error } = await supabaseManutencao.storage.from(DOCUMENTS_BUCKET).remove(storagePaths);
+  if (error) throw new Error(`removeDocumentFiles: ${error.message}`);
+}
+
+async function withSignedUrls(doc: DocumentRecord): Promise<DocumentRecordWithSignedUrls> {
+  const [dutSignedUrl, crlvSignedUrl] = await Promise.all([
+    createSignedDocumentUrl(doc.dut_url),
+    createSignedDocumentUrl(doc.crlv_url),
+  ]);
+
+  return {
+    ...doc,
+    dut_signed_url: dutSignedUrl,
+    crlv_signed_url: crlvSignedUrl,
+  };
+}
+
+async function createSignedDocumentUrl(pathOrUrl: string | null | undefined): Promise<string | null> {
+  if (!pathOrUrl) return null;
+
+  const path = normalizeDocumentStoragePath(pathOrUrl);
+  if (!path) return isHttpUrl(pathOrUrl) ? pathOrUrl : null;
+
+  const { data, error } = await supabaseManutencao.storage
+    .from(DOCUMENTS_BUCKET)
+    .createSignedUrl(path, SIGNED_URL_EXPIRES_IN_SECONDS);
+
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+export function normalizeDocumentStoragePath(pathOrUrl: string | null | undefined): string | null {
+  if (!pathOrUrl) return null;
+  const value = pathOrUrl.trim();
+  if (!value) return null;
+
+  if (!isHttpUrl(value)) return value.replace(/^\/+/, "");
+
+  try {
+    const url = new URL(value);
+    const markers = [
+      `/storage/v1/object/public/${DOCUMENTS_BUCKET}/`,
+      `/storage/v1/object/sign/${DOCUMENTS_BUCKET}/`,
+    ];
+    const marker = markers.find((item) => url.pathname.includes(item));
+    if (!marker) return null;
+    return decodeURIComponent(url.pathname.split(marker)[1] ?? "").replace(/^\/+/, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+function validatePdfFile(file: File, label: string): void {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  if (!isPdf) throw new Error(`${label.toUpperCase()} precisa ser um arquivo PDF.`);
+  if (file.size <= 0) throw new Error(`${label.toUpperCase()} esta vazio.`);
+  if (file.size > MAX_PDF_BYTES) throw new Error(`${label.toUpperCase()} excede 25 MB.`);
+}
+
+function toStorageSegment(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, "");
+}
+
+function isHttpUrl(value: string): boolean {
+  return value.startsWith("http://") || value.startsWith("https://");
 }
