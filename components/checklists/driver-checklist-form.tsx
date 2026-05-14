@@ -3,7 +3,7 @@
 import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Camera, ChevronRight, Info, Loader2, Search, Send } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Search, Send, XCircle } from "lucide-react";
 import {
   CHECKLIST_MOTORISTA_INITIAL_STATE,
   enviarChecklistMotoristaAction,
@@ -17,6 +17,14 @@ import { Label } from "@/components/ui/label";
 
 type ChecklistItemStatus = "APTO" | "NAO_APTO" | "NAO_SE_APLICA";
 
+type StatusLeitura =
+  | "LEITURA_SEGURA"
+  | "LEITURA_SUSPEITA"
+  | "LEITURA_DIVERGENTE"
+  | "LEITURA_FALHOU";
+
+type CandidatoDescartado = { valor: number; motivo: string };
+
 type OcrState = {
   km_lido: number | null;
   confianca: number;
@@ -25,6 +33,10 @@ type OcrState = {
   motivo: string | null;
   texto_visivel: string | null;
   observacoes_imagem: string | null;
+  candidatos_descartados?: CandidatoDescartado[];
+  regiao_detectada?: string;
+  status_leitura?: StatusLeitura;
+  km_anterior_usado?: number | null;
   error?: string;
 };
 
@@ -79,22 +91,30 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     setOcrLoading(true);
     const body = new FormData();
     body.append("foto_km", file);
+    if (selected?.km_atual != null) {
+      body.append("km_anterior", String(selected.km_atual));
+    }
     try {
       const response = await fetch("/api/checklists/ocr-km", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error ?? "Falha ao analisar imagem.");
       setOcrState(data);
-      if (data.leitura_segura && data.km_lido != null) setKmValue(String(data.km_lido));
+      // Only auto-fill KM if reading is safe (green)
+      if (data.status_leitura === "LEITURA_SEGURA" && data.km_lido != null) {
+        setKmValue(String(data.km_lido));
+      }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : "Não conseguimos ler a imagem.";
       setOcrState({
         km_lido: null,
         confianca: 0,
         leitura_segura: false,
         precisa_digitacao_manual: true,
-        motivo: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
+        motivo: msg,
         texto_visivel: null,
         observacoes_imagem: null,
-        error: error instanceof Error ? error.message : "Não conseguimos ler a imagem.",
+        status_leitura: "LEITURA_FALHOU",
+        error: msg,
       });
     } finally {
       setOcrLoading(false);
@@ -109,6 +129,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   }
 
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
+
+  // Block submission when OCR returns divergent reading and user hasn't entered manual KM + justification
+  const ocrDivergente = ocrState?.status_leitura === "LEITURA_DIVERGENTE";
+  const kmManualPreenchido = kmValue.trim() !== "" && parseInt(kmValue, 10) > 0;
 
   return (
     <form action={formAction} className="mx-auto max-w-3xl space-y-5">
@@ -422,23 +446,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 Lendo quilometragem pela IA...
               </div>
             ) : ocrState ? (
-              <div
-                className={
-                  ocrState.leitura_segura
-                    ? "rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"
-                    : "rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
-                }
-              >
-                {ocrState.leitura_segura && ocrState.km_lido != null ? (
-                  <strong>KM identificado: {formatNumber(ocrState.km_lido)}</strong>
-                ) : (
-                  <strong>Não foi possível ler a quilometragem. Digite manualmente.</strong>
-                )}
-                {ocrState.motivo ? <div className="mt-1 text-xs opacity-80">{ocrState.motivo}</div> : null}
-                {ocrState.texto_visivel ? (
-                  <div className="mt-1 text-xs opacity-80">Texto visível: {ocrState.texto_visivel}</div>
-                ) : null}
-              </div>
+              <OcrStatusCard ocrState={ocrState} kmAnterior={selected?.km_atual ?? null} />
             ) : null}
           </div>
 
@@ -541,25 +549,117 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
           <Button type="button" variant="outline" onClick={() => setStep(1)}>
             Voltar
           </Button>
-          <SubmitButton />
+          <SubmitButton blocked={ocrDivergente && !kmManualPreenchido} />
         </div>
       </section>
     </form>
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ blocked }: { blocked?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending || blocked}>
       {pending ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
       ) : (
         <Send className="mr-2 h-4 w-4" aria-hidden="true" />
       )}
-      {pending ? "Enviando..." : "Enviar checklist"}
+      {pending ? "Enviando..." : blocked ? "Corrija o KM antes de enviar" : "Enviar checklist"}
     </Button>
+  );
+}
+
+function OcrStatusCard({
+  ocrState,
+  kmAnterior,
+}: {
+  ocrState: OcrState;
+  kmAnterior: number | null;
+}) {
+  const status = ocrState.status_leitura ?? (ocrState.leitura_segura ? "LEITURA_SEGURA" : "LEITURA_FALHOU");
+  const confiancaPct = Math.round(ocrState.confianca * 100);
+
+  if (status === "LEITURA_SEGURA") {
+    return (
+      <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+          KM identificado: {formatNumber(ocrState.km_lido)} km
+          <span className="ml-auto text-[11px] font-normal opacity-70">confiança {confiancaPct}%</span>
+        </div>
+        {ocrState.motivo && <p className="mt-1 text-xs opacity-80">{ocrState.motivo}</p>}
+      </div>
+    );
+  }
+
+  if (status === "LEITURA_SUSPEITA") {
+    return (
+      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          Leitura suspeita — confirme o valor
+          <span className="ml-auto text-[11px] font-normal opacity-70">confiança {confiancaPct}%</span>
+        </div>
+        {ocrState.km_lido != null && (
+          <p className="mt-1 text-xs">
+            IA leu: <strong>{formatNumber(ocrState.km_lido)} km</strong>
+            {kmAnterior != null && (
+              <span className="ml-1 opacity-70">(último registrado: {formatNumber(kmAnterior)} km)</span>
+            )}
+          </p>
+        )}
+        {ocrState.motivo && <p className="mt-1 text-xs opacity-80">{ocrState.motivo}</p>}
+        <p className="mt-1.5 text-xs font-medium">Verifique o painel e corrija o KM se necessário.</p>
+      </div>
+    );
+  }
+
+  if (status === "LEITURA_DIVERGENTE") {
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <XCircle className="h-4 w-4" aria-hidden="true" />
+          Leitura inconsistente — digitação obrigatória
+        </div>
+        <p className="mt-1 text-xs">
+          {ocrState.km_lido != null ? (
+            <>
+              IA leu: <strong>{formatNumber(ocrState.km_lido)} km</strong>
+              {kmAnterior != null && (
+                <span className="ml-1">· Último registrado: <strong>{formatNumber(kmAnterior)} km</strong></span>
+              )}
+            </>
+          ) : (
+            "Não foi possível ler a quilometragem."
+          )}
+        </p>
+        {ocrState.candidatos_descartados && ocrState.candidatos_descartados.length > 0 && (
+          <p className="mt-1 text-xs opacity-70">
+            Outros valores detectados:{" "}
+            {ocrState.candidatos_descartados
+              .map((c) => `${formatNumber(c.valor)} (${c.motivo.replace(/_/g, " ")})`)
+              .join(", ")}
+          </p>
+        )}
+        <p className="mt-1.5 text-xs font-medium text-red-800">
+          Digite o KM correto manualmente para prosseguir.
+        </p>
+      </div>
+    );
+  }
+
+  // LEITURA_FALHOU
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+      <div className="flex items-center gap-1.5 font-semibold">
+        <AlertTriangle className="h-4 w-4 text-slate-400" aria-hidden="true" />
+        Não foi possível ler a quilometragem
+      </div>
+      {ocrState.motivo && <p className="mt-1 text-xs opacity-80">{ocrState.motivo}</p>}
+      <p className="mt-1.5 text-xs">Digite o KM manualmente no campo abaixo.</p>
+    </div>
   );
 }
 
