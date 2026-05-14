@@ -1,7 +1,5 @@
-import { query, SCHEMA_FQN } from "@/lib/db";
+import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { Frota } from "@/lib/repos/frotas";
-
-const T = `${SCHEMA_FQN}.unidades_operacionais`;
 
 export type UnidadeOperacional = {
   id: number;
@@ -22,75 +20,93 @@ export type UnidadeOperacional = {
   importado_em: string | null;
 };
 
-async function safeQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T): Promise<T> {
   try {
-    return await query<T>(sql, params);
+    return await cb();
   } catch (error) {
-    console.warn("[unidades] consulta indisponivel", error);
-    return [];
+    console.warn(`[unidades] ${label} indisponivel`, error);
+    return fallback;
   }
 }
 
 export async function listUnidades(search?: string, limit = 200): Promise<UnidadeOperacional[]> {
-  const q = search?.trim().toLowerCase();
-  if (!q) {
-    return safeQuery<UnidadeOperacional>(
-      `SELECT * FROM ${T}
-       ORDER BY negocio, loja
-       LIMIT ${limit}`
-    );
-  }
+  return safeSupabase("listagem", async () => {
+    const q = search?.trim();
+    let request = supabaseManutencao
+      .from("unidades_operacionais")
+      .select("*")
+      .order("negocio", { ascending: true, nullsFirst: false })
+      .order("loja", { ascending: true, nullsFirst: false })
+      .limit(limit);
 
-  return safeQuery<UnidadeOperacional>(
-    `SELECT * FROM ${T}
-     WHERE LOWER(COALESCE(loja, '')) LIKE ?
-        OR LOWER(COALESCE(negocio, '')) LIKE ?
-        OR LOWER(COALESCE(centro, '')) LIKE ?
-        OR LOWER(COALESCE(centro_custo, '')) LIKE ?
-        OR LOWER(COALESCE(cnpj, '')) LIKE ?
-        OR LOWER(COALESCE(endereco, '')) LIKE ?
-     ORDER BY negocio, loja
-     LIMIT ${limit}`,
-    [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`]
-  );
+    if (q) {
+      const pattern = `%${q.replace(/[%_]/g, "\\$&")}%`;
+      request = request.or([
+        `loja.ilike.${pattern}`,
+        `negocio.ilike.${pattern}`,
+        `centro.ilike.${pattern}`,
+        `centro_custo.ilike.${pattern}`,
+        `cnpj.ilike.${pattern}`,
+        `endereco.ilike.${pattern}`,
+      ].join(","));
+    }
+
+    const { data, error } = await request;
+    if (error) throw error;
+    return (data ?? []) as UnidadeOperacional[];
+  }, []);
 }
 
 export async function countUnidades(): Promise<number> {
-  const r = await safeQuery<{ n: number }>(`SELECT COUNT(*) AS n FROM ${T}`);
-  return Number(r[0]?.n ?? 0);
+  return safeSupabase("contagem", async () => {
+    const { count, error } = await supabaseManutencao
+      .from("unidades_operacionais")
+      .select("id", { count: "exact", head: true });
+
+    if (error) throw error;
+    return count ?? 0;
+  }, 0);
 }
 
 export async function findUnidadeForFrota(frota: Frota): Promise<UnidadeOperacional | null> {
-  const keys = [
-    frota.localizacao,
-    frota.frota_geral,
-  ]
+  const keys = [frota.localizacao, frota.frota_geral]
     .map((value) => value?.trim())
     .filter((value): value is string => Boolean(value));
 
   if (keys.length === 0) return null;
 
   for (const key of keys) {
-    const normalized = key.toLowerCase();
-    const exact = await safeQuery<UnidadeOperacional>(
-      `SELECT * FROM ${T}
-       WHERE LOWER(COALESCE(loja, '')) = ?
-          OR LOWER(COALESCE(centro, '')) = ?
-          OR LOWER(COALESCE(local_negocio, '')) = ?
-       LIMIT 1`,
-      [normalized, normalized, normalized]
-    );
-    if (exact[0]) return exact[0];
+    const exact = await safeSupabase("busca exata", async () => {
+      const { data, error } = await supabaseManutencao
+        .from("unidades_operacionais")
+        .select("*")
+        .or([
+          `loja.eq.${key}`,
+          `centro.eq.${key}`,
+          `local_negocio.eq.${key}`,
+        ].join(","))
+        .limit(1);
 
-    const fuzzy = await safeQuery<UnidadeOperacional>(
-      `SELECT * FROM ${T}
-       WHERE LOWER(COALESCE(loja, '')) LIKE ?
-          OR LOWER(COALESCE(endereco, '')) LIKE ?
-       ORDER BY loja
-       LIMIT 1`,
-      [`%${normalized}%`, `%${normalized}%`]
-    );
-    if (fuzzy[0]) return fuzzy[0];
+      if (error) throw error;
+      return ((data ?? []) as UnidadeOperacional[])[0] ?? null;
+    }, null);
+
+    if (exact) return exact;
+
+    const fuzzy = await safeSupabase("busca aproximada", async () => {
+      const pattern = `%${key.replace(/[%_]/g, "\\$&")}%`;
+      const { data, error } = await supabaseManutencao
+        .from("unidades_operacionais")
+        .select("*")
+        .or(`loja.ilike.${pattern},endereco.ilike.${pattern}`)
+        .order("loja", { ascending: true, nullsFirst: false })
+        .limit(1);
+
+      if (error) throw error;
+      return ((data ?? []) as UnidadeOperacional[])[0] ?? null;
+    }, null);
+
+    if (fuzzy) return fuzzy;
   }
 
   return null;

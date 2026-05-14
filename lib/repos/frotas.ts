@@ -1,4 +1,5 @@
-import { query } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 
@@ -19,6 +20,36 @@ export type Frota = {
   ativo: boolean;
   criado_em: string | null;
   atualizado_em: string | null;
+  atualizado_por: string | null;
+  km_origem: string | null;
+  km_atualizado_em: string | null;
+  km_validado: boolean | null;
+  ultimo_checklist_id: number | null;
+  ultimo_checklist_em: string | null;
+  ultimo_motorista_id: string | null;
+  ultimo_motorista_nome: string | null;
+  ultimo_abastecimento_em: string | null;
+  ultimo_abastecimento_litros: number | null;
+  status_operacional: string | null;
+};
+
+type VeiculoRow = {
+  id: number;
+  codigo_frota: string | null;
+  placa: string | null;
+  modelo: string | null;
+  chassi: string | null;
+  renavam: string | null;
+  ano_fabricacao: number | null;
+  local: string | null;
+  km_atual: number | null;
+  status: StatusFrota | null;
+  observacoes: string | null;
+  vendido: boolean | null;
+  ano_venda: number | null;
+  ativo: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
   atualizado_por: string | null;
   km_origem: string | null;
   km_atualizado_em: string | null;
@@ -75,18 +106,6 @@ export type FrotaInput = {
   observacoes?: string | null;
 };
 
-const T = "manutencao.cd.frotas";
-const AGE_SQL = "(year(current_date()) - ano_fabricacao)";
-const EMPTY_PLACA_SQL = "(placa IS NULL OR TRIM(placa) = '')";
-const EMPTY_CHASSI_SQL = "(chassi IS NULL OR TRIM(chassi) = '')";
-const CADASTRO_INCOMPLETO_SQL = `(${EMPTY_PLACA_SQL} OR ${EMPTY_CHASSI_SQL} OR km_atual IS NULL)`;
-const CRITICAL_CONDITION_SQL = `(status = 'critico' OR ${AGE_SQL} >= 10)`;
-const ATTENTION_CONDITION_SQL = `(status IN ('atencao', 'manutencao') OR ${AGE_SQL} >= 7 OR ${CADASTRO_INCOMPLETO_SQL})`;
-const CONDITION_SQL = `(CASE
-  WHEN ${CRITICAL_CONDITION_SQL} THEN 'critico'
-  WHEN ${ATTENTION_CONDITION_SQL} THEN 'atencao'
-  ELSE 'normal'
-END)`;
 const TRACKED_FIELDS = ["chassi", "km_atual", "status", "observacoes", "localizacao"] as const;
 const WRITABLE_FIELDS = [
   "frota_geral",
@@ -101,239 +120,220 @@ const WRITABLE_FIELDS = [
   "observacoes",
 ] as const satisfies readonly (keyof FrotaInput)[];
 
-function buildWhere(f: FrotaFilters): { sql: string; params: unknown[] } {
-  const wh: string[] = ["ativo = TRUE"];
-  const params: unknown[] = [];
+function fromVeiculo(row: VeiculoRow): Frota {
+  return {
+    id: Number(row.id),
+    frota_geral: row.codigo_frota,
+    placa: row.placa,
+    modelo: row.modelo,
+    chassi: row.chassi,
+    renavam: row.renavam,
+    ano_fabricacao: row.ano_fabricacao != null ? Number(row.ano_fabricacao) : null,
+    localizacao: row.local,
+    km_atual: row.km_atual != null ? Number(row.km_atual) : null,
+    status: row.status,
+    observacoes: row.observacoes,
+    vendido: Boolean(row.vendido),
+    ano_venda: row.ano_venda != null ? Number(row.ano_venda) : null,
+    ativo: row.ativo !== false,
+    criado_em: row.created_at,
+    atualizado_em: row.updated_at,
+    atualizado_por: row.atualizado_por,
+    km_origem: row.km_origem,
+    km_atualizado_em: row.km_atualizado_em,
+    km_validado: row.km_validado,
+    ultimo_checklist_id: row.ultimo_checklist_id != null ? Number(row.ultimo_checklist_id) : null,
+    ultimo_checklist_em: row.ultimo_checklist_em,
+    ultimo_motorista_id: row.ultimo_motorista_id,
+    ultimo_motorista_nome: row.ultimo_motorista_nome,
+    ultimo_abastecimento_em: row.ultimo_abastecimento_em,
+    ultimo_abastecimento_litros:
+      row.ultimo_abastecimento_litros != null ? Number(row.ultimo_abastecimento_litros) : null,
+    status_operacional: row.status_operacional,
+  };
+}
 
-  wh.push(f.vendidos || f.operacional === "baixado" ? "vendido = TRUE" : "vendido = FALSE");
+function toVeiculoInput(input: Partial<FrotaInput>, userEmail?: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (input.frota_geral !== undefined) out.codigo_frota = input.frota_geral;
+  if (input.placa !== undefined) out.placa = input.placa;
+  if (input.modelo !== undefined) out.modelo = input.modelo;
+  if (input.chassi !== undefined) out.chassi = input.chassi;
+  if (input.renavam !== undefined) out.renavam = input.renavam;
+  if (input.ano_fabricacao !== undefined) out.ano_fabricacao = input.ano_fabricacao;
+  if (input.localizacao !== undefined) out.local = input.localizacao;
+  if (input.km_atual !== undefined) out.km_atual = input.km_atual;
+  if (input.status !== undefined) out.status = input.status;
+  if (input.observacoes !== undefined) out.observacoes = input.observacoes;
+  if (userEmail) out.atualizado_por = userEmail;
+  return out;
+}
 
+function pagination(f: FrotaFilters): { page: number; pageSize: number } {
+  return {
+    page: Math.max(1, Math.floor(f.page ?? 1)),
+    pageSize: Math.max(1, Math.min(200, Math.floor(f.pageSize ?? 50))),
+  };
+}
+
+function idade(frota: Frota): number | null {
+  if (!frota.ano_fabricacao) return null;
+  return new Date().getFullYear() - frota.ano_fabricacao;
+}
+
+function cadastroIncompleto(frota: Frota): boolean {
+  return !frota.placa?.trim() || !frota.chassi?.trim() || frota.km_atual == null;
+}
+
+function condition(frota: Frota): "normal" | "atencao" | "critico" {
+  const age = idade(frota);
+  if (frota.status === "critico" || (age != null && age >= 10)) return "critico";
+  if (
+    frota.status === "atencao" ||
+    frota.status === "manutencao" ||
+    (age != null && age >= 7) ||
+    cadastroIncompleto(frota)
+  ) {
+    return "atencao";
+  }
+  return "normal";
+}
+
+function operacional(frota: Frota): "disponivel" | "manutencao" | "indisponivel" | "baixado" {
+  if (frota.vendido || frota.status === "vendido") return "baixado";
+  if (frota.status === "manutencao") return "manutencao";
+  if (frota.status === "critico") return "indisponivel";
+  return "disponivel";
+}
+
+function matchesFilters(frota: Frota, f: FrotaFilters): boolean {
+  if (f.vendidos || f.operacional === "baixado") {
+    if (!frota.vendido && frota.status !== "vendido") return false;
+  } else if (frota.vendido) {
+    return false;
+  }
   if (f.search) {
-    wh.push(
-      "(LOWER(COALESCE(frota_geral, '')) LIKE ? OR LOWER(COALESCE(placa, '')) LIKE ? OR LOWER(COALESCE(chassi, '')) LIKE ? OR LOWER(COALESCE(modelo, '')) LIKE ? OR LOWER(COALESCE(localizacao, '')) LIKE ?)"
-    );
-    const q = `%${f.search.toLowerCase()}%`;
-    params.push(q, q, q, q, q);
+    const haystack = [
+      frota.frota_geral,
+      frota.placa,
+      frota.chassi,
+      frota.modelo,
+      frota.localizacao,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (!haystack.includes(f.search.toLowerCase())) return false;
   }
-  if (f.modelo) {
-    wh.push("modelo = ?");
-    params.push(f.modelo);
-  }
-  if (f.localizacao) {
-    wh.push("localizacao = ?");
-    params.push(f.localizacao);
-  }
-  if (f.ano) {
-    wh.push("ano_fabricacao = ?");
-    params.push(f.ano);
-  }
-  if (f.status) {
-    wh.push("status = ?");
-    params.push(f.status);
-  }
-  if (f.operacional) {
-    if (f.operacional === "disponivel") wh.push("(status IS NULL OR status NOT IN ('manutencao', 'critico', 'vendido'))");
-    if (f.operacional === "manutencao") wh.push("status = 'manutencao'");
-    if (f.operacional === "indisponivel") wh.push("status = 'critico'");
-    if (f.operacional === "baixado") wh.push("(vendido = TRUE OR status = 'vendido')");
-  }
-  if (f.condicao) {
-    wh.push(`${CONDITION_SQL} = ?`);
-    params.push(f.condicao);
-  }
-  if (f.cadastro === "incompleto") {
-    wh.push(CADASTRO_INCOMPLETO_SQL);
-  }
-  if (f.semKm) {
-    wh.push("km_atual IS NULL");
-  }
-  if (f.idadeMin) {
-    wh.push(`${AGE_SQL} >= ?`);
-    params.push(f.idadeMin);
-  }
-
-  return { sql: wh.join(" AND "), params };
+  if (f.modelo && frota.modelo !== f.modelo) return false;
+  if (f.localizacao && frota.localizacao !== f.localizacao) return false;
+  if (f.ano && frota.ano_fabricacao !== f.ano) return false;
+  if (f.status && frota.status !== f.status) return false;
+  if (f.operacional && operacional(frota) !== f.operacional) return false;
+  if (f.condicao && condition(frota) !== f.condicao) return false;
+  if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;
+  if (f.semKm && frota.km_atual != null) return false;
+  if (f.idadeMin && (idade(frota) ?? -1) < f.idadeMin) return false;
+  return frota.ativo;
 }
 
-function pagination(f: FrotaFilters): { pageSize: number; offset: number } {
-  const page = Math.max(1, Math.floor(f.page ?? 1));
-  const pageSize = Math.max(1, Math.min(200, Math.floor(f.pageSize ?? 50)));
-  return { pageSize, offset: (page - 1) * pageSize };
+async function allFrotas(): Promise<Frota[]> {
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("*")
+    .order("id", { ascending: true })
+    .limit(20000);
+  if (error) throw new Error(`listFrotas: ${error.message}`);
+  return ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
 }
 
-type FrotaListRow = Frota & { __total: number | string | null };
-
-export async function listFrotas(
-  f: FrotaFilters = {}
-): Promise<{ rows: Frota[]; total: number }> {
-  const { sql, params } = buildWhere(f);
-  const { pageSize, offset } = pagination(f);
-
-  const result = await query<FrotaListRow>(
-    `SELECT *, COUNT(*) OVER() AS __total
-     FROM ${T}
-     WHERE ${sql}
-     ORDER BY id
-     LIMIT ${pageSize} OFFSET ${offset}`,
-    params
-  );
-
-  if (result.length === 0) {
-    const totalResult = await query<{ n: number }>(`SELECT COUNT(*) AS n FROM ${T} WHERE ${sql}`, params);
-    return { rows: [], total: Number(totalResult[0]?.n ?? 0) };
-  }
-
-  const total = Number(result[0]?.__total ?? 0);
-  const rows = result.map(({ __total, ...row }) => row as Frota);
-
-  return { rows, total };
+export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
+  const { page, pageSize } = pagination(f);
+  const filtered = (await allFrotas()).filter((frota) => matchesFilters(frota, f));
+  const offset = (page - 1) * pageSize;
+  return { rows: filtered.slice(offset, offset + pageSize), total: filtered.length };
 }
 
 export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]> {
-  const { sql, params } = buildWhere(f);
-  return query<Frota>(`SELECT * FROM ${T} WHERE ${sql} ORDER BY id`, params);
+  return (await allFrotas()).filter((frota) => matchesFilters(frota, f));
 }
 
 export async function getFrota(id: number): Promise<Frota | null> {
-  const r = await query<Frota>(`SELECT * FROM ${T} WHERE id = ?`, [id]);
-  return r[0] ?? null;
+  const { data, error } = await supabaseManutencao.from("veiculos").select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`getFrota: ${error.message}`);
+  return data ? fromVeiculo(data as VeiculoRow) : null;
 }
 
 export async function kpis(): Promise<Kpis> {
-  const r = await query<{
-    total_ativos: number | null;
-    total_disponiveis: number | null;
-    total_indisponiveis: number | null;
-    total_atencao: number | null;
-    total_critico: number | null;
-    total_manutencao: number | null;
-    total_sem_km: number | null;
-    total_acima_7: number | null;
-    total_cadastro_incompleto: number | null;
-    idade_media: number | null;
-    km_medio: number | null;
-  }>(
-    `SELECT
-      SUM(CASE WHEN ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_ativos,
-      SUM(CASE WHEN (status IS NULL OR status NOT IN ('manutencao', 'critico', 'vendido')) AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_disponiveis,
-      SUM(CASE WHEN status IN ('manutencao', 'critico') AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_indisponiveis,
-      SUM(CASE WHEN ${CONDITION_SQL} = 'atencao' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_atencao,
-      SUM(CASE WHEN ${CONDITION_SQL} = 'critico' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_critico,
-      SUM(CASE WHEN status = 'manutencao' AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_manutencao,
-      SUM(CASE WHEN km_atual IS NULL AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_sem_km,
-      SUM(CASE WHEN ${AGE_SQL} >= 7 AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_acima_7,
-      SUM(CASE WHEN ${CADASTRO_INCOMPLETO_SQL} AND ativo AND NOT vendido THEN 1 ELSE 0 END) AS total_cadastro_incompleto,
-      AVG(CASE WHEN ativo AND NOT vendido THEN year(current_date()) - ano_fabricacao ELSE NULL END) AS idade_media,
-      AVG(CASE WHEN ativo AND NOT vendido THEN km_atual ELSE NULL END) AS km_medio
-    FROM ${T}`
-  );
-  const row = r[0];
-
+  const frotas = (await allFrotas()).filter((frota) => frota.ativo && !frota.vendido);
+  const ages = frotas.map(idade).filter((value): value is number => value != null);
+  const kms = frotas.map((frota) => frota.km_atual).filter((value): value is number => value != null);
   return {
-    total_ativos: Number(row?.total_ativos ?? 0),
-    total_disponiveis: Number(row?.total_disponiveis ?? 0),
-    total_indisponiveis: Number(row?.total_indisponiveis ?? 0),
-    total_atencao: Number(row?.total_atencao ?? 0),
-    total_critico: Number(row?.total_critico ?? 0),
-    total_manutencao: Number(row?.total_manutencao ?? 0),
-    total_sem_km: Number(row?.total_sem_km ?? 0),
-    total_acima_7: Number(row?.total_acima_7 ?? 0),
-    total_cadastro_incompleto: Number(row?.total_cadastro_incompleto ?? 0),
-    idade_media: row?.idade_media != null ? Number(row.idade_media) : null,
-    km_medio: row?.km_medio != null ? Number(row.km_medio) : null,
+    total_ativos: frotas.length,
+    total_disponiveis: frotas.filter((frota) => operacional(frota) === "disponivel").length,
+    total_indisponiveis: frotas.filter((frota) => ["manutencao", "indisponivel"].includes(operacional(frota))).length,
+    total_atencao: frotas.filter((frota) => condition(frota) === "atencao").length,
+    total_critico: frotas.filter((frota) => condition(frota) === "critico").length,
+    total_manutencao: frotas.filter((frota) => frota.status === "manutencao").length,
+    total_sem_km: frotas.filter((frota) => frota.km_atual == null).length,
+    total_acima_7: frotas.filter((frota) => (idade(frota) ?? 0) >= 7).length,
+    total_cadastro_incompleto: frotas.filter(cadastroIncompleto).length,
+    idade_media: ages.length ? ages.reduce((sum, value) => sum + value, 0) / ages.length : null,
+    km_medio: kms.length ? kms.reduce((sum, value) => sum + value, 0) / kms.length : null,
   };
 }
 
 export async function modelosDistintos(): Promise<string[]> {
-  const r = await query<{ modelo: string }>(
-    `SELECT DISTINCT modelo FROM ${T} WHERE ativo = TRUE AND modelo IS NOT NULL ORDER BY modelo`
-  );
-  return r.map((x) => x.modelo);
+  return Array.from(new Set((await allFrotas()).map((frota) => frota.modelo).filter(Boolean) as string[])).sort();
 }
 
 export async function localizacoesDistintas(): Promise<string[]> {
-  const r = await query<{ localizacao: string }>(
-    `SELECT DISTINCT localizacao FROM ${T} WHERE ativo = TRUE AND localizacao IS NOT NULL ORDER BY localizacao`
-  );
-  return r.map((x) => x.localizacao);
+  return Array.from(new Set((await allFrotas()).map((frota) => frota.localizacao).filter(Boolean) as string[])).sort();
 }
 
 export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {
-  const r = await query<{ status: string; total: number }>(
-    `SELECT status, COUNT(*) AS total
-     FROM (
-       SELECT
-        CASE
-          WHEN status = 'manutencao' THEN 'manutencao'
-          WHEN status = 'critico' THEN 'indisponivel'
-          WHEN status = 'vendido' THEN 'baixado'
-          ELSE 'disponivel'
-        END AS status
-     FROM ${T}
-       WHERE ativo = TRUE AND vendido = FALSE
-     ) grouped
-     GROUP BY status
-     ORDER BY status`
-  );
-  return r.map((x) => ({ status: x.status, total: Number(x.total) }));
+  const counts = new Map<string, number>();
+  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
+    const key = operacional(frota);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
 }
 
 export async function frotasByYear(): Promise<{ ano: number | null; total: number }[]> {
-  const r = await query<{ ano: number | null; total: number }>(
-    `SELECT ano_fabricacao AS ano, COUNT(*) AS total
-     FROM ${T}
-     WHERE ativo = TRUE AND vendido = FALSE
-     GROUP BY ano_fabricacao
-     ORDER BY ano_fabricacao`
-  );
-  return r.map((x) => ({
-    ano: x.ano != null ? Number(x.ano) : null,
-    total: Number(x.total),
-  }));
+  const counts = new Map<string, { ano: number | null; total: number }>();
+  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
+    const key = String(frota.ano_fabricacao ?? "sem_ano");
+    const current = counts.get(key) ?? { ano: frota.ano_fabricacao, total: 0 };
+    current.total += 1;
+    counts.set(key, current);
+  }
+  return Array.from(counts.values()).sort((a, b) => (a.ano ?? 9999) - (b.ano ?? 9999));
 }
 
 export async function conditionBreakdown(): Promise<{ status: string; total: number }[]> {
-  const r = await query<{ status: string; total: number }>(
-    `SELECT status, COUNT(*) AS total
-     FROM (
-       SELECT ${CONDITION_SQL} AS status
-       FROM ${T}
-       WHERE ativo = TRUE AND vendido = FALSE
-     ) grouped
-     GROUP BY status
-     ORDER BY status`
-  );
-  return r.map((x) => ({ status: x.status, total: Number(x.total) }));
+  const counts = new Map<string, number>();
+  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
+    const key = condition(frota);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
 }
 
 export async function createFrota(input: FrotaInput, userEmail: string): Promise<number> {
-  await query(
-    `INSERT INTO ${T}
-      (frota_geral, placa, modelo, chassi, renavam, ano_fabricacao, localizacao, km_atual, status, observacoes, vendido, ano_venda, ativo, criado_em, atualizado_em, atualizado_por)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, NULL, TRUE, current_timestamp(), current_timestamp(), ?)`,
-    [
-      input.frota_geral ?? null,
-      input.placa ?? null,
-      input.modelo ?? null,
-      input.chassi ?? null,
-      input.renavam ?? null,
-      input.ano_fabricacao ?? null,
-      input.localizacao ?? null,
-      input.km_atual ?? null,
-      input.status ?? "disponivel",
-      input.observacoes ?? null,
-      userEmail,
-    ]
-  );
-
-  const r = await findCreatedFrota(input, userEmail);
-  return Number(r[0].id);
+  const codigoFrota = input.frota_geral?.trim() || input.placa?.trim() || input.chassi?.trim() || `FROTA-${randomUUID()}`;
+  const payload = {
+    ...toVeiculoInput({ ...input, frota_geral: codigoFrota }, userEmail),
+    vendido: false,
+    ativo: true,
+    status: input.status ?? "disponivel",
+  };
+  const { data, error } = await supabaseManutencao.from("veiculos").insert(payload).select("id").single();
+  if (error) throw new Error(`createFrota: ${error.message}`);
+  return Number(data.id);
 }
 
-export async function updateFrota(
-  id: number,
-  input: Partial<FrotaInput>,
-  userEmail: string
-): Promise<void> {
+export async function updateFrota(id: number, input: Partial<FrotaInput>, userEmail: string): Promise<void> {
   const current = await getFrota(id);
   if (!current) throw new Error(`Frota ${id} não encontrada`);
 
@@ -342,30 +342,20 @@ export async function updateFrota(
       const novo = input[field];
       const antigo = current[field];
       if (String(novo ?? "") !== String(antigo ?? "")) {
-        await appendHistorico(
-          id,
-          field === "km_atual" ? "km" : field,
-          String(antigo ?? ""),
-          String(novo ?? ""),
-          userEmail
-        );
+        await appendHistorico(id, field === "km_atual" ? "km" : field, String(antigo ?? ""), String(novo ?? ""), userEmail);
       }
     }
   }
 
-  const sets: string[] = [];
-  const params: unknown[] = [];
+  const patch: Record<string, unknown> = {};
   for (const field of WRITABLE_FIELDS) {
-    if (input[field] === undefined) continue;
-    sets.push(`${field} = ?`);
-    params.push(input[field]);
+    if (input[field] !== undefined) Object.assign(patch, toVeiculoInput({ [field]: input[field] }, userEmail));
   }
+  if (Object.keys(patch).length === 0) return;
+  patch.atualizado_por = userEmail;
 
-  if (sets.length === 0) return;
-
-  sets.push("atualizado_em = current_timestamp()", "atualizado_por = ?");
-  params.push(userEmail, id);
-  await query(`UPDATE ${T} SET ${sets.join(", ")} WHERE id = ?`, params);
+  const { error } = await supabaseManutencao.from("veiculos").update(patch).eq("id", id);
+  if (error) throw new Error(`updateFrota: ${error.message}`);
 }
 
 export type FrotaResumoChecklistInput = {
@@ -383,44 +373,24 @@ export async function aplicarResumoChecklist(
   input: FrotaResumoChecklistInput,
   userEmail: string
 ): Promise<void> {
-  const sets: string[] = [];
-  const params: unknown[] = [];
-
+  const patch: Record<string, unknown> = { atualizado_por: userEmail };
   if (input.km_atual !== undefined) {
-    sets.push("km_atual = ?", "km_atualizado_em = current_timestamp()", "km_validado = ?");
-    params.push(input.km_atual);
-    params.push(input.km_origem === "CHECKLIST_INICIAL" ? false : true);
+    patch.km_atual = input.km_atual;
+    patch.km_atualizado_em = new Date().toISOString();
+    patch.km_validado = input.km_origem === "CHECKLIST_INICIAL" ? false : true;
   }
-  if (input.km_origem !== undefined) {
-    sets.push("km_origem = ?");
-    params.push(input.km_origem);
-  }
+  if (input.km_origem !== undefined) patch.km_origem = input.km_origem;
   if (input.ultimo_checklist_id !== undefined) {
-    sets.push("ultimo_checklist_id = ?", "ultimo_checklist_em = current_timestamp()");
-    params.push(input.ultimo_checklist_id);
+    patch.ultimo_checklist_id = input.ultimo_checklist_id;
+    patch.ultimo_checklist_em = new Date().toISOString();
   }
-  if (input.ultimo_motorista_id !== undefined) {
-    sets.push("ultimo_motorista_id = ?");
-    params.push(input.ultimo_motorista_id);
-  }
-  if (input.ultimo_motorista_nome !== undefined) {
-    sets.push("ultimo_motorista_nome = ?");
-    params.push(input.ultimo_motorista_nome);
-  }
-  if (input.status !== undefined) {
-    sets.push("status = ?");
-    params.push(input.status);
-  }
-  if (input.status_operacional !== undefined) {
-    sets.push("status_operacional = ?");
-    params.push(input.status_operacional);
-  }
+  if (input.ultimo_motorista_id !== undefined) patch.ultimo_motorista_id = input.ultimo_motorista_id;
+  if (input.ultimo_motorista_nome !== undefined) patch.ultimo_motorista_nome = input.ultimo_motorista_nome;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.status_operacional !== undefined) patch.status_operacional = input.status_operacional;
 
-  if (sets.length === 0) return;
-
-  sets.push("atualizado_em = current_timestamp()", "atualizado_por = ?");
-  params.push(userEmail, frotaId);
-  await query(`UPDATE ${T} SET ${sets.join(", ")} WHERE id = ?`, params);
+  const { error } = await supabaseManutencao.from("veiculos").update(patch).eq("id", frotaId);
+  if (error) throw new Error(`aplicarResumoChecklist: ${error.message}`);
 }
 
 export async function aplicarResumoAbastecimento(
@@ -428,42 +398,21 @@ export async function aplicarResumoAbastecimento(
   litros: number | null,
   userEmail: string
 ): Promise<void> {
-  await query(
-    `UPDATE ${T}
-     SET ultimo_abastecimento_em = current_timestamp(),
-         ultimo_abastecimento_litros = ?,
-         atualizado_em = current_timestamp(),
-         atualizado_por = ?
-     WHERE id = ?`,
-    [litros, userEmail, frotaId]
-  );
+  const { error } = await supabaseManutencao
+    .from("veiculos")
+    .update({
+      ultimo_abastecimento_em: new Date().toISOString(),
+      ultimo_abastecimento_litros: litros,
+      atualizado_por: userEmail,
+    })
+    .eq("id", frotaId);
+  if (error) throw new Error(`aplicarResumoAbastecimento: ${error.message}`);
 }
 
 export async function softDeleteFrota(id: number, userEmail: string): Promise<void> {
-  await query(
-    `UPDATE ${T} SET ativo = FALSE, atualizado_em = current_timestamp(), atualizado_por = ? WHERE id = ?`,
-    [userEmail, id]
-  );
-}
-
-async function findCreatedFrota(input: FrotaInput, userEmail: string): Promise<{ id: number }[]> {
-  if (input.chassi) {
-    return query<{ id: number }>(`SELECT id FROM ${T} WHERE chassi = ? ORDER BY id DESC LIMIT 1`, [
-      input.chassi,
-    ]);
-  }
-  if (input.renavam) {
-    return query<{ id: number }>(`SELECT id FROM ${T} WHERE renavam = ? ORDER BY id DESC LIMIT 1`, [
-      input.renavam,
-    ]);
-  }
-  if (input.placa) {
-    return query<{ id: number }>(`SELECT id FROM ${T} WHERE placa = ? ORDER BY id DESC LIMIT 1`, [
-      input.placa,
-    ]);
-  }
-  return query<{ id: number }>(
-    `SELECT id FROM ${T} WHERE atualizado_por = ? ORDER BY id DESC LIMIT 1`,
-    [userEmail]
-  );
+  const { error } = await supabaseManutencao
+    .from("veiculos")
+    .update({ ativo: false, atualizado_por: userEmail })
+    .eq("id", id);
+  if (error) throw new Error(`softDeleteFrota: ${error.message}`);
 }

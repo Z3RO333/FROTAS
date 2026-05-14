@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ElementType } from "react";
 import {
   AlertTriangle,
   Building2,
@@ -23,7 +24,7 @@ import {
   type PerfilUsuario,
 } from "@/lib/rbac";
 
-type NavItem = { href: string; label: string; icon: React.ElementType };
+type NavItem = { href: string; label: string; icon: ElementType };
 
 const BASE_ADMIN_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -43,13 +44,8 @@ const MANUTENCAO_NAV: NavItem[] = [
   { href: "/oficinas", label: "Oficinas", icon: MapPin },
 ];
 
-const OPERACAO_NAV: NavItem[] = [
-  { href: "/operacao", label: "Operação", icon: Gauge },
-];
-
-const DOCUMENTOS_NAV: NavItem[] = [
-  { href: "/documentos", label: "Documentos", icon: FileText },
-];
+const OPERACAO_NAV: NavItem[] = [{ href: "/operacao", label: "Operação", icon: Gauge }];
+const DOCUMENTOS_NAV: NavItem[] = [{ href: "/documentos", label: "Documentos", icon: FileText }];
 
 const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista", label: "Início", icon: Home },
@@ -57,9 +53,7 @@ const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista/checklists", label: "Meus checklists", icon: List },
 ];
 
-const PORTARIA_NAV: NavItem[] = [
-  { href: "/portaria", label: "Liberação", icon: DoorOpen },
-];
+const PORTARIA_NAV: NavItem[] = [{ href: "/portaria", label: "Liberação", icon: DoorOpen }];
 
 function buildNav(perfil: PerfilUsuario): NavItem[] {
   if (perfil === "MOTORISTA") return MOTORISTA_NAV;
@@ -113,7 +107,7 @@ export function AppShell({
             <Link
               key={href}
               href={href}
-              className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-primary-foreground/90 hover:bg-white/10 hover:text-primary-foreground"
+              className="flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-primary-foreground/90 transition-colors hover:bg-white/10 hover:text-primary-foreground"
             >
               <Icon className="h-4 w-4" aria-hidden="true" />
               {label}

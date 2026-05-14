@@ -18,7 +18,7 @@ export default async function DashboardPage() {
   const { k, operational, conditions, byYear } = await dashboardFrotasCached();
 
   const reportDialog = (
-    <EnviarRelatorioDialog title="Enviar relatorio geral" action={enviarRelatorioGeralAction} />
+    <EnviarRelatorioDialog title="Enviar relatório geral" action={enviarRelatorioGeralAction} />
   );
 
   return (
@@ -26,9 +26,9 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-2">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Cockpit de Frotas</p>
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Operacao de Frotas Bemol</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Operação de Frotas Bemol</h1>
           <p className="text-sm text-muted-foreground">
-            Visao geral para localizar problemas, priorizar cadastros e acionar relatorios.
+            Visão geral para localizar problemas, priorizar cadastros e acionar relatórios.
           </p>
         </div>
       </div>

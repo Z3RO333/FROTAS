@@ -5,7 +5,7 @@ const key = process.env.SUPABASE_MANUTENCAO_SERVICE_ROLE_KEY;
 
 if (!url || !key) {
   throw new Error(
-    "SUPABASE_MANUTENCAO_URL e SUPABASE_MANUTENCAO_SERVICE_ROLE_KEY são obrigatórios"
+    "SUPABASE_MANUTENCAO_URL e SUPABASE_MANUTENCAO_SERVICE_ROLE_KEY sao obrigatorios"
   );
 }
 
