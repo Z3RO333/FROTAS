@@ -10,8 +10,19 @@ const TrocaSchema = z.object({
   id_veiculo: z.string().min(1),
   quilometragem: z.coerce.number().int().positive(),
   observacoes: z.string().optional(),
-  posicoes: z.string().transform((val) =>
-    JSON.parse(val) as Array<{ posicao: string; numero_fogo?: string }>
+  posicoes: z.string().transform((val, ctx) => {
+    try {
+      const parsed = JSON.parse(val);
+      return parsed as Array<{ posicao: string; numero_fogo?: string }>;
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "posicoes deve ser JSON válido" });
+      return z.NEVER;
+    }
+  }).pipe(
+    z.array(z.object({
+      posicao: z.string().min(1),
+      numero_fogo: z.string().optional(),
+    }))
   ),
 });
 

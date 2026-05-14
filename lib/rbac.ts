@@ -51,7 +51,7 @@ export function resolvePerfil(email: string): PerfilUsuario {
     return fallback;
   }
 
-  return "ADMIN";
+  return "MOTORISTA";
 }
 
 export function canAccessAdmin(perfil: PerfilUsuario): boolean {
@@ -105,4 +105,8 @@ export function canAccessOperacao(perfil: PerfilUsuario): boolean {
 
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
   return perfil !== "MOTORISTA";
+}
+
+export function canWriteDocumentos(perfil: PerfilUsuario): boolean {
+  return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "MANUTENCAO" || perfil === "DEV";
 }

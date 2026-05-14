@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAppUser, canAccessDocumentos } from "@/lib/rbac";
+import { requireAppUser, canWriteDocumentos } from "@/lib/rbac";
 import { createDocument, updateDocument, deleteDocument } from "@/lib/repos/manutencao/documents";
 
 const DocumentSchema = z.object({
@@ -16,7 +16,7 @@ const DocumentSchema = z.object({
 
 export async function createDocumentAction(formData: FormData) {
   const user = await requireAppUser();
-  if (!canAccessDocumentos(user.perfil)) redirect("/");
+  if (!canWriteDocumentos(user.perfil)) redirect("/");
   const input = DocumentSchema.parse(Object.fromEntries(formData));
   await createDocument(input, user.email);
   revalidatePath("/documentos");
@@ -24,7 +24,7 @@ export async function createDocumentAction(formData: FormData) {
 
 export async function updateDocumentAction(id: string, formData: FormData) {
   const user = await requireAppUser();
-  if (!canAccessDocumentos(user.perfil)) redirect("/");
+  if (!canWriteDocumentos(user.perfil)) redirect("/");
   const input = DocumentSchema.partial().parse(Object.fromEntries(formData));
   await updateDocument(id, input);
   revalidatePath("/documentos");
@@ -32,7 +32,7 @@ export async function updateDocumentAction(id: string, formData: FormData) {
 
 export async function deleteDocumentAction(id: string) {
   const user = await requireAppUser();
-  if (!canAccessDocumentos(user.perfil)) redirect("/");
+  if (!canWriteDocumentos(user.perfil)) redirect("/");
   await deleteDocument(id);
   revalidatePath("/documentos");
 }
