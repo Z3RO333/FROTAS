@@ -39,27 +39,10 @@ const FILTER_TABS: { label: string; value: StatusPortaria | "TODAS" }[] = [
   { label: "Saídas", value: "SAIDA_REGISTRADA" },
 ];
 
-// Retorna "YYYY-MM-DD" no timezone local do navegador
-function localDateStr(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
+type Props = { rows: PortariaRow[]; erro?: string | null };
 
-type Props = { rows: PortariaRow[]; erro?: string | null; dataSelecionada?: string };
-
-export function PortariaClient({ rows, erro, dataSelecionada }: Props) {
-  const router = useRouter();
+export function PortariaClient({ rows, erro }: Props) {
   const [query, setQuery] = useState("");
-
-  function navigateToDate(dateStr: string) {
-    const today = localDateStr(0);
-    if (dateStr === today) {
-      router.push("/portaria"); // hoje = sem parâmetro
-    } else {
-      router.push(`/portaria?data=${dateStr}`);
-    }
-  }
   const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("TODAS");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
