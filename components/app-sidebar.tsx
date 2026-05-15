@@ -91,41 +91,73 @@ export function AppSidebar({
       )}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {/* Logo + perfil */}
-        <div className={cn("border-b border-white/10 px-4 py-4", collapsed && "lg:px-2")}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 ring-1 ring-blue-400/20">
-              <Truck className="h-4 w-4 text-blue-200" aria-hidden="true" />
+        {/* Banner do caminhão Bemol */}
+        <div className={cn("relative border-b border-white/10", collapsed && "lg:hidden")}>
+          {/* Imagem com crop centralizado no caminhão */}
+          <div className="relative h-[130px] overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/bemol-truck.jpg"
+              alt="Caminhão Bemol"
+              className="absolute inset-0 h-full w-full object-cover object-[50%_55%]"
+            />
+            {/* Gradient escuro suave na parte inferior para o texto */}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+            {/* Gradient lateral esquerdo muito sutil */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/30 to-transparent" />
+
+            {/* Texto sobre o gradient */}
+            <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+              <div className="text-sm font-bold tracking-wide text-white">FROTAS BEMOL</div>
+              <div className="text-[10px] text-slate-400">Plataforma operacional</div>
             </div>
-            <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-              <div className="text-sm font-bold tracking-wide text-white">FROTAS</div>
-              <div className="truncate text-[11px] text-slate-400">Plataforma operacional</div>
-            </div>
+
+            {/* Botão colapsar no canto superior direito */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 hidden h-6 w-6 bg-black/30 text-slate-300 hover:bg-black/50 hover:text-white lg:inline-flex"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label="Recolher menu lateral"
+              title="Recolher"
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
           </div>
 
-          {/* Badge de perfil */}
-          <div
-            className={cn(
-              "mt-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.04] px-3 py-2",
-              collapsed && "lg:hidden"
-            )}
-          >
-            <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-            <span className="text-xs font-medium text-slate-300">{perfil}</span>
+          {/* Badge de perfil abaixo da imagem */}
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+              <span className="text-xs font-medium text-slate-300">{perfil}</span>
+            </div>
           </div>
+        </div>
 
-          {/* Botão colapsar */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mt-3 hidden h-8 w-8 border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white lg:inline-flex"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-            title={collapsed ? "Expandir" : "Recolher"}
-          >
-            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
-          </Button>
+        {/* Logo compacto quando collapsed */}
+        <div className={cn("hidden border-b border-white/10 px-2 py-3", collapsed && "lg:block")}>
+          <div className="flex flex-col items-center gap-2">
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/bemol-truck.jpg"
+                alt="Bemol"
+                className="absolute inset-0 h-full w-full object-cover object-[30%_60%]"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label="Expandir menu lateral"
+              title="Expandir"
+            >
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
         {/* Nav */}
