@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { analyzeOdometerImage } from "@/lib/ai/odometer";
+import { analyzeOdometerImage, type OdometerReading } from "@/lib/ai/odometer";
 import { CHECKLIST_ITEMS, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import {
   itemNeedsEvidence,
@@ -83,7 +83,41 @@ export async function enviarChecklistMotoristaAction(
       throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
     }
 
-    const leituraKm = await analyzeOdometerImage(fotoKm);
+    // Usa resultado do OCR já feito no cliente (evita re-analisar e dobrar o tempo)
+    const ocrKmLidoRaw = optionalInteger(formData.get("ocr_km_lido"));
+    const ocrConfiancaRaw = optionalDecimal(formData.get("ocr_confianca"));
+    const ocrLeituraSegura = formData.get("ocr_leitura_segura") === "true";
+
+    let leituraKm: OdometerReading;
+
+    if (ocrKmLidoRaw != null && ocrConfiancaRaw != null && ocrLeituraSegura) {
+      // OCR já feito no cliente e aprovado — reutiliza sem nova chamada à IA
+      leituraKm = {
+        km_lido: ocrKmLidoRaw,
+        confianca: ocrConfiancaRaw,
+        leitura_segura: true,
+        precisa_digitacao_manual: false,
+        motivo: null,
+        texto_visivel: null,
+        observacoes_imagem: null,
+        candidatos_descartados: [],
+        regiao_detectada: "desconhecido",
+      };
+    } else {
+      // Sem resultado cacheado ou KM digitado manualmente — só sobe a foto, sem re-analisar
+      leituraKm = {
+        km_lido: ocrKmLidoRaw,
+        confianca: ocrConfiancaRaw ?? 0,
+        leitura_segura: false,
+        precisa_digitacao_manual: true,
+        motivo: null,
+        texto_visivel: null,
+        observacoes_imagem: null,
+        candidatos_descartados: [],
+        regiao_detectada: "desconhecido",
+      };
+    }
+
     const kmInformado =
       kmDigitado ??
       (leituraKm.leitura_segura && leituraKm.km_lido != null ? leituraKm.km_lido : null);
