@@ -4,9 +4,11 @@ const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_MANUTENCAO_URL ?? "")
   .replace(/^https?:\/\//, "")
   .split("/")[0];
 
+// Next.js App Router requer 'unsafe-inline' em script-src (inline scripts para hidratação/streaming).
+// Para CSP estrita (sem unsafe-inline), é necessário configurar nonces via middleware — melhoria futura.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob:${SUPABASE_HOST ? ` https://${SUPABASE_HOST}` : ""}`,
   `connect-src 'self'${SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : ""} https://api.openai.com https://login.microsoftonline.com`,
