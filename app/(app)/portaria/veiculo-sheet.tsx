@@ -14,7 +14,7 @@ import {
   registrarMovimentacaoPortariaAction,
   bloquearSaidaAction,
   solicitarCorrecaoAction,
-} from "./portaria-actions-client";
+} from "./_actions";
 import type { ChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
 import type { StatusPortaria } from "@/lib/repos/checklists";
 
