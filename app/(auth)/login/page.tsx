@@ -11,7 +11,7 @@ export default function LoginPage() {
           width: 100vw;
           height: 100vh;
           display: grid;
-          grid-template-columns: 1.2fr 1fr;
+          grid-template-columns: 1.4fr 1fr;
           font-family: Inter, system-ui, sans-serif;
           background: #06091a;
           color: #f8fafc;
@@ -27,35 +27,25 @@ export default function LoginPage() {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          object-position: 60% center;
+          /* Centraliza no caminhão — foco na cabine + baú com logo Bemol */
+          object-position: 55% 50%;
           display: block;
         }
 
-        /* Gradiente suave sem linha — começa cedo com curva ease-in */
+        /* Fade lateral fino — só os últimos 22% somem, o caminhão fica totalmente visível */
         .login-photo::after {
           content: "";
           position: absolute;
           inset: 0;
-          background:
-            /* Escurece o topo e base levemente para dar profundidade */
-            linear-gradient(to bottom,
-              rgba(6,9,26,.35) 0%,
-              transparent 20%,
-              transparent 80%,
-              rgba(6,9,26,.5) 100%
-            ),
-            /* Transição principal direita — curva suave com muitos stops */
-            linear-gradient(to right,
-              transparent 0%,
-              transparent 30%,
-              rgba(6,9,26,.05) 45%,
-              rgba(6,9,26,.18) 55%,
-              rgba(6,9,26,.42) 65%,
-              rgba(6,9,26,.70) 76%,
-              rgba(6,9,26,.88) 86%,
-              rgba(6,9,26,.97) 93%,
-              #06091a 100%
-            );
+          background: linear-gradient(to right,
+            transparent  0%,
+            transparent 62%,
+            rgba(6,9,26,.04) 70%,
+            rgba(6,9,26,.22) 78%,
+            rgba(6,9,26,.60) 86%,
+            rgba(6,9,26,.90) 93%,
+            #06091a 100%
+          );
           pointer-events: none;
         }
 
