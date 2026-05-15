@@ -62,6 +62,7 @@ const ADMINISTRACAO_NAV: NavItem[] = [
   { href: "/administracao/motoristas", label: "Motoristas", icon: "Users" },
   { href: "/unidades", label: "Unidades", icon: "Building2" },
   { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
+  { href: "/administracao/emails", label: "E-mails", icon: "FileText" },
 ];
 
 const MOTORISTA_NAV: NavItem[] = [
