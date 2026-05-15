@@ -99,7 +99,6 @@ export async function enviarChecklistMotoristaAction(
         precisa_digitacao_manual: false,
         motivo: null,
         texto_visivel: null,
-
         candidatos_descartados: [],
         regiao_detectada: "desconhecido",
       };
@@ -112,7 +111,6 @@ export async function enviarChecklistMotoristaAction(
         precisa_digitacao_manual: true,
         motivo: null,
         texto_visivel: null,
-
         candidatos_descartados: [],
         regiao_detectada: "desconhecido",
       };
