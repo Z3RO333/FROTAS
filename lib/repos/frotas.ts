@@ -115,6 +115,12 @@ export type Kpis = {
   total_cadastro_incompleto: number;
   idade_media: number | null;
   km_medio: number | null;
+  preventiva_atrasada: number;
+  alinhamento_atrasado: number;
+  arcondicionado_atrasado: number;
+  tacografo_atrasado: number;
+  lavagem_atrasada: number;
+  disponibilidade_pct: number;
 };
 
 export type FrotaInput = {
@@ -344,6 +350,20 @@ export async function kpis(): Promise<Kpis> {
     total_cadastro_incompleto: frotas.filter(cadastroIncompleto).length,
     idade_media: ages.length ? ages.reduce((sum, value) => sum + value, 0) / ages.length : null,
     km_medio: kms.length ? kms.reduce((sum, value) => sum + value, 0) / kms.length : null,
+    ...await (async () => {
+      const { data: prevRows } = await supabaseManutencao
+        .from("fact_manutencao_programada")
+        .select("tipo_servico, status")
+        .in("status", ["VENCIDO", "PROXIMO_VENCIMENTO"]);
+      const prev = prevRows ?? [];
+      const preventiva_atrasada = prev.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length;
+      const alinhamento_atrasado = prev.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length;
+      const arcondicionado_atrasado = prev.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length;
+      const tacografo_atrasado = prev.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length;
+      const lavagem_atrasada = prev.filter((p) => p.tipo_servico === "LAVAGEM" && p.status === "VENCIDO").length;
+      const disponibilidade_pct = frotas.length > 0 ? Math.round((frotas.filter((frota) => operacional(frota) === "disponivel").length / frotas.length) * 100) : 0;
+      return { preventiva_atrasada, alinhamento_atrasado, arcondicionado_atrasado, tacografo_atrasado, lavagem_atrasada, disponibilidade_pct };
+    })(),
   };
 }
 
