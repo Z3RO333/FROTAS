@@ -15,6 +15,16 @@ export type StatusOperacional =
 
 export type TipoManutencao = "PREVENTIVA" | "CORRETIVA" | "EMERGENCIAL" | "OUTRA";
 
+export type DestinoManutencao =
+  | "OFICINA"
+  | "LAVAGEM"
+  | "PREVENTIVA"
+  | "CORRETIVA"
+  | "ALINHAMENTO"
+  | "AR_CONDICIONADO"
+  | "TACOGRAFO"
+  | "OUTRO";
+
 export type EnviarManutencaoInput = {
   frotaId: number;
   motivo: string;
@@ -23,6 +33,8 @@ export type EnviarManutencaoInput = {
   prevRetorno?: string | null;
   observacao?: string | null;
   bloqueiaChecklist?: boolean;
+  destino?: DestinoManutencao | null;
+  destino_detalhe?: string | null;
   usuarioEmail: string;
 };
 
@@ -122,6 +134,8 @@ export async function enviarFrotaParaManutencao(
       manutencao_oficina: input.oficina?.trim() || null,
       manutencao_prev_retorno: input.prevRetorno || null,
       manutencao_observacao: input.observacao?.trim() || null,
+      manutencao_destino: input.destino ?? null,
+      manutencao_destino_detalhe: input.destino_detalhe?.trim() || null,
       manutencao_iniciado_em: agora,
       manutencao_iniciado_por: input.usuarioEmail,
       manutencao_bloqueia_checklist: input.bloqueiaChecklist ?? true,
