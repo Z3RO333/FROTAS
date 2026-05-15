@@ -50,6 +50,7 @@ jobs:
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_EA32FCFFB814440880A0CD85993C5AA4 }}
 
       - name: Restart App Service to clear deployment lock
+        continue-on-error: true
         run: |
           az webapp restart --name GestaoFrotas --resource-group RGDIROPERACIONAL
           sleep 15
