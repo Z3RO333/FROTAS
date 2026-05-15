@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, Search, ChevronRight, CalendarDays,
+  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, Search, ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -107,57 +106,19 @@ export function PortariaClient({ rows, erro, dataSelecionada }: Props) {
         </div>
       )}
 
-      {/* Seletor de data */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 shadow-sm">
-          <CalendarDays className="h-4 w-4 text-blue-600" />
-          <input
-            type="date"
-            aria-label="Selecionar data"
-            title="Selecionar data"
-            className="border-0 bg-transparent text-sm outline-none"
-            max={localDateStr(0)}
-            value={dataSelecionada ?? localDateStr(0)}
-            onChange={(e) => navigateToDate(e.target.value)}
-          />
-        </div>
-        {/* Atalhos rápidos */}
-        {[
-          { label: "Hoje", offset: 0 },
-          { label: "Ontem", offset: -1 },
-          { label: "-2 dias", offset: -2 },
-          { label: "-7 dias", offset: -7 },
-        ].map(({ label, offset }) => {
-          const d = localDateStr(offset);
-          const active = (dataSelecionada ?? localDateStr(0)) === d;
-          return (
-            <button
-              key={label}
-              type="button"
-              onClick={() => navigateToDate(d)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              )}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-
       {/* Pesquisa */}
       <div className="relative">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Pesquisar por placa, frota ou motorista..."
+          placeholder="Pesquisar frota, placa ou motorista..."
           className="pl-9"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          autoFocus
         />
       </div>
 
-      {/* Tabs de filtro */}
+      {/* Tabs de filtro compactas */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {FILTER_TABS.map((tab) => (
           <button
