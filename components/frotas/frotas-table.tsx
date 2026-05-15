@@ -142,7 +142,7 @@ function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") onOpen();
       }}
-      className="cursor-pointer focus:bg-blue-50 focus:outline-none"
+      className="cursor-pointer odd:bg-white even:bg-slate-50/60 hover:bg-blue-50/70 focus:bg-blue-50 focus:outline-none transition-colors"
     >
       <TableCell className="font-medium">
         <button type="button" className="text-left hover:underline" onClick={onOpen}>

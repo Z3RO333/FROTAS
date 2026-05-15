@@ -71,10 +71,12 @@ export default async function MotoristaHomePage() {
                     Meus últimos checklists
                   </Link>
                 </Button>
-                <Button variant="outline" disabled>
-                  <Fuel className="h-4 w-4" aria-hidden="true" />
-                  Registrar abastecimento
-                </Button>
+                <span title="Abastecimento registrado diretamente no checklist" className="cursor-not-allowed">
+                  <Button variant="outline" disabled className="pointer-events-none w-full">
+                    <Fuel className="h-4 w-4" aria-hidden="true" />
+                    Registrar abastecimento
+                  </Button>
+                </span>
               </div>
             </>
           ) : (
