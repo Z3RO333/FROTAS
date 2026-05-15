@@ -389,10 +389,17 @@ export async function checklistDashboardKpis(): Promise<{
 }> {
   return safeSupabase("kpis", async () => {
     const { start, end } = todayRange();
-    const [checklists, pendencias, divergencias] = await Promise.all([
+    // 4 queries de COUNT em paralelo — só conta no banco, não transfere rows
+    const [totalRes, aprovadosRes, pendencias, divergencias] = await Promise.all([
       supabaseManutencao
         .from("checklists_frota")
-        .select("status_geral")
+        .select("id", { count: "exact", head: true })
+        .gte("data_checklist", start)
+        .lt("data_checklist", end),
+      supabaseManutencao
+        .from("checklists_frota")
+        .select("id", { count: "exact", head: true })
+        .eq("status_geral", "APROVADO")
         .gte("data_checklist", start)
         .lt("data_checklist", end),
       supabaseManutencao
@@ -403,14 +410,16 @@ export async function checklistDashboardKpis(): Promise<{
       countPendingKmValidations().catch(() => 0),
     ]);
 
-    if (checklists.error) throw checklists.error;
+    if (totalRes.error) throw totalRes.error;
+    if (aprovadosRes.error) throw aprovadosRes.error;
     if (pendencias.error) throw pendencias.error;
 
-    const rows = (checklists.data ?? []) as Pick<ChecklistDbRow, "status_geral">[];
+    const total_hoje = totalRes.count ?? 0;
+    const aprovados_hoje = aprovadosRes.count ?? 0;
     return {
-      total_hoje: rows.length,
-      aprovados_hoje: rows.filter((row) => row.status_geral === "APROVADO").length,
-      pendentes_hoje: rows.filter((row) => row.status_geral !== "APROVADO").length,
+      total_hoje,
+      aprovados_hoje,
+      pendentes_hoje: total_hoje - aprovados_hoje,
       criticos_abertos: pendencias.count ?? 0,
       divergencias_km: Number(divergencias ?? 0),
     };
@@ -428,6 +437,7 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
     const { start, end } = dateRange(dateStr);
     const isFuture = new Date(start) > new Date();
     if (isFuture) return []; // não busca datas futuras
+    // 3 queries em paralelo
     const [veiculosResult, checklistsResult, movimentosResult] = await Promise.all([
       supabaseManutencao
         .from("veiculos")
@@ -460,8 +470,12 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
     const veiculos = (veiculosResult.data ?? []) as VeiculoLite[];
     const checklists = (checklistsResult.data ?? []) as ChecklistDbRow[];
     const movimentos = (movimentosResult.data ?? []) as MovimentacaoDbRow[];
+
+    // Pendências críticas — só roda se houver checklists, evita query desnecessária
     const checklistIds = checklists.map((row) => row.id);
-    const pendencias = await fetchPendenciasCriticasByChecklistIds(checklistIds);
+    const pendencias = checklistIds.length > 0
+      ? await fetchPendenciasCriticasByChecklistIds(checklistIds)
+      : new Map<number, string>();
 
     const checklistByFrota = new Map<number, ChecklistDbRow>();
     for (const checklist of checklists) {
@@ -626,6 +640,17 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   const checklistId = Number(created?.id);
   if (!checklistId) throw new Error("Checklist nao foi criado");
 
+  // Wrapper que rola back o checklist criado se qualquer passo subsequente falhar
+  // (Supabase JS não suporta transações; melhor que deixar checklist órfão sem itens)
+  async function rollbackChecklist(reason: unknown) {
+    try {
+      await supabaseManutencao.from("checklists_frota").delete().eq("id", checklistId);
+    } catch (delErr) {
+      console.warn("[createChecklist] falha ao limpar checklist órfão", delErr);
+    }
+    throw reason;
+  }
+
   const itensPayload = input.itens.flatMap((itemInput) => {
     const catalogItem = CHECKLIST_ITEMS.find((item) => item.codigo === itemInput.item_codigo);
     if (!catalogItem) return [];
@@ -644,7 +669,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
 
   if (itensPayload.length > 0) {
     const { error } = await supabaseManutencao.from("checklist_itens").insert(itensPayload);
-    if (error) throw error;
+    if (error) await rollbackChecklist(error);
   }
 
   const pendenciasPayload = itensPayload

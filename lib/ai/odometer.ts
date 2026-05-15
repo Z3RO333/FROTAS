@@ -66,29 +66,62 @@ const FALLBACK_READING: OdometerReading = {
 };
 
 // ------- Cliente OpenAI / Azure OpenAI -------
+// Inicializado eager no module-level pra eliminar latência de cold-start
 
-let client: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI | null {
-  if (client) return client;
-
+const client: OpenAI | null = (() => {
   const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
   const azureKey = process.env.AZURE_OPENAI_API_KEY?.trim();
 
   if (azureEndpoint && azureKey) {
-    client = new OpenAI({
+    return new OpenAI({
       apiKey: azureKey,
       baseURL: `${azureEndpoint.replace(/\/$/, "")}/openai`,
       defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview" },
       defaultHeaders: { "api-key": azureKey },
+      timeout: 20_000, // 20s — evita travas indefinidas
+      maxRetries: 1,
     });
-    return client;
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
-  client = new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, timeout: 20_000, maxRetries: 1 });
+})();
+
+function getOpenAIClient(): OpenAI | null {
   return client;
+}
+
+// ------- Cache LRU simples por hash da imagem -------
+// O mesmo motorista frequentemente refaz foto do mesmo painel.
+// Cache de 5min evita chamadas duplicadas à IA.
+
+const OCR_CACHE = new Map<string, { result: OdometerReading; expiresAt: number }>();
+const OCR_CACHE_TTL_MS = 5 * 60 * 1000;
+const OCR_CACHE_MAX_SIZE = 50;
+
+async function hashBuffer(buffer: Buffer): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  return createHash("md5").update(buffer).digest("hex");
+}
+
+function getCachedOcr(hash: string): OdometerReading | null {
+  const entry = OCR_CACHE.get(hash);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    OCR_CACHE.delete(hash);
+    return null;
+  }
+  return entry.result;
+}
+
+function setCachedOcr(hash: string, result: OdometerReading): void {
+  // Evict mais antigo se ultrapassar tamanho máximo
+  if (OCR_CACHE.size >= OCR_CACHE_MAX_SIZE) {
+    const firstKey = OCR_CACHE.keys().next().value;
+    if (firstKey) OCR_CACHE.delete(firstKey);
+  }
+  OCR_CACHE.set(hash, { result, expiresAt: Date.now() + OCR_CACHE_TTL_MS });
 }
 
 function getVisionModel(): string {
@@ -104,11 +137,9 @@ function getVisionModel(): string {
 // Isso reduz o número de tiles de "high detail" de ~20 para 1-2,
 // caindo de ~3000 tokens para ~170 tokens — muito mais rápido.
 
-async function resizeImageForOcr(file: File): Promise<string> {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const mimeType = file.type || "image/jpeg";
+async function resizeBufferForOcr(buffer: Buffer, mimeType: string | null): Promise<string> {
+  const mt = mimeType || "image/jpeg";
 
-  // Tenta redimensionar via sharp se disponível; caso contrário manda original
   try {
     const sharp = await import("sharp").catch(() => null);
     if (sharp) {
@@ -122,7 +153,7 @@ async function resizeImageForOcr(file: File): Promise<string> {
     // sharp não disponível — usa imagem original
   }
 
-  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  return `data:${mt};base64,${buffer.toString("base64")}`;
 }
 
 // ------- Prompt especializado para painel de caminhão -------
@@ -156,8 +187,19 @@ Retorne km_lido como INTEGER (sem pontos, vírgulas ou espaços).`.trim();
 // ------- API pública -------
 
 export async function analyzeOdometerImage(file: File): Promise<OdometerReading> {
+  // Pré-calcula hash uma vez pra usar tanto em cache quanto em resize
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const hash = await hashBuffer(buffer);
+
+  // Cache hit — retorna imediato (0ms)
+  const cached = getCachedOcr(hash);
+  if (cached) return cached;
+
   const yoloReading = await analyzeOdometerWithYoloService(file);
-  if (yoloReading?.leitura_segura) return yoloReading;
+  if (yoloReading?.leitura_segura) {
+    setCachedOcr(hash, yoloReading);
+    return yoloReading;
+  }
 
   const openai = getOpenAIClient();
   if (!openai) {
@@ -168,8 +210,8 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
   }
 
   try {
-    // Redimensiona a imagem para acelerar a análise
-    const imageUrl = await resizeImageForOcr(file);
+    // Redimensiona a imagem para acelerar a análise (passa o buffer já lido)
+    const imageUrl = await resizeBufferForOcr(buffer, file.type);
 
     const response = await openai.responses.parse({
       model: getVisionModel(),
@@ -211,20 +253,23 @@ Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.`,
     const parsed = response.output_parsed;
     if (!parsed) return yoloReading ?? FALLBACK_READING;
 
-    // Heurística extra: se leu um número muito baixo (<10k) mas há KM anterior alto,
-    // provavelmente foi o velocímetro ou trip
+    // Heurística extra: se leu um número muito baixo (<10k), provavelmente é velocímetro ou trip
     const kmLido = parsed.km_lido;
     const confiancaFinal =
       kmLido != null && kmLido < 10_000
-        ? Math.min(parsed.confianca, 0.3) // penaliza leituras suspeitas
+        ? Math.min(parsed.confianca, 0.3)
         : parsed.confianca;
 
-    return {
+    const final: OdometerReading = {
       ...parsed,
       confianca: confiancaFinal,
       leitura_segura: parsed.leitura_segura && confiancaFinal >= 0.7 && kmLido != null,
       precisa_digitacao_manual: parsed.precisa_digitacao_manual || confiancaFinal < 0.7 || kmLido == null,
     };
+
+    // Cacheia o resultado (5 min) — mesmo se for FALHOU, evita re-chamar IA pra mesma imagem ruim
+    setCachedOcr(hash, final);
+    return final;
   } catch (error) {
     console.warn("[ai/odometer] falha ao analisar imagem:", error);
     return yoloReading ?? FALLBACK_READING;
@@ -244,8 +289,17 @@ async function analyzeOdometerWithYoloService(file: File): Promise<OdometerReadi
   const token = process.env.CHECKLIST_YOLO_TOKEN?.trim();
   if (token) headers.authorization = `Bearer ${token}`;
 
+  // Timeout de 8s — se YOLO travar, OCR cai pro OpenAI rápido
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const response = await fetch(endpoint, { method: "POST", headers, body: formData });
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: formData,
+      signal: controller.signal,
+    });
     const json = await response.json().catch(() => null);
     if (!response.ok) {
       const msg = json?.detail ?? response.statusText;
@@ -253,8 +307,13 @@ async function analyzeOdometerWithYoloService(file: File): Promise<OdometerReadi
       return null;
     }
     return OdometerReadingSchema.parse(json);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      console.warn("[yolo/odometer] timeout após 8s — fallback OpenAI");
+    }
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

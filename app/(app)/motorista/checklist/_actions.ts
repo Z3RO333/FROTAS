@@ -190,16 +190,21 @@ export async function enviarChecklistMotoristaAction(
       inspections.push({ source_type: "abastecimento", storage_path: fotoComprovanteUrl });
     }
 
-    const itens = [];
-    for (const item of itensDraft) {
-      const fotoUrl = item.foto
-        ? await uploadChecklistImage(item.foto, {
-            frotaId,
-            sourceType: "item",
-            itemCodigo: item.catalogItem.codigo,
-          })
-        : null;
+    // Uploads de itens em paralelo — antes era sequencial (somava ~500ms por foto)
+    const itensComUpload = await Promise.all(
+      itensDraft.map(async (item) => {
+        const fotoUrl = item.foto
+          ? await uploadChecklistImage(item.foto, {
+              frotaId,
+              sourceType: "item",
+              itemCodigo: item.catalogItem.codigo,
+            })
+          : null;
+        return { item, fotoUrl };
+      })
+    );
 
+    const itens = itensComUpload.map(({ item, fotoUrl }) => {
       if (fotoUrl) {
         uploadedPaths.push(fotoUrl);
         inspections.push({
@@ -208,14 +213,13 @@ export async function enviarChecklistMotoristaAction(
           storage_path: fotoUrl,
         });
       }
-
-      itens.push({
+      return {
         item_codigo: item.catalogItem.codigo,
         status: item.status,
         observacao: item.observacao,
         foto_url: fotoUrl,
-      });
-    }
+      };
+    });
 
     const result = await createChecklist({
       frota_id: frotaId,

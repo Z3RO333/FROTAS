@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAppUser, canAccessPortaria } from "@/lib/rbac";
 import { getChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  // Verifica perfil — motoristas não devem ver checklist de outros via API
+  const user = await requireAppUser().catch(() => null);
+  if (!user) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  }
+  if (!canAccessPortaria(user.perfil)) {
+    return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
