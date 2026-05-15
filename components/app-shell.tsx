@@ -59,6 +59,7 @@ const DOCUMENTOS_NAV: NavItem[] = [
 
 const ADMINISTRACAO_NAV: NavItem[] = [
   { href: "/administracao/usuarios", label: "Usuários", icon: "Users" },
+  { href: "/administracao/motoristas", label: "Motoristas", icon: "Users" },
   { href: "/unidades", label: "Unidades", icon: "Building2" },
   { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
 ];
@@ -67,6 +68,7 @@ const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista", label: "Início", icon: "Home" },
   { href: "/motorista/checklist", label: "Fazer Checklist", icon: "ClipboardCheck" },
   { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
+  { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
   { href: "/documentos", label: "Documentos", icon: "FileText" },
 ];
 
