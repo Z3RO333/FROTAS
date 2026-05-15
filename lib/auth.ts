@@ -45,4 +45,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas (jornada de trabalho)
   secret: process.env.NEXTAUTH_SECRET,
+  // Edge Enhanced Tracking Prevention bloqueia cookies SameSite=Lax em redirecionamentos OAuth.
+  // Usando SameSite=None (com Secure) resolve o problema no Edge sem afetar outros browsers.
+  cookies: {
+    pkceCodeVerifier: {
+      name: "next-auth.pkce.code_verifier",
+      options: { httpOnly: true, sameSite: "none", secure: true, path: "/" },
+    },
+    state: {
+      name: "next-auth.state",
+      options: { httpOnly: true, sameSite: "none", secure: true, path: "/" },
+    },
+  },
 });
