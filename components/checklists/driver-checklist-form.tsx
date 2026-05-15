@@ -63,6 +63,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const [itemObservacoes, setItemObservacoes] = useState<Record<string, string>>(
     () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, ""]))
   );
+  const [fotoKmPreview, setFotoKmPreview] = useState<string | null>(null);
 
   const selected = useMemo(
     () => frotas.find((f) => String(f.id) === frotaId) ?? null,
@@ -90,7 +91,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     setOcrState(null);
+    setFotoKmPreview(null);
     if (!file) return;
+    // Preview imediato antes de aguardar o OCR
+    setFotoKmPreview(URL.createObjectURL(file));
     setOcrLoading(true);
     const body = new FormData();
     body.append("foto_km", file);
@@ -164,6 +168,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />
+      {/* Resultado do OCR cacheado — evita re-analisar no submit */}
+      <input type="hidden" name="ocr_km_lido" value={ocrState?.km_lido ?? ""} />
+      <input type="hidden" name="ocr_confianca" value={ocrState?.confianca ?? ""} />
+      <input type="hidden" name="ocr_leitura_segura" value={ocrState?.leitura_segura ? "true" : "false"} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
           key={item.codigo}
@@ -463,9 +471,28 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
           <div className="space-y-2">
             <Label htmlFor="foto_km">Foto do painel / hodômetro</Label>
-            <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 p-4 text-center text-sm text-muted-foreground hover:bg-slate-100">
-              <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
-              Tirar foto ou anexar imagem
+            <label className={cn(
+              "relative flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 text-center text-sm text-muted-foreground hover:bg-slate-100 transition-colors overflow-hidden",
+              fotoKmPreview ? "min-h-0 p-0 border-blue-200" : "min-h-36 p-4"
+            )}>
+              {fotoKmPreview ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fotoKmPreview}
+                    alt="Preview do painel"
+                    className="w-full max-h-48 object-cover rounded-md"
+                  />
+                  <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">
+                    Trocar foto
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
+                  Tirar foto ou anexar imagem
+                </>
+              )}
               <input
                 id="foto_km"
                 name="foto_km"
