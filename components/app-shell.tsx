@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppSidebar, type NavIconName } from "@/components/app-sidebar";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { UserMenu } from "@/components/user-menu";
 import {
   canAccessDocumentos,
@@ -117,25 +118,19 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const sections = buildSections(perfil);
-  const quickLinks = sections.flatMap((section) => section.items).slice(0, 5);
 
   return (
     <div className="min-h-screen bg-slate-100 text-foreground lg:flex">
       <AppSidebar sections={sections} perfil={perfil} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b bg-white/95 px-4 backdrop-blur lg:px-6">
-          <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Frotas Bemol</div>
-            <div className="mt-1 hidden items-center gap-1 overflow-x-auto text-sm text-muted-foreground md:flex">
-              {quickLinks.map((item, index) => (
-                <span key={item.href} className="inline-flex items-center gap-1">
-                  {index > 0 ? <span className="text-slate-300">/</span> : null}
-                  <Link href={item.href} className="whitespace-nowrap hover:text-blue-700">
-                    {item.label}
-                  </Link>
-                </span>
-              ))}
+        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-4 border-b bg-white/98 px-4 shadow-sm backdrop-blur-sm lg:px-6">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+              Frotas Bemol
+            </p>
+            <div className="hidden md:block">
+              <BreadcrumbNav sections={sections} />
             </div>
           </div>
           <UserMenu email={email} name={name} />

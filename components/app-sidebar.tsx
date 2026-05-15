@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   BarChart2,
   Building2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -70,73 +71,114 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  // Seções abertas no desktop (todas abertas por padrão)
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(sections.map((s) => [s.title, true]))
+  );
   const activeHref = findActiveHref(pathname, sections);
+
+  function toggleSection(title: string) {
+    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
+  }
 
   return (
     <aside
       className={cn(
         "border-b bg-slate-950 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-slate-900",
-        collapsed ? "lg:w-[84px]" : "lg:w-[280px]"
+        collapsed ? "lg:w-[64px]" : "lg:w-[264px]"
       )}
     >
       <div className="flex h-full min-h-0 flex-col">
-        <div className={cn("border-b border-white/10 px-5 py-5", collapsed && "lg:px-3")}>
+        {/* Logo + perfil */}
+        <div className={cn("border-b border-white/10 px-4 py-4", collapsed && "lg:px-2")}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-blue-500/15 ring-1 ring-blue-300/20">
-              <Truck className="h-5 w-5 text-blue-100" aria-hidden="true" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 ring-1 ring-blue-400/20">
+              <Truck className="h-4 w-4 text-blue-200" aria-hidden="true" />
             </div>
             <div className={cn("min-w-0", collapsed && "lg:hidden")}>
-              <div className="text-sm font-semibold tracking-wide">FROTAS</div>
-              <div className="truncate text-xs text-slate-400">Plataforma operacional</div>
+              <div className="text-sm font-bold tracking-wide text-white">FROTAS</div>
+              <div className="truncate text-[11px] text-slate-400">Plataforma operacional</div>
             </div>
           </div>
 
-          <div className={cn("mt-4 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2", collapsed && "lg:hidden")}>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Perfil</div>
-            <div className="mt-1 text-sm font-medium text-white">{perfil}</div>
+          {/* Badge de perfil */}
+          <div
+            className={cn(
+              "mt-3 flex items-center gap-2 rounded-lg border border-white/8 bg-white/[0.04] px-3 py-2",
+              collapsed && "lg:hidden"
+            )}
+          >
+            <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+            <span className="text-xs font-medium text-slate-300">{perfil}</span>
           </div>
 
+          {/* Botão colapsar */}
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="mt-4 hidden h-9 w-9 border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/10 hover:text-white lg:inline-flex"
-            onClick={() => setCollapsed((value) => !value)}
+            className="mt-3 hidden h-8 w-8 border border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white lg:inline-flex"
+            onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-            title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+            title={collapsed ? "Expandir" : "Recolher"}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
           </Button>
         </div>
 
+        {/* Nav */}
         <nav
           className={cn(
-            "flex gap-2 overflow-x-auto px-3 py-3 lg:block lg:min-h-0 lg:flex-1 lg:space-y-5 lg:overflow-x-hidden lg:overflow-y-auto lg:px-4 lg:py-5",
-            collapsed && "lg:px-3"
+            "flex gap-2 overflow-x-auto px-2 py-3 lg:block lg:min-h-0 lg:flex-1 lg:space-y-1 lg:overflow-x-hidden lg:overflow-y-auto lg:px-3 lg:py-4",
+            collapsed && "lg:px-2"
           )}
         >
-          {sections.map((section) => (
-            <div key={section.title} className="min-w-max lg:min-w-0">
-              <div
-                className={cn(
-                  "mb-2 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 lg:block",
-                  collapsed && "lg:sr-only"
-                )}
-              >
-                {section.title}
-              </div>
-              <div className="flex gap-1 lg:block lg:space-y-1">
-                {section.items.map((item) => (
-                  <SidebarLink
-                    key={item.href}
-                    item={item}
-                    active={item.href === activeHref}
-                    collapsed={collapsed}
+          {sections.map((section) => {
+            const isOpen = openSections[section.title] !== false;
+            return (
+              <div key={section.title} className="min-w-max lg:min-w-0">
+                {/* Título da seção — clicável para colapsar */}
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  className={cn(
+                    "mb-1 hidden w-full items-center justify-between rounded-md px-2 py-1 text-left lg:flex",
+                    collapsed && "lg:hidden"
+                  )}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                    {section.title}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 text-slate-600 transition-transform duration-150",
+                      !isOpen && "-rotate-90"
+                    )}
                   />
-                ))}
+                </button>
+
+                {/* Items da seção */}
+                <div
+                  className={cn(
+                    "flex gap-1 overflow-hidden transition-all duration-200 lg:block lg:space-y-0.5",
+                    !isOpen && "lg:hidden"
+                  )}
+                >
+                  {section.items.map((item) => (
+                    <SidebarLink
+                      key={item.href}
+                      item={item}
+                      active={item.href === activeHref}
+                      collapsed={collapsed}
+                    />
+                  ))}
+                </div>
+
+                {/* Separador entre seções */}
+                <div className={cn("my-2 hidden border-t border-white/[0.06] lg:block", collapsed && "mx-0")} />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
       </div>
     </aside>
@@ -157,16 +199,22 @@ function SidebarLink({
   return (
     <Link
       href={item.href}
-      title={collapsed ? item.label : undefined}
+      title={item.label}
       aria-label={item.label}
       className={cn(
-        "flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white lg:w-full",
-        active && "bg-blue-500/15 text-white ring-1 ring-blue-300/15",
-        collapsed && "lg:justify-center lg:px-0"
+        "group flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/8 hover:text-white lg:w-full",
+        active && "bg-blue-500/15 text-white ring-1 ring-inset ring-blue-400/20",
+        collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:h-10"
       )}
     >
-      <Icon className={cn("h-4 w-4 shrink-0 text-slate-400", active && "text-blue-100")} aria-hidden="true" />
-      <span className={cn("whitespace-nowrap", collapsed && "lg:sr-only")}>{item.label}</span>
+      <Icon
+        className={cn(
+          "h-4 w-4 shrink-0 transition-colors",
+          active ? "text-blue-300" : "text-slate-500 group-hover:text-slate-300"
+        )}
+        aria-hidden="true"
+      />
+      <span className={cn("truncate", collapsed && "lg:sr-only")}>{item.label}</span>
     </Link>
   );
 }
@@ -178,7 +226,9 @@ function isActivePath(pathname: string, href: string): boolean {
 
 function findActiveHref(pathname: string, sections: NavSection[]): string | null {
   const items = sections.flatMap((section) => section.items);
-  return items
-    .filter((item) => isActivePath(pathname, item.href))
-    .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
+  return (
+    items
+      .filter((item) => isActivePath(pathname, item.href))
+      .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null
+  );
 }
