@@ -92,12 +92,13 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
   if (canManageUsers(perfil)) sections.push({ title: "Administração", items: ADMINISTRACAO_NAV });
 
-  if (perfil === "DEV") {
+  // GESTOR e DEV podem acessar as visões do motorista para supervisão
+  if (perfil === "GESTOR" || perfil === "DEV") {
     sections.push({
-      title: "Motorista (Dev)",
+      title: perfil === "DEV" ? "Motorista (Dev)" : "Motorista",
       items: [
         { href: "/motorista", label: "Início motorista", icon: "Home" },
-        { href: "/motorista/checklist", label: "Checklist motorista", icon: "ClipboardCheck" },
+        { href: "/motorista/checklist", label: "Fazer checklist", icon: "ClipboardCheck" },
         { href: "/motorista/checklists", label: "Histórico motorista", icon: "List" },
       ],
     });
