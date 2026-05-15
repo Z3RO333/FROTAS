@@ -9,6 +9,11 @@ on:
       - main
   workflow_dispatch:
 
+# Garante que só um deploy roda por vez — cancela o anterior se houver novo push
+concurrency:
+  group: deploy-gestaofrotas
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
