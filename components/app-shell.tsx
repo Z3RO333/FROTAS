@@ -41,6 +41,7 @@ const MANUTENCAO_NAV: NavItem[] = [
   { href: "/planejamento/lavagem", label: "Lavagem", icon: "ClipboardCheck" },
   { href: "/planejamento/bateria", label: "Bateria", icon: "Wrench" },
   { href: "/planejamento/seguranca", label: "Kit Segurança", icon: "ShieldAlert" },
+  { href: "/planejamento/manutencao/tacografo", label: "Tacógrafo", icon: "ClipboardCheck" },
 ];
 
 const PNEUS_NAV: NavItem[] = [
