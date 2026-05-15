@@ -21,21 +21,16 @@ import { getFrota } from "@/lib/repos/frotas";
 import { requireAppUser } from "@/lib/rbac";
 import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
 
+// Tipos e constantes movidos para types.ts (arquivos "use server" só exportam funções async)
+export type { ChecklistMotoristaActionState } from "./types";
+import type { ChecklistMotoristaActionState } from "./types";
+
 const StatusSchema = z.enum(["APTO", "NAO_APTO", "NAO_SE_APLICA"]);
 
 const TipoCombustivelSchema = z
   .enum(["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"])
   .optional()
   .nullable();
-
-export type ChecklistMotoristaActionState =
-  | { ok: true; redirectTo: string; error?: never }
-  | { ok: false; error: string; redirectTo?: never };
-
-export const CHECKLIST_MOTORISTA_INITIAL_STATE: ChecklistMotoristaActionState = {
-  ok: false,
-  error: "",
-};
 
 function optionalText(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") return null;

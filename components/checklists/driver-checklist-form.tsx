@@ -5,10 +5,8 @@ import { cn } from "@/lib/utils";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Search, Send, XCircle } from "lucide-react";
-import {
-  CHECKLIST_MOTORISTA_INITIAL_STATE,
-  enviarChecklistMotoristaAction,
-} from "@/app/(app)/motorista/checklist/_actions";
+import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
+import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
