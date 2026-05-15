@@ -27,16 +27,35 @@ export default function LoginPage() {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          object-position: center 55%;
+          object-position: 60% center;
           display: block;
         }
 
-        /* Gradiente sutil na borda direita para transição suave */
+        /* Gradiente suave sem linha — começa cedo com curva ease-in */
         .login-photo::after {
           content: "";
           position: absolute;
           inset: 0;
-          background: linear-gradient(to right, transparent 70%, #06091a 100%);
+          background:
+            /* Escurece o topo e base levemente para dar profundidade */
+            linear-gradient(to bottom,
+              rgba(6,9,26,.35) 0%,
+              transparent 20%,
+              transparent 80%,
+              rgba(6,9,26,.5) 100%
+            ),
+            /* Transição principal direita — curva suave com muitos stops */
+            linear-gradient(to right,
+              transparent 0%,
+              transparent 30%,
+              rgba(6,9,26,.05) 45%,
+              rgba(6,9,26,.18) 55%,
+              rgba(6,9,26,.42) 65%,
+              rgba(6,9,26,.70) 76%,
+              rgba(6,9,26,.88) 86%,
+              rgba(6,9,26,.97) 93%,
+              #06091a 100%
+            );
           pointer-events: none;
         }
 
