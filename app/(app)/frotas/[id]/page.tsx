@@ -23,6 +23,7 @@ import { HistoricoTimeline } from "@/components/frotas/historico-timeline";
 import { KmEvolutionChart } from "@/components/frotas/km-evolution-chart";
 import { UnidadeOperacionalCard } from "@/components/frotas/unidade-operacional-card";
 import { VeiculoTabs } from "@/components/frotas/veiculo-360/tabs";
+import { ChecklistsListClient } from "@/components/frotas/veiculo-360/checklist-preview-sheet";
 import { EventsTimeline } from "@/components/frotas/veiculo-360/events-timeline";
 import { FuelGauge } from "@/components/frotas/veiculo-360/fuel-gauge";
 import { StatusOperacionalBanner } from "@/components/frotas/manutencao/status-banner";
@@ -217,7 +218,7 @@ export default async function FrotaDetailPage({
               <CardTitle className="text-base">Checklists recentes</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <ChecklistsList rows={checklists} />
+              <ChecklistsListClient rows={checklists} frotaId={frotaId} />
             </CardContent>
           </Card>
           <Card>
