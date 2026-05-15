@@ -8,24 +8,27 @@ type Props = {
   className?: string;
 };
 
-function toneFor(nivel: number): { fill: string; text: string; legend: string } {
+function toneFor(nivel: number): { fill: string; text: string; glow: string; legend: string } {
   if (nivel === 1) {
     return {
-      fill: "border-amber-500 bg-amber-500",
-      text: "text-amber-700",
+      fill: "bg-amber-400",
+      text: "text-amber-600",
+      glow: "shadow-amber-200",
       legend: "Baixo",
     };
   }
   if (nivel === 4) {
     return {
-      fill: "border-emerald-500 bg-emerald-500",
-      text: "text-emerald-700",
+      fill: "bg-emerald-400",
+      text: "text-emerald-600",
+      glow: "shadow-emerald-200",
       legend: "Cheio",
     };
   }
   return {
-    fill: "border-blue-500 bg-blue-500",
-    text: "text-blue-700",
+    fill: "bg-blue-400",
+    text: "text-blue-600",
+    glow: "shadow-blue-200",
     legend: "",
   };
 }
@@ -45,7 +48,7 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
   const tone = toneFor(value);
 
   return (
-    <div className={cn("rounded-lg border bg-white p-4", className)}>
+    <div className={cn("rounded-xl border bg-white p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -57,6 +60,7 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
         )}
       </div>
 
+      {/* Barra segmentada em pílulas */}
       <div className="mt-3 flex gap-1.5">
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
@@ -64,15 +68,17 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
             <div
               key={level}
               className={cn(
-                "h-7 flex-1 rounded border-2 transition-colors",
-                filled ? tone.fill : "border-slate-200 bg-white"
+                "h-3 flex-1 rounded-full transition-all duration-300",
+                filled
+                  ? cn(tone.fill, "shadow-sm", tone.glow)
+                  : "bg-slate-100"
               )}
             />
           );
         })}
       </div>
 
-      <p className="mt-2 text-[11px] text-muted-foreground">
+      <p className="mt-2.5 text-[11px] text-muted-foreground">
         {hasReading
           ? `Atualizado em ${formatDate(atualizadoEm)}${origem ? ` · ${origem.replace(/_/g, " ")}` : ""}`
           : "Sem leitura registrada"}
