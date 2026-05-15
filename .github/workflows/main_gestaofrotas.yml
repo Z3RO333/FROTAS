@@ -54,26 +54,12 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E312B6B2EEAD4A0D9A75B694A78BD382 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_EA32FCFFB814440880A0CD85993C5AA4 }}
 
-      - name: Stop App Service before deploy (limpa lock do Oryx)
-        run: az webapp stop --name GestaoFrotas --resource-group RGDIROPERACIONAL
-
-      - name: Create deployment ZIP
-        run: |
-          zip -r deploy.zip . \
-            --exclude "*.git*" \
-            --exclude ".github/*" \
-            --exclude ".next/*" \
-            --exclude "node_modules/*"
-
-      - name: Deploy via Azure CLI (evita 409 do OneDeploy)
-        run: |
-          az webapp deploy \
-            --name GestaoFrotas \
-            --resource-group RGDIROPERACIONAL \
-            --src-path deploy.zip \
-            --type zip \
-            --async false
-
-      - name: Start App Service
-        if: always()
-        run: az webapp start --name GestaoFrotas --resource-group RGDIROPERACIONAL
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'GestaoFrotas'
+          slot-name: 'Production'
+          package: .
+          clean: true
+          restart: true
