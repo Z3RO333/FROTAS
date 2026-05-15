@@ -5,8 +5,12 @@ import { requireAppUser } from "@/lib/rbac";
 export const dynamic = "force-dynamic";
 
 export default async function FazerChecklistPage() {
-  await requireAppUser();
-  const { rows } = await listFrotas({ pageSize: 200 });
-
-  return <DriverChecklistForm frotas={rows} />;
+  try {
+    await requireAppUser();
+    const { rows } = await listFrotas({ pageSize: 200 });
+    return <DriverChecklistForm frotas={rows} />;
+  } catch (error) {
+    console.error("[checklist-page] ERRO:", error);
+    throw error;
+  }
 }
