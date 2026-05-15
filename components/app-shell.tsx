@@ -37,6 +37,8 @@ const OPERACAO_NAV: NavItem[] = [
 const MANUTENCAO_NAV: NavItem[] = [
   { href: "/planejamento/manutencao", label: "Preventivas", icon: "Wrench" },
   { href: "/manutencao", label: "Serviços", icon: "Wrench" },
+  { href: "/manutencao/ordens", label: "Ordens", icon: "FileText" },
+  { href: "/manutencao/custos", label: "Custos", icon: "BarChart2" },
   { href: "/oficinas", label: "Oficinas", icon: "MapPin" },
   { href: "/planejamento/lavagem", label: "Lavagem", icon: "ClipboardCheck" },
   { href: "/planejamento/bateria", label: "Bateria", icon: "Wrench" },
