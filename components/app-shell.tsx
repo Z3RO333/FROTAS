@@ -31,7 +31,7 @@ const FROTA_NAV: NavItem[] = [
 const OPERACAO_NAV: NavItem[] = [
   { href: "/checklists", label: "Checklists", icon: "ClipboardCheck" },
   { href: "/portaria", label: "Portaria", icon: "DoorOpen" },
-  { href: "/operacao", label: "Operação", icon: "Gauge" },
+  { href: "/operacao/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
 ];
 
 const MANUTENCAO_NAV: NavItem[] = [
