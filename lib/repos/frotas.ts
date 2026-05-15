@@ -322,48 +322,51 @@ export async function getFrota(id: number): Promise<Frota | null> {
 }
 
 export async function kpis(): Promise<Kpis> {
-  const frotas = (await allFrotas()).filter((frota) => frota.ativo && !frota.vendido);
-  const ages = frotas.map(idade).filter((value): value is number => value != null);
-  const kms = frotas.map((frota) => frota.km_atual).filter((value): value is number => value != null);
+  const [frotas, prevResult] = await Promise.all([
+    allFrotas().then((all) => all.filter((f) => f.ativo && !f.vendido)),
+    supabaseManutencao
+      .from("fact_manutencao_programada")
+      .select("tipo_servico, status")
+      .in("status", ["VENCIDO", "PROXIMO_VENCIMENTO"]),
+  ]);
+
+  const ages = frotas.map(idade).filter((v): v is number => v != null);
+  const kms = frotas.map((f) => f.km_atual).filter((v): v is number => v != null);
   const agora = Date.now();
   const LONGA_MS = 7 * 86400000;
-  const emManutencao = frotas.filter((frota) => frota.status === "manutencao");
+  const emManutencao = frotas.filter((f) => f.status === "manutencao");
+  const prev = prevResult.data ?? [];
+
   return {
     total_ativos: frotas.length,
-    total_disponiveis: frotas.filter((frota) => operacional(frota) === "disponivel").length,
-    total_indisponiveis: frotas.filter((frota) => ["manutencao", "indisponivel"].includes(operacional(frota))).length,
-    total_atencao: frotas.filter((frota) => condition(frota) === "atencao").length,
-    total_critico: frotas.filter((frota) => condition(frota) === "critico").length,
+    total_disponiveis: frotas.filter((f) => operacional(f) === "disponivel").length,
+    total_indisponiveis: frotas.filter((f) => ["manutencao", "indisponivel"].includes(operacional(f))).length,
+    total_atencao: frotas.filter((f) => condition(f) === "atencao").length,
+    total_critico: frotas.filter((f) => condition(f) === "critico").length,
     total_manutencao: emManutencao.length,
-    total_manutencao_atrasada: emManutencao.filter((frota) => {
-      if (!frota.manutencao_prev_retorno) return false;
-      const d = new Date(frota.manutencao_prev_retorno).getTime();
+    total_manutencao_atrasada: emManutencao.filter((f) => {
+      if (!f.manutencao_prev_retorno) return false;
+      const d = new Date(f.manutencao_prev_retorno).getTime();
       return Number.isFinite(d) && d < agora;
     }).length,
-    total_manutencao_longa: emManutencao.filter((frota) => {
-      if (!frota.manutencao_iniciado_em) return false;
-      const d = new Date(frota.manutencao_iniciado_em).getTime();
+    total_manutencao_longa: emManutencao.filter((f) => {
+      if (!f.manutencao_iniciado_em) return false;
+      const d = new Date(f.manutencao_iniciado_em).getTime();
       return Number.isFinite(d) && agora - d >= LONGA_MS;
     }).length,
-    total_sem_km: frotas.filter((frota) => frota.km_atual == null).length,
-    total_acima_7: frotas.filter((frota) => (idade(frota) ?? 0) >= 7).length,
+    total_sem_km: frotas.filter((f) => f.km_atual == null).length,
+    total_acima_7: frotas.filter((f) => (idade(f) ?? 0) >= 7).length,
     total_cadastro_incompleto: frotas.filter(cadastroIncompleto).length,
-    idade_media: ages.length ? ages.reduce((sum, value) => sum + value, 0) / ages.length : null,
-    km_medio: kms.length ? kms.reduce((sum, value) => sum + value, 0) / kms.length : null,
-    ...await (async () => {
-      const { data: prevRows } = await supabaseManutencao
-        .from("fact_manutencao_programada")
-        .select("tipo_servico, status")
-        .in("status", ["VENCIDO", "PROXIMO_VENCIMENTO"]);
-      const prev = prevRows ?? [];
-      const preventiva_atrasada = prev.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length;
-      const alinhamento_atrasado = prev.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length;
-      const arcondicionado_atrasado = prev.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length;
-      const tacografo_atrasado = prev.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length;
-      const lavagem_atrasada = prev.filter((p) => p.tipo_servico === "LAVAGEM" && p.status === "VENCIDO").length;
-      const disponibilidade_pct = frotas.length > 0 ? Math.round((frotas.filter((frota) => operacional(frota) === "disponivel").length / frotas.length) * 100) : 0;
-      return { preventiva_atrasada, alinhamento_atrasado, arcondicionado_atrasado, tacografo_atrasado, lavagem_atrasada, disponibilidade_pct };
-    })(),
+    idade_media: ages.length ? ages.reduce((s, v) => s + v, 0) / ages.length : null,
+    km_medio: kms.length ? kms.reduce((s, v) => s + v, 0) / kms.length : null,
+    preventiva_atrasada: prev.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length,
+    alinhamento_atrasado: prev.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length,
+    arcondicionado_atrasado: prev.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length,
+    tacografo_atrasado: prev.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length,
+    lavagem_atrasada: prev.filter((p) => p.tipo_servico === "LAVAGEM" && p.status === "VENCIDO").length,
+    disponibilidade_pct: frotas.length > 0
+      ? Math.round((frotas.filter((f) => operacional(f) === "disponivel").length / frotas.length) * 100)
+      : 0,
   };
 }
 
