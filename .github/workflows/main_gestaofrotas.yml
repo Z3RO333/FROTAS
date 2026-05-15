@@ -56,4 +56,6 @@ jobs:
           app-name: 'GestaoFrotas'
           slot-name: 'Production'
           package: .
+          restart-app: true
+          clean: true
           
