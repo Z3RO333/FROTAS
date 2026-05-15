@@ -6,9 +6,15 @@ import { requireAdminUser } from "@/lib/rbac";
 import {
   enviarFrotaParaManutencao,
   retornarFrotaParaOperacao,
+  type DestinoManutencao,
 } from "@/lib/services/veiculo-status";
 
 const TipoManutencaoSchema = z.enum(["PREVENTIVA", "CORRETIVA", "EMERGENCIAL", "OUTRA"]);
+
+const DestinoManutencaoSchema = z
+  .enum(["OFICINA", "LAVAGEM", "PREVENTIVA", "CORRETIVA", "ALINHAMENTO", "AR_CONDICIONADO", "TACOGRAFO", "OUTRO"])
+  .optional()
+  .nullable();
 
 const EnviarSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
@@ -18,6 +24,8 @@ const EnviarSchema = z.object({
   prev_retorno: z.string().trim().optional().nullable(),
   observacao: z.string().trim().optional().nullable(),
   bloqueia_checklist: z.coerce.boolean().optional(),
+  destino: DestinoManutencaoSchema,
+  destino_detalhe: z.string().trim().optional().nullable(),
 });
 
 const RetornarSchema = z.object({
@@ -55,6 +63,8 @@ export async function enviarManutencaoAction(
     prev_retorno: formData.get("prev_retorno"),
     observacao: formData.get("observacao"),
     bloqueia_checklist: pickAtivo(formData, "bloqueia_checklist"),
+    destino: formData.get("destino") || null,
+    destino_detalhe: formData.get("destino_detalhe") || null,
   };
 
   const parsed = EnviarSchema.safeParse(raw);
@@ -70,6 +80,8 @@ export async function enviarManutencaoAction(
     prevRetorno: parsed.data.prev_retorno ?? null,
     observacao: parsed.data.observacao ?? null,
     bloqueiaChecklist: parsed.data.bloqueia_checklist ?? true,
+    destino: (parsed.data.destino as DestinoManutencao | null | undefined) ?? null,
+    destino_detalhe: parsed.data.destino_detalhe ?? null,
     usuarioEmail: actor.email,
   });
 

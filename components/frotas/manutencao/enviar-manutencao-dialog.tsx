@@ -109,6 +109,36 @@ export function EnviarManutencaoDialog({
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="destino">Destino</Label>
+            <select
+              id="destino"
+              name="destino"
+              defaultValue=""
+              title="Destino da manutenção"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="">Selecione o destino (opcional)</option>
+              <option value="OFICINA">Oficina</option>
+              <option value="LAVAGEM">Lavagem</option>
+              <option value="PREVENTIVA">Manutenção preventiva</option>
+              <option value="CORRETIVA">Manutenção corretiva</option>
+              <option value="ALINHAMENTO">Alinhamento</option>
+              <option value="AR_CONDICIONADO">Ar-condicionado</option>
+              <option value="TACOGRAFO">Tacógrafo</option>
+              <option value="OUTRO">Outro destino</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="destino_detalhe">Detalhe do destino (opcional)</Label>
+            <Input
+              id="destino_detalhe"
+              name="destino_detalhe"
+              placeholder="Ex: Oficina Amazonas Diesel"
+            />
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="observacao">Observação</Label>
             <textarea
               id="observacao"
