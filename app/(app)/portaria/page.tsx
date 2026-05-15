@@ -1,5 +1,5 @@
 import { requireAppUser } from "@/lib/rbac";
-import { listPortariaForDate } from "@/lib/repos/checklists";
+import { listPortariaToday } from "@/lib/repos/checklists";
 import { PortariaClient } from "./portaria-client";
 import { formatDate } from "@/lib/utils";
 
@@ -12,8 +12,7 @@ export default async function PortariaPage({
 }) {
   await requireAppUser();
   const sp = await searchParams;
-  const dataSelecionada = sp.data ?? undefined; // "YYYY-MM-DD" ou undefined = hoje
-  const rows = await listPortariaForDate(dataSelecionada);
+  const rows = await listPortariaToday();
 
   const kpis = {
     checklistsHoje: rows.filter((r) => r.checklist_id).length,
@@ -31,8 +30,7 @@ export default async function PortariaPage({
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Portaria</p>
         <h1 className="text-3xl font-semibold tracking-tight">Liberação de frotas</h1>
         <p className="text-sm text-muted-foreground">
-          {dataSelecionada ? formatDate(new Date(dataSelecionada + "T12:00:00")) : `Hoje: ${formatDate(new Date())}`}
-          {" · "}{rows.length} frota(s)
+          Hoje: {formatDate(new Date())} · {rows.length} frota(s) ativa(s)
         </p>
       </div>
 
@@ -52,7 +50,7 @@ export default async function PortariaPage({
         ))}
       </div>
 
-      <PortariaClient rows={rows} erro={sp.erro} dataSelecionada={dataSelecionada} />
+      <PortariaClient rows={rows} erro={sp.erro} />
     </div>
   );
 }
