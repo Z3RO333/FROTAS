@@ -79,15 +79,40 @@ const FALLBACK_READING: OdometerReading = {
   regiao_detectada: "desconhecido",
 };
 
-// ------- OpenAI client -------
+// ------- OpenAI client (suporta Azure OpenAI e OpenAI padrão) -------
 
 let client: OpenAI | null = null;
 
 function getOpenAIClient(): OpenAI | null {
+  if (client) return client;
+
+  const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
+  const azureKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+
+  if (azureEndpoint && azureKey) {
+    // Azure OpenAI — usa baseURL + defaultQuery para api-version
+    client = new OpenAI({
+      apiKey: azureKey,
+      baseURL: `${azureEndpoint.replace(/\/$/, "")}/openai`,
+      defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview" },
+      defaultHeaders: { "api-key": azureKey },
+    });
+    return client;
+  }
+
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
-  client ??= new OpenAI({ apiKey });
+  client = new OpenAI({ apiKey });
   return client;
+}
+
+function getVisionModel(): string {
+  // Azure usa o nome do deployment; OpenAI padrão usa o nome do modelo
+  return (
+    process.env.AZURE_OPENAI_VISION_DEPLOYMENT ??
+    process.env.OPENAI_VISION_MODEL ??
+    "gpt-4.1-mini"
+  );
 }
 
 // ------- Public API -------
@@ -108,7 +133,7 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
   try {
     const imageUrl = await fileToDataUrl(file);
     const response = await openai.responses.parse({
-      model: process.env.OPENAI_VISION_MODEL || "gpt-4.1-mini",
+      model: getVisionModel(),
       input: [
         {
           role: "developer",
