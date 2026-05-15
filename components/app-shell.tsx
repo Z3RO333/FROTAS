@@ -28,10 +28,9 @@ const FROTA_NAV: NavItem[] = [
   { href: "/frotas/vendidos", label: "Vendidos", icon: "ShoppingCart" },
 ];
 
-const OPERACAO_NAV: NavItem[] = [
-  { href: "/checklists", label: "Checklists", icon: "ClipboardCheck" },
+const PORTARIA_OPERACIONAL_NAV: NavItem[] = [
   { href: "/portaria", label: "Portaria", icon: "DoorOpen" },
-  { href: "/operacao/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
+  { href: "/checklists", label: "Checklists", icon: "ClipboardCheck" },
 ];
 
 const MANUTENCAO_NAV: NavItem[] = [
@@ -82,7 +81,6 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
 
   if (perfil === "PORTARIA") {
     const sections: NavSection[] = [{ title: "Portaria", items: PORTARIA_NAV }];
-    if (canAccessOperacao(perfil)) sections.push({ title: "Operação", items: OPERACAO_NAV });
     if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
     return sections;
   }
@@ -90,7 +88,7 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   const sections: NavSection[] = [
     { title: "Cockpit", items: COCKPIT_NAV },
     { title: "Frota", items: FROTA_NAV },
-    { title: "Operação", items: OPERACAO_NAV },
+    { title: "Portaria", items: PORTARIA_OPERACIONAL_NAV },
   ];
 
   if (canAccessManutencao(perfil)) sections.push({ title: "Manutenção", items: MANUTENCAO_NAV });
