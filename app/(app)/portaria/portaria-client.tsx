@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, Search, ChevronRight,
+  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, Search, ChevronRight, CalendarDays,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,10 +40,27 @@ const FILTER_TABS: { label: string; value: StatusPortaria | "TODAS" }[] = [
   { label: "Saídas", value: "SAIDA_REGISTRADA" },
 ];
 
-type Props = { rows: PortariaRow[]; erro?: string | null };
+// Retorna "YYYY-MM-DD" no timezone local do navegador
+function localDateStr(offsetDays = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
 
-export function PortariaClient({ rows, erro }: Props) {
+type Props = { rows: PortariaRow[]; erro?: string | null; dataSelecionada?: string };
+
+export function PortariaClient({ rows, erro, dataSelecionada }: Props) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
+
+  function navigateToDate(dateStr: string) {
+    const today = localDateStr(0);
+    if (dateStr === today) {
+      router.push("/portaria"); // hoje = sem parâmetro
+    } else {
+      router.push(`/portaria?data=${dateStr}`);
+    }
+  }
   const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("TODAS");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
@@ -88,6 +106,45 @@ export function PortariaClient({ rows, erro }: Props) {
           {erro}
         </div>
       )}
+
+      {/* Seletor de data */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-lg border bg-white px-3 py-1.5 shadow-sm">
+          <CalendarDays className="h-4 w-4 text-blue-600" />
+          <input
+            type="date"
+            aria-label="Selecionar data"
+            title="Selecionar data"
+            className="border-0 bg-transparent text-sm outline-none"
+            max={localDateStr(0)}
+            value={dataSelecionada ?? localDateStr(0)}
+            onChange={(e) => navigateToDate(e.target.value)}
+          />
+        </div>
+        {/* Atalhos rápidos */}
+        {[
+          { label: "Hoje", offset: 0 },
+          { label: "Ontem", offset: -1 },
+          { label: "-2 dias", offset: -2 },
+          { label: "-7 dias", offset: -7 },
+        ].map(({ label, offset }) => {
+          const d = localDateStr(offset);
+          const active = (dataSelecionada ?? localDateStr(0)) === d;
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => navigateToDate(d)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                active ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Pesquisa */}
       <div className="relative">

@@ -197,22 +197,30 @@ async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T)
   }
 }
 
-function todayRange() {
+// dateStr: "YYYY-MM-DD" no timezone local. Se omitido, usa hoje.
+function dateRange(dateStr?: string) {
   const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
-  const now = new Date();
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  // "2025-05-14" → [2025, 5, 14]
-  const [year, month, day] = fmt.format(now).split("-").map(Number);
-  // Offset from UTC: Manaus = UTC-4, Brasília = UTC-3
   const offsetHours = /Manaus/i.test(tz) ? 4 : 3;
+
+  let year: number, month: number, day: number;
+
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    [year, month, day] = dateStr.split("-").map(Number);
+  } else {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    });
+    [year, month, day] = fmt.format(now).split("-").map(Number);
+  }
+
   const start = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0));
   const end = new Date(start.getTime() + 86_400_000);
   return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function todayRange() {
+  return dateRange();
 }
 
 async function fetchVeiculosByIds(ids: number[]): Promise<Map<number, VeiculoLite>> {
@@ -415,9 +423,11 @@ export async function checklistDashboardKpis(): Promise<{
   });
 }
 
-export async function listPortariaToday(): Promise<PortariaRow[]> {
+export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow[]> {
   return safeSupabase("portaria", async () => {
-    const { start, end } = todayRange();
+    const { start, end } = dateRange(dateStr);
+    const isFuture = new Date(start) > new Date();
+    if (isFuture) return []; // não busca datas futuras
     const [veiculosResult, checklistsResult, movimentosResult] = await Promise.all([
       supabaseManutencao
         .from("veiculos")
@@ -501,6 +511,9 @@ export async function listPortariaToday(): Promise<PortariaRow[]> {
     });
   }, []);
 }
+
+/** Alias para compatibilidade com código existente que importa listPortariaToday */
+export const listPortariaToday = () => listPortariaForDate();
 
 async function fetchPendenciasCriticasByChecklistIds(ids: number[]): Promise<Map<number, string>> {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
