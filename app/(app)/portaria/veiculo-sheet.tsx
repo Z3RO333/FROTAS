@@ -61,11 +61,15 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
 
   const canLiberar = statusPortaria === "LIBERADA_SAIDA";
   const canEntrada = statusPortaria === "SAIDA_REGISTRADA";
-  const canBloquear = statusPortaria === "LIBERADA_SAIDA" || statusPortaria === "CHECKLIST_REALIZADO";
-  const canCorrecao = statusPortaria === "CHECKLIST_REALIZADO" || statusPortaria === "BLOQUEADA_CHECKLIST";
+  // Portaria pode bloquear qualquer veículo liberado, ou forçar liberação com justificativa
+  const canBloquear = statusPortaria === "LIBERADA_SAIDA";
+  const canCorrecao = statusPortaria === "BLOQUEADA_CHECKLIST" || statusPortaria === "CHECKLIST_REALIZADO";
+  // Liberação forçada com justificativa quando houver itens obrigatórios inconforme
+  const canLiberarForcado = statusPortaria === "BLOQUEADA_CHECKLIST";
 
   const itensProblema = detalhe?.itens.filter((i) => i.status === "NAO_APTO") ?? [];
-  const itensCriticos = itensProblema.filter((i) => i.critico);
+  const itensObrigatoriosInconformes = itensProblema.filter((i) => i.obrigatorio);
+  const itensNaoObrigatoriosInconformes = itensProblema.filter((i) => !i.obrigatorio);
   const fotoHodometro = detalhe?.fotos.find((f) => f.source_type === "hodometro");
 
   const titulo = detalhe
@@ -97,14 +101,20 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
         {!loading && detalhe && (
           <div className="space-y-5 pb-8">
             {/* Status geral + alertas */}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={cn("text-sm", STATUS_GERAL_CLASS[detalhe.status_geral ?? ""] ?? "")}>
                 {detalhe.status_geral ?? "—"}
               </Badge>
-              {itensCriticos.length > 0 && (
-                <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
-                  <XCircle className="h-3.5 w-3.5" />
-                  {itensCriticos.length} item(s) crítico(s)
+              {itensObrigatoriosInconformes.length > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                  <XCircle className="h-3 w-3" />
+                  {itensObrigatoriosInconformes.length} obrigatório(s) inconforme(s) — bloqueado
+                </span>
+              )}
+              {itensNaoObrigatoriosInconformes.length > 0 && itensObrigatoriosInconformes.length === 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                  <AlertTriangle className="h-3 w-3" />
+                  {itensNaoObrigatoriosInconformes.length} observação(ões) — liberação permitida
                 </span>
               )}
             </div>
@@ -136,13 +146,46 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
               </div>
             )}
 
-            {/* Itens com problema */}
-            {itensProblema.length > 0 && (
+            {/* Itens obrigatórios inconforme (impedem liberação) */}
+            {itensObrigatoriosInconformes.length > 0 && (
               <div className="space-y-2">
                 <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                  <AlertTriangle className="h-3 w-3" /> Itens com problema ({itensProblema.length})
+                  <XCircle className="h-3 w-3" /> Itens obrigatórios inconforme — impedem liberação ({itensObrigatoriosInconformes.length})
                 </p>
-                {itensProblema.map((item) => {
+                {itensObrigatoriosInconformes.map((item) => {
+                  const fotoItem = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
+                  return (
+                    <div key={item.id} className="rounded-lg border border-red-200 bg-red-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">
+                            {item.item_nome}
+                            <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white">OBRIGATÓRIO</span>
+                            {item.critico && <span className="ml-1 rounded-full bg-red-800 px-1.5 py-0.5 text-[9px] font-bold text-white">CRÍTICO</span>}
+                          </p>
+                          {item.observacao && <p className="mt-0.5 text-xs text-muted-foreground">{item.observacao}</p>}
+                        </div>
+                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                      </div>
+                      {fotoItem?.signed_url && (
+                        <div className="mt-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={fotoItem.signed_url} alt={item.item_nome} className="max-h-32 w-full rounded-md object-cover" loading="lazy" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Itens não-obrigatórios (observações — não impedem liberação) */}
+            {itensNaoObrigatoriosInconformes.length > 0 && (
+              <div className="space-y-2">
+                <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+                  <AlertTriangle className="h-3 w-3" /> Observações (não impedem liberação — {itensNaoObrigatoriosInconformes.length})
+                </p>
+                {itensNaoObrigatoriosInconformes.map((item) => {
                   const fotoItem = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
                   return (
                     <div key={item.id} className={cn("rounded-lg border p-3", item.critico ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50")}>
@@ -261,13 +304,45 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                 </form>
               )}
 
-              {canCorrecao && !showCorrecaoForm && (
-                <Button type="button" variant="outline" className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+              {/* Liberação forçada — quando itens obrigatórios estão inconforme */}
+              {canLiberarForcado && !showCorrecaoForm && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <p className="font-semibold">Veículo bloqueado por itens obrigatórios inconforme.</p>
+                  <p className="mt-0.5">Para liberar mesmo assim, registre uma justificativa.</p>
+                </div>
+              )}
+              {canLiberarForcado && !showCorrecaoForm && (
+                <Button type="button" variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
                   onClick={() => { setShowCorrecaoForm(true); setShowBloqueioForm(false); }}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Solicitar correção
+                  <LogOut className="mr-2 h-4 w-4" /> Liberar com justificativa
                 </Button>
               )}
-              {canCorrecao && showCorrecaoForm && (
+              {canLiberarForcado && showCorrecaoForm && (
+                <form action={registrarMovimentacaoPortariaAction} className="space-y-2">
+                  <input type="hidden" name="frota_id" value={detalhe.frota_id} />
+                  <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
+                  <input type="hidden" name="tipo_movimentacao" value="SAIDA" />
+                  <Label htmlFor="motivo_forcado" className="text-xs font-semibold text-amber-800">
+                    Justificativa obrigatória para liberação forçada
+                  </Label>
+                  <textarea id="motivo_forcado" name="observacao" rows={2} required
+                    placeholder="Ex: Motorista ciente do problema, frota liberada por decisão do gestor..."
+                    className="w-full rounded-md border border-amber-300 bg-background px-3 py-2 text-sm" />
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700">Confirmar liberação</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowCorrecaoForm(false)}>Cancelar</Button>
+                  </div>
+                </form>
+              )}
+
+              {/* Solicitar correção */}
+              {canCorrecao && !showCorrecaoForm && !canLiberarForcado && (
+                <Button type="button" variant="outline" className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                  onClick={() => { setShowCorrecaoForm(true); setShowBloqueioForm(false); }}>
+                  <RefreshCw className="mr-2 h-4 w-4" /> Solicitar correção ao motorista
+                </Button>
+              )}
+              {canCorrecao && showCorrecaoForm && !canLiberarForcado && (
                 <form action={solicitarCorrecaoAction} className="space-y-2">
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
@@ -281,7 +356,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                 </form>
               )}
 
-              {!canLiberar && !canEntrada && !canBloquear && !canCorrecao && (
+              {!canLiberar && !canEntrada && !canBloquear && !canCorrecao && !canLiberarForcado && (
                 <p className="text-center text-sm text-muted-foreground">Nenhuma ação disponível para este status.</p>
               )}
             </div>

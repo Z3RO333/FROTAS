@@ -547,10 +547,21 @@ function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): Statu
   if (row.ultimo_tipo_movimentacao === "SAIDA") return "SAIDA_REGISTRADA";
   if (row.ultimo_tipo_movimentacao === "ENTRADA") return "ENTRADA_REGISTRADA";
   if (!row.checklist_id) return "PENDENTE_CHECKLIST";
-  if (row.status_frota === "critico" || row.status_geral === "CRITICO" || row.pendencia_critica_item) {
+
+  // Regra de liberação: bloqueia apenas quando há itens OBRIGATÓRIOS inconforme.
+  // status_geral = "NAO_APTO" → item obrigatório inconforme
+  // status_geral = "CRITICO" → item obrigatório crítico inconforme
+  // status_geral = "COM_OBSERVACAO" → apenas itens não-obrigatórios inconforme → LIBERA
+  // status_geral = "APROVADO" → tudo ok → LIBERA
+  if (row.status_geral === "NAO_APTO" || row.status_geral === "CRITICO") {
     return "BLOQUEADA_CHECKLIST";
   }
-  if (row.status_geral === "APROVADO") return "LIBERADA_SAIDA";
+
+  // APROVADO ou COM_OBSERVACAO (não-obrigatórios) → liberado pela portaria
+  if (row.status_geral === "APROVADO" || row.status_geral === "COM_OBSERVACAO") {
+    return "LIBERADA_SAIDA";
+  }
+
   return "CHECKLIST_REALIZADO";
 }
 
