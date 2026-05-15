@@ -6,7 +6,7 @@ import { listAnalisesDia } from "@/lib/repos/analises-ia";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 const INTERNAL_SECRET = process.env.FROTAS_INTERNAL_SECRET ?? "";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
 
 function isAuthorized(req: NextRequest): boolean {
   const header = req.headers.get("x-internal-secret");

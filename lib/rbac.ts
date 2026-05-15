@@ -13,7 +13,7 @@ export type AppUser = {
 };
 
 const ADMIN_EMAILS = parseList(process.env.FROTAS_ADMIN_EMAILS);
-const DEV_EMAILS = parseList(`gustavoandrade@bemol.com.br,${process.env.FROTAS_DEV_EMAILS ?? ""}`);
+const DEV_EMAILS = parseList(process.env.FROTAS_DEV_EMAILS ?? "");
 const DRIVER_EMAILS = parseList(process.env.FROTAS_DRIVER_EMAILS);
 const PORTARIA_EMAILS = parseList(process.env.FROTAS_PORTARIA_EMAILS);
 const MAINTENANCE_EMAILS = parseList(process.env.FROTAS_MANUTENCAO_EMAILS);
@@ -35,7 +35,9 @@ function hasEmail(set: Set<string>, email: string): boolean {
 export function resolvePerfilFromEnv(email: string): PerfilUsuario {
   const normalized = email.toLowerCase();
 
-  if (hasEmail(DEV_EMAILS, normalized)) return "DEV";
+  // Em produção, o perfil DEV não existe — cai para ADMIN para não bloquear acesso
+  const isProd = process.env.NODE_ENV === "production";
+  if (!isProd && hasEmail(DEV_EMAILS, normalized)) return "DEV";
   if (hasEmail(ADMIN_EMAILS, normalized)) return "ADMIN";
   if (hasEmail(MANAGER_EMAILS, normalized)) return "GESTOR";
   if (hasEmail(MAINTENANCE_EMAILS, normalized)) return "MANUTENCAO";

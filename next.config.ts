@@ -1,11 +1,29 @@
 import type { NextConfig } from "next";
 
+const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_MANUTENCAO_URL ?? "")
+  .replace(/^https?:\/\//, "")
+  .split("/")[0];
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob:${SUPABASE_HOST ? ` https://${SUPABASE_HOST}` : ""}`,
+  `connect-src 'self'${SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : ""} https://api.openai.com https://login.microsoftonline.com`,
+  "font-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
 const SECURITY_HEADERS = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), interest-cohort=()" },
+  { key: "Content-Security-Policy", value: CSP },
 ];
 
 const ALLOWED_ORIGINS = [

@@ -196,10 +196,20 @@ async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T)
 }
 
 function todayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  // "2025-05-14" → [2025, 5, 14]
+  const [year, month, day] = fmt.format(now).split("-").map(Number);
+  // Offset from UTC: Manaus = UTC-4, Brasília = UTC-3
+  const offsetHours = /Manaus/i.test(tz) ? 4 : 3;
+  const start = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0));
+  const end = new Date(start.getTime() + 86_400_000);
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -521,6 +531,7 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
       checklist_id: input.checklist_id,
       tipo_movimentacao: input.tipo_movimentacao,
       data_hora: new Date().toISOString(),
+      data_movimentacao: new Date().toISOString().slice(0, 10), // YYYY-MM-DD UTC
       usuario_portaria_id: input.usuario_portaria_id,
       observacao: input.observacao ?? null,
     });
@@ -672,6 +683,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     {
       km_atual: input.km_informado,
       km_origem: kmOrigem,
+      km_validado: kmAutoValidado,
       ultimo_checklist_id: checklistId,
       ultimo_motorista_id: input.motorista_id,
       ultimo_motorista_nome: input.motorista_nome,
@@ -702,7 +714,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
 
   const internalSecret = process.env.FROTAS_INTERNAL_SECRET;
   if (internalSecret) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const baseUrl = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
     fetch(`${baseUrl}/api/checklists/analyze`, {
       method: "POST",
       headers: {

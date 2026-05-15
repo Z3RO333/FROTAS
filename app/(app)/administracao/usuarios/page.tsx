@@ -157,7 +157,11 @@ function UsuarioRow({
 
       <div>
         <MobileLabel>E-mail</MobileLabel>
-        <Input name="email" type="email" defaultValue={usuario.email} disabled={!canEditDev} required />
+        {/* Email é imutável: é o identificador de login Microsoft */}
+        <input type="hidden" name="email" value={usuario.email} />
+        <div className="flex h-10 items-center truncate rounded-md border bg-slate-50 px-3 text-sm text-muted-foreground">
+          {usuario.email}
+        </div>
       </div>
 
       <div>

@@ -61,8 +61,8 @@ function optionalInteger(value: FormDataEntryValue | null): number | null {
   return n;
 }
 
-function validateImage(file: File | null, label: string): File | null {
-  validateImageFile(file, label);
+async function validateImage(file: File | null, label: string): Promise<File | null> {
+  await validateImageFile(file, label);
   return file;
 }
 
@@ -83,7 +83,7 @@ export async function enviarChecklistMotoristaAction(
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
 
-    const fotoKm = validateImage(fileFromForm(formData.get("foto_km")), "Foto do hodômetro");
+    const fotoKm = await validateImage(fileFromForm(formData.get("foto_km")), "Foto do hodômetro");
     if (!fotoKm) {
       throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
     }
@@ -109,7 +109,7 @@ export async function enviarChecklistMotoristaAction(
         : null;
     const nivelArla =
       nivelArlaRaw != null && nivelArlaRaw >= 0 && nivelArlaRaw <= 4 ? nivelArlaRaw : null;
-    const fotoComprovante = validateImage(
+    const fotoComprovante = await validateImage(
       fileFromForm(formData.get("foto_comprovante")),
       "Foto do comprovante"
     );
@@ -126,12 +126,14 @@ export async function enviarChecklistMotoristaAction(
       );
     }
 
-    const itensDraft = CHECKLIST_ITEMS.map((catalogItem) => {
-      const status = StatusSchema.parse(formData.get(`item_status_${catalogItem.codigo}`)) as ChecklistStatusItem;
-      const observacao = optionalText(formData.get(`item_observacao_${catalogItem.codigo}`));
-      const foto = validateImage(fileFromForm(formData.get(`item_foto_${catalogItem.codigo}`)), catalogItem.nome);
-      return { catalogItem, status, observacao, hasFoto: Boolean(foto), foto };
-    });
+    const itensDraft = await Promise.all(
+      CHECKLIST_ITEMS.map(async (catalogItem) => {
+        const status = StatusSchema.parse(formData.get(`item_status_${catalogItem.codigo}`)) as ChecklistStatusItem;
+        const observacao = optionalText(formData.get(`item_observacao_${catalogItem.codigo}`));
+        const foto = await validateImage(fileFromForm(formData.get(`item_foto_${catalogItem.codigo}`)), catalogItem.nome);
+        return { catalogItem, status, observacao, hasFoto: Boolean(foto), foto };
+      })
+    );
 
     const missingRequired = itensDraft.find(
       (item) => item.catalogItem.obrigatorio && item.status === "NAO_SE_APLICA"
@@ -147,10 +149,6 @@ export async function enviarChecklistMotoristaAction(
 
     const statusGeral = statusGeralFromItems(itensDraft, observacaoOriginal);
     const observacaoCorrigida = normalizeDriverNote(observacaoOriginal);
-    const observacaoComKm =
-      kmValidation.diff != null && justificativaKm
-        ? `${observacaoOriginal ?? ""}\nKM: último=${frota.km_atual}; informado=${kmInformado}; diferença=${kmValidation.diff}; justificativa=${justificativaKm}`.trim()
-        : observacaoOriginal;
     const inspections: Omit<ChecklistImageInspectionInput, "checklist_id">[] = [];
 
     const fotoKmUrl = await uploadChecklistImage(fotoKm, { frotaId, sourceType: "hodometro" });
@@ -202,7 +200,7 @@ export async function enviarChecklistMotoristaAction(
       km_confirmado: kmDigitado != null || Boolean(leituraKm.km_lido === kmInformado && leituraKm.leitura_segura),
       foto_km_url: fotoKmUrl,
       status_geral: statusGeral,
-      observacao_original: observacaoComKm,
+      observacao_original: observacaoOriginal,
       observacao_corrigida_ia: observacaoCorrigida,
       itens,
       tipo_combustivel: tipoCombustivel,
