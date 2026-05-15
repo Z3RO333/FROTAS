@@ -31,7 +31,6 @@ type OcrState = {
   precisa_digitacao_manual: boolean;
   motivo: string | null;
   texto_visivel: string | null;
-  observacoes_imagem: string | null;
   candidatos_descartados?: CandidatoDescartado[];
   regiao_detectada?: string;
   status_leitura?: StatusLeitura;
@@ -41,6 +40,34 @@ type OcrState = {
 
 const STEPS = ["Selecionar veículo", "Realizar checklist", "Registrar hodômetro"] as const;
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
+
+// Redimensiona e comprime a imagem no browser antes de enviar para OCR.
+// De ~4 MB (foto de câmera) para ~40-60 KB — reduz upload de 4s para <0.5s em rede móvel.
+// O preview usa a imagem original (boa qualidade); o OCR recebe a comprimida (suficiente para ler dígitos).
+async function comprimirImagemParaOcr(file: File, maxPx = 720, qualidade = 0.72): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(maxPx / bitmap.width, maxPx / bitmap.height, 1);
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+
+    return await new Promise<File>((resolve) => {
+      canvas.toBlob(
+        (blob) => resolve(new File([blob ?? file], "odometro.jpg", { type: "image/jpeg" })),
+        "image/jpeg",
+        qualidade
+      );
+    });
+  } catch {
+    return file; // fallback: usa o arquivo original se Canvas não suportado
+  }
+}
 
 export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const router = useRouter();
@@ -93,11 +120,16 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     setOcrState(null);
     setFotoKmPreview(null);
     if (!file) return;
-    // Preview imediato antes de aguardar o OCR
+    // Preview imediato com a imagem original (qualidade total)
     setFotoKmPreview(URL.createObjectURL(file));
     setOcrLoading(true);
+
+    // Comprime a imagem no browser antes de enviar — reduz de 3-5 MB para ~50 KB
+    // Isso corta o tempo de upload de ~4s para <0.5s em rede móvel
+    const fileParaOcr = await comprimirImagemParaOcr(file);
+
     const body = new FormData();
-    body.append("foto_km", file);
+    body.append("foto_km", fileParaOcr);
     if (selected?.km_atual != null) {
       body.append("km_anterior", String(selected.km_atual));
     }
@@ -119,7 +151,6 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         precisa_digitacao_manual: true,
         motivo: msg,
         texto_visivel: null,
-        observacoes_imagem: null,
         status_leitura: "LEITURA_FALHOU",
         error: msg,
       });
