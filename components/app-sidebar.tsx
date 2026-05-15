@@ -98,7 +98,7 @@ export function AppSidebar({
             <img
               src="/images/bemol-truck.jpg"
               alt="Caminhão Bemol"
-              className="absolute inset-0 h-full w-full object-cover object-[50%_55%]"
+              className="absolute inset-0 h-full w-full object-cover object-[50%_75%]"
             />
             {/* Gradient escuro suave na parte inferior para o texto */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
