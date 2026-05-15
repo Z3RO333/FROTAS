@@ -171,23 +171,28 @@ export default function LoginPage() {
 
           .login-truck-wrap {
             position: absolute;
-            bottom: 16%;
+            bottom: 14%;
             left: 50%;
-            width: 420px;
+            width: 480px;
             transform: translateX(-50%);
             animation: loginBob 2.4s ease-in-out infinite;
             z-index: 2;
           }
 
           @keyframes loginBob {
-            0%, 100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(-3px); }
+            0%, 100% { transform: translateX(-50%) translateY(0px); }
+            50% { transform: translateX(-50%) translateY(-4px); }
           }
 
-          .login-truck-wrap svg {
+          .login-truck-img {
             width: 100%;
             display: block;
-            filter: drop-shadow(0 18px 24px rgba(0,0,0,.55)) drop-shadow(0 4px 8px rgba(0,0,0,.4));
+            border-radius: 12px;
+            filter:
+              drop-shadow(0 20px 32px rgba(0,0,0,.7))
+              drop-shadow(0 4px 10px rgba(0,0,0,.5));
+            /* Remove o fundo claro da imagem mesclando com a cena */
+            mix-blend-mode: lighten;
           }
 
           .login-beam {
@@ -448,7 +453,12 @@ export default function LoginPage() {
         <div className="login-beam-2" />
 
         <div className="login-truck-wrap">
-          <TruckIllustration />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/bemol-truck.jpg"
+            alt="Caminhão Bemol"
+            className="login-truck-img"
+          />
         </div>
 
         <div className="login-dust" />
@@ -491,63 +501,3 @@ export default function LoginPage() {
   );
 }
 
-function TruckIllustration() {
-  return (
-    <svg viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="loginTruckBody" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#3a82ff" />
-          <stop offset="1" stopColor="#1f6feb" />
-        </linearGradient>
-        <linearGradient id="loginTruckCab" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#4f90ff" />
-          <stop offset="1" stopColor="#2563d8" />
-        </linearGradient>
-        <linearGradient id="loginTruckBeam" x1="1" x2="0" y1="0.5" y2="0.5">
-          <stop offset="0" stopColor="#ffd23f" stopOpacity=".7" />
-          <stop offset="1" stopColor="#ffd23f" stopOpacity="0" />
-        </linearGradient>
-        <clipPath id="loginTruckClip">
-          <rect x="120" y="38" width="180" height="92" rx="6" />
-        </clipPath>
-      </defs>
-      <ellipse cx="160" cy="148" rx="120" ry="6" fill="rgba(0,0,0,.4)" />
-      <rect x="120" y="38" width="180" height="92" rx="6" fill="url(#loginTruckBody)" />
-      <rect x="120" y="38" width="180" height="6" fill="rgba(255,255,255,.18)" />
-      <rect x="120" y="124" width="180" height="6" fill="rgba(0,0,0,.25)" />
-      <g clipPath="url(#loginTruckClip)">
-        <g transform="rotate(-22 210 84)">
-          <rect x="60" y="68" width="320" height="3" fill="#ffffff" opacity="0.35" />
-          <rect x="60" y="78" width="320" height="2" fill="#ffd23f" />
-          <rect x="60" y="86" width="320" height="3" fill="#ff5147" />
-        </g>
-      </g>
-      <rect x="184" y="64" width="64" height="28" rx="3" fill="#fff" />
-      <text
-        x="216"
-        y="84"
-        textAnchor="middle"
-        fontFamily="Inter, system-ui, sans-serif"
-        fontWeight="900"
-        fontSize="14"
-        fontStyle="italic"
-        fill="#1f6feb"
-      >
-        bemol
-      </text>
-      <path d="M 36 130 L 36 78 Q 36 56 56 56 L 110 56 Q 124 56 124 70 L 124 130 Z" fill="url(#loginTruckCab)" />
-      <path d="M 50 78 Q 50 66 62 66 L 110 66 Q 116 66 116 72 L 116 96 L 50 96 Z" fill="#a8cfff" />
-      <path d="M 50 78 Q 50 66 62 66 L 110 66 Q 116 66 116 72 L 116 96 L 50 96 Z" fill="rgba(255,255,255,.25)" />
-      <rect x="30" y="80" width="6" height="14" rx="2" fill="#1b2340" />
-      <rect x="36" y="106" width="8" height="10" rx="2" fill="#ffd23f" />
-      <rect x="0" y="100" width="36" height="22" fill="url(#loginTruckBeam)" />
-      <rect x="32" y="120" width="14" height="10" rx="2" fill="#0e1530" />
-      <circle cx="78" cy="132" r="14" fill="#0a0f1f" />
-      <circle cx="78" cy="132" r="6" fill="#3a4a6b" />
-      <circle cx="220" cy="132" r="14" fill="#0a0f1f" />
-      <circle cx="220" cy="132" r="6" fill="#3a4a6b" />
-      <circle cx="252" cy="132" r="14" fill="#0a0f1f" />
-      <circle cx="252" cy="132" r="6" fill="#3a4a6b" />
-    </svg>
-  );
-}
