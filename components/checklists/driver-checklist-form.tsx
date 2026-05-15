@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Search, Send, XCircle } from "lucide-react";
@@ -60,6 +61,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   );
   const [nivelCombustivel, setNivelCombustivel] = useState(0);
   const [nivelArla, setNivelArla] = useState(0);
+  const [stepErro, setStepErro] = useState<string | null>(null);
+  const [itemObservacoes, setItemObservacoes] = useState<Record<string, string>>(
+    () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, ""]))
+  );
 
   const selected = useMemo(
     () => frotas.find((f) => String(f.id) === frotaId) ?? null,
@@ -122,10 +127,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   }
 
   function setItemStatus(codigo: string, status: ChecklistItemStatus) {
-    setItemStatuses((prev) => ({
-      ...prev,
-      [codigo]: prev[codigo] === status ? "NAO_SE_APLICA" : status,
-    }));
+    const next = itemStatuses[codigo] === status ? "NAO_SE_APLICA" : status;
+    setItemStatuses((prev) => ({ ...prev, [codigo]: next }));
+    // Limpa observação se saiu de NAO_APTO
+    if (next !== "NAO_APTO") {
+      setItemObservacoes((prev) => ({ ...prev, [codigo]: "" }));
+    }
+    setStepErro(null);
   }
 
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
@@ -133,6 +141,25 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   // Block submission when OCR returns divergent reading and user hasn't entered manual KM + justification
   const ocrDivergente = ocrState?.status_leitura === "LEITURA_DIVERGENTE";
   const kmManualPreenchido = kmValue.trim() !== "" && parseInt(kmValue, 10) > 0;
+
+  function avancarParaStep2() {
+    const pendente = CHECKLIST_ITEMS.find(
+      (item) => item.obrigatorio && itemStatuses[item.codigo] === "NAO_SE_APLICA"
+    );
+    if (pendente) {
+      setStepErro(`"${pendente.nome}" é obrigatório. Marque OK ou Problema antes de prosseguir.`);
+      return;
+    }
+    const semEvidencia = CHECKLIST_ITEMS.find((item) =>
+      itemStatuses[item.codigo] === "NAO_APTO" && !itemObservacoes[item.codigo]?.trim()
+    );
+    if (semEvidencia) {
+      setStepErro(`"${semEvidencia.nome}": descreva o problema antes de prosseguir.`);
+      return;
+    }
+    setStepErro(null);
+    setStep(2);
+  }
 
   return (
     <form action={formAction} className="mx-auto max-w-3xl space-y-5">
@@ -385,6 +412,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                         name={`item_observacao_${item.codigo}`}
                         placeholder="Descreva o problema..."
                         className="h-8 text-xs"
+                        value={itemObservacoes[item.codigo] ?? ""}
+                        onChange={(e) => {
+                          setItemObservacoes((prev) => ({ ...prev, [item.codigo]: e.target.value }));
+                          setStepErro(null);
+                        }}
                       />
                     </>
                   ) : null}
@@ -405,11 +437,17 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
           </div>
         </div>
 
+        {stepErro && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
+            {stepErro}
+          </div>
+        )}
+
         <div className="flex justify-between">
-          <Button type="button" variant="outline" onClick={() => setStep(0)}>
+          <Button type="button" variant="outline" onClick={() => { setStep(0); setStepErro(null); }}>
             Voltar
           </Button>
-          <Button type="button" onClick={() => setStep(2)}>
+          <Button type="button" onClick={avancarParaStep2}>
             Prosseguir
             <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
           </Button>
@@ -674,30 +712,41 @@ function FuelLevelSelector({
 }) {
   const [hovered, setHovered] = useState(0);
 
-  // 1 = amarelo (baixo), 2-3 = azul (médio), 4 = verde (cheio)
-  const toneFor = (level: number) => {
-    if (level === 1) return { fill: "border-amber-500 bg-amber-500", preview: "border-amber-300 bg-amber-100" };
-    if (level === 4) return { fill: "border-emerald-500 bg-emerald-500", preview: "border-emerald-300 bg-emerald-100" };
-    return { fill: "border-blue-500 bg-blue-500", preview: "border-blue-300 bg-blue-100" };
+  // Cor baseada no nível máximo selecionado/em hover
+  const toneFor = (lvl: number) => {
+    if (lvl === 1) return {
+      fill: "bg-amber-400 shadow-sm shadow-amber-200",
+      preview: "bg-amber-200",
+    };
+    if (lvl === 4) return {
+      fill: "bg-emerald-400 shadow-sm shadow-emerald-200",
+      preview: "bg-emerald-200",
+    };
+    return {
+      fill: "bg-blue-400 shadow-sm shadow-blue-200",
+      preview: "bg-blue-200",
+    };
   };
 
   const labelTone = (lvl: number) => {
-    if (lvl === 1) return "text-amber-600 font-medium";
-    if (lvl === 4) return "text-emerald-600 font-medium";
-    if (lvl > 0) return "text-blue-600 font-medium";
+    if (lvl === 1) return "text-amber-600 font-semibold";
+    if (lvl === 4) return "text-emerald-600 font-semibold";
+    if (lvl > 0) return "text-blue-600 font-semibold";
     return "text-muted-foreground";
   };
+
+  const activeLevel = value > 0 ? value : hovered;
+  const tone = toneFor(activeLevel);
 
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{label}</p>
-      <div className="flex gap-1.5">
+
+      {/* Track de fundo + pílulas interativas */}
+      <div className="relative flex gap-1.5 rounded-full bg-slate-100 p-1">
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
           const previewed = hovered > 0 && level <= hovered && !filled;
-          // Cor baseada no nível máximo selecionado/previsto, não no segmento individual
-          const refLevel = filled ? value : hovered;
-          const tone = toneFor(refLevel);
           return (
             <button
               key={level}
@@ -705,15 +754,21 @@ function FuelLevelSelector({
               onClick={() => onChange(value === level ? 0 : level)}
               onMouseEnter={() => setHovered(level)}
               onMouseLeave={() => setHovered(0)}
-              className={`h-8 flex-1 rounded border-2 transition-colors ${
-                filled ? tone.fill : previewed ? tone.preview : "border-slate-200 bg-white"
-              }`}
+              className={cn(
+                "h-7 flex-1 rounded-full transition-all duration-150",
+                filled
+                  ? tone.fill
+                  : previewed
+                    ? tone.preview
+                    : "bg-transparent hover:bg-slate-200"
+              )}
               aria-label={`${level}/4 do tanque`}
             />
           );
         })}
       </div>
-      <p className={`text-xs ${labelTone(value > 0 ? value : hovered)}`}>
+
+      <p className={`text-xs ${labelTone(activeLevel)}`}>
         {value === 0
           ? hovered > 0
             ? `${hovered}/4`
