@@ -58,6 +58,12 @@ export default async function PortariaPage({
         <p className="text-sm text-muted-foreground">Data: {formatDate(new Date())}</p>
       </div>
 
+      {sp.erro && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          {sp.erro}
+        </div>
+      )}
+
       <form className="grid gap-2 rounded-md border bg-white p-3 shadow-sm sm:grid-cols-[1fr_auto]">
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />

@@ -220,7 +220,7 @@ export async function retornarFrotaParaOperacao(
     manutencao_observacao: null,
     manutencao_iniciado_em: null,
     manutencao_iniciado_por: null,
-    manutencao_bloqueia_checklist: true,
+    manutencao_bloqueia_checklist: null,
     atualizado_por: input.usuarioEmail,
   };
   if (input.kmAtual != null && input.kmAtual > 0) {

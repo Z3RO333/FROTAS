@@ -425,6 +425,7 @@ export async function updateFrota(id: number, input: Partial<FrotaInput>, userEm
 export type FrotaResumoChecklistInput = {
   km_atual?: number | null;
   km_origem?: string | null;
+  km_validado?: boolean | null;
   ultimo_checklist_id?: number | null;
   ultimo_motorista_id?: string | null;
   ultimo_motorista_nome?: string | null;
@@ -441,7 +442,7 @@ export async function aplicarResumoChecklist(
   if (input.km_atual !== undefined) {
     patch.km_atual = input.km_atual;
     patch.km_atualizado_em = new Date().toISOString();
-    patch.km_validado = input.km_origem === "CHECKLIST_INICIAL" ? false : true;
+    patch.km_validado = input.km_validado ?? (input.km_origem === "CHECKLIST_INICIAL" ? false : true);
   }
   if (input.km_origem !== undefined) patch.km_origem = input.km_origem;
   if (input.ultimo_checklist_id !== undefined) {
