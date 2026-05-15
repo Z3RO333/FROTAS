@@ -184,6 +184,8 @@ export type RegistrarMovimentacaoInput = {
   tipo_movimentacao: "SAIDA" | "ENTRADA";
   usuario_portaria_id: string;
   observacao?: string | null;
+  tipo_acao?: string | null;
+  motivo_bloqueio?: string | null;
 };
 
 async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T): Promise<T> {
@@ -534,6 +536,8 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
       data_movimentacao: new Date().toISOString().slice(0, 10), // YYYY-MM-DD UTC
       usuario_portaria_id: input.usuario_portaria_id,
       observacao: input.observacao ?? null,
+      tipo_acao: input.tipo_acao ?? input.tipo_movimentacao,
+      motivo_bloqueio: input.motivo_bloqueio ?? null,
     });
 
   if (error) throw error;

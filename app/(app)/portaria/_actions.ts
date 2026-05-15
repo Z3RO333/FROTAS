@@ -71,3 +71,65 @@ export async function registrarMovimentacaoPortariaAction(formData: FormData) {
 
   revalidatePath("/portaria");
 }
+
+export async function bloquearSaidaAction(formData: FormData) {
+  try {
+    const user = await requirePortariaUser();
+    const frotaId = Number(formData.get("frota_id"));
+    const checklistId = Number(formData.get("checklist_id"));
+    const motivo = String(formData.get("motivo") ?? "").trim();
+
+    const rows = await listPortariaToday();
+    const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);
+    if (!row || !row.motorista_id) {
+      redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
+    }
+
+    await registrarMovimentacaoFrota({
+      frota_id: frotaId,
+      checklist_id: checklistId,
+      motorista_id: row!.motorista_id!,
+      tipo_movimentacao: "SAIDA",
+      usuario_portaria_id: user.email,
+      observacao: motivo || null,
+      tipo_acao: "BLOQUEIO",
+      motivo_bloqueio: motivo || null,
+    });
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const msg = error instanceof Error ? error.message : "Erro ao bloquear saída.";
+    redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/portaria");
+}
+
+export async function solicitarCorrecaoAction(formData: FormData) {
+  try {
+    const user = await requirePortariaUser();
+    const frotaId = Number(formData.get("frota_id"));
+    const checklistId = Number(formData.get("checklist_id"));
+    const motivo = String(formData.get("motivo") ?? "").trim();
+
+    const rows = await listPortariaToday();
+    const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);
+    if (!row || !row.motorista_id) {
+      redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
+    }
+
+    await registrarMovimentacaoFrota({
+      frota_id: frotaId,
+      checklist_id: checklistId,
+      motorista_id: row!.motorista_id!,
+      tipo_movimentacao: "SAIDA",
+      usuario_portaria_id: user.email,
+      observacao: motivo || null,
+      tipo_acao: "SOLICITACAO_CORRECAO",
+      motivo_bloqueio: motivo || null,
+    });
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const msg = error instanceof Error ? error.message : "Erro ao solicitar correção.";
+    redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/portaria");
+}
