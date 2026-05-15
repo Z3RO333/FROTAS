@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: [{ url: "/icons/icon-192x192.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/icon-152x152.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/images/bemol-truck-icon.png", type: "image/png" }],
+    apple: [{ url: "/images/bemol-truck-icon.png", type: "image/png" }],
   },
 };
 
