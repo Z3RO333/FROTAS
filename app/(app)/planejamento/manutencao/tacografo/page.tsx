@@ -80,13 +80,19 @@ export default async function TacografoPage() {
                 <td className="p-3 text-muted-foreground">{f.localizacao ?? "—"}</td>
                 <td className="p-3">{f.data_servico ? formatDate(f.data_servico) : "—"}</td>
                 <td className="p-3">
-                  {f.data_proxima ? formatDate(f.data_proxima) : "—"}
+                  <div className="font-medium">{f.data_proxima ? formatDate(f.data_proxima) : "—"}</div>
                   {f.dias_para_vencer != null && (
-                    <span className="ml-1 text-xs text-muted-foreground">
+                    <div className={`mt-0.5 text-xs font-semibold ${
+                      f.dias_para_vencer < 0
+                        ? "text-red-600"
+                        : f.dias_para_vencer <= 60
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                    }`}>
                       {f.dias_para_vencer > 0
-                        ? `(${f.dias_para_vencer}d)`
-                        : `(${Math.abs(f.dias_para_vencer)}d atrás)`}
-                    </span>
+                        ? `Faltam ${f.dias_para_vencer} dias`
+                        : `Vencido há ${Math.abs(f.dias_para_vencer)} dias`}
+                    </div>
                   )}
                 </td>
                 <td className="p-3">

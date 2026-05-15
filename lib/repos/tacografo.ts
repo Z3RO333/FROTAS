@@ -24,7 +24,10 @@ export type TacografoHistoricoRow = {
   criado_em: string;
 };
 
-const INTERVALO_PADRAO_DIAS = 365;
+// Tacógrafo: obrigação legal de aferição a cada 2 anos (730 dias)
+const INTERVALO_PADRAO_DIAS = 730;
+// Alerta antecipado: 60 dias antes do vencimento
+const DIAS_ALERTA = 60;
 
 function calcStatus(dataSer: string | null, dataProx: string | null): TacografoStatus {
   if (!dataSer) return "SEM_REGISTRO";
@@ -34,7 +37,7 @@ function calcStatus(dataSer: string | null, dataProx: string | null): TacografoS
   const hoje = new Date();
   const diasParaVencer = Math.ceil((proxima.getTime() - hoje.getTime()) / 86400000);
   if (diasParaVencer < 0) return "VENCIDO";
-  if (diasParaVencer <= 30) return "PROXIMO_VENCIMENTO";
+  if (diasParaVencer <= DIAS_ALERTA) return "PROXIMO_VENCIMENTO";
   return "EM_DIA";
 }
 
