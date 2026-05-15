@@ -94,13 +94,11 @@ export function AppSidebar({
         {/* Banner do caminhão Bemol */}
         <div className={cn("relative border-b border-white/10", collapsed && "lg:hidden")}>
           <div className="relative h-[130px] overflow-hidden">
-            {/* Fundo escuro para contrastar com o caminhão branco */}
-            <div className="absolute inset-0 bg-slate-900" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/bemol-truck-icon.png"
+              src="/images/bemol-truck.jpg"
               alt="Caminhão Bemol"
-              className="absolute inset-0 h-full w-full object-contain object-center"
+              className="absolute inset-0 h-full w-full object-cover object-[50%_55%]"
             />
             {/* Gradient escuro suave na parte inferior para o texto */}
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
@@ -139,12 +137,12 @@ export function AppSidebar({
         {/* Logo compacto quando collapsed */}
         <div className={cn("hidden border-b border-white/10 px-2 py-3", collapsed && "lg:block")}>
           <div className="flex flex-col items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900">
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/bemol-truck-icon.png"
+                src="/images/bemol-truck.jpg"
                 alt="Bemol"
-                className="h-9 w-9 object-contain"
+                className="absolute inset-0 h-full w-full object-cover object-[30%_60%]"
               />
             </div>
             <Button
