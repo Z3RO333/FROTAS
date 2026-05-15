@@ -6,7 +6,7 @@ import {
   ClipboardX,
   FileText,
   Gauge,
-  ShieldAlert,
+
   Timer,
   TrendingUp,
   Truck,
@@ -133,13 +133,7 @@ export default async function DashboardPage() {
               severity="ATENCAO"
               href="/planejamento/manutencao"
             />
-            <MetricCard
-              label="Kit incompleto"
-              value={plan.sem_kit_completo}
-              icon={ShieldAlert}
-              severity="CRITICO"
-              href="/planejamento/seguranca"
-            />
+
             <MetricCard
               label="Lavagem atrasada"
               value={plan.lavagem_atrasada}
