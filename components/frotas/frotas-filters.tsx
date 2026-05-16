@@ -15,6 +15,15 @@ import {
 
 type Props = { modelos: string[]; localizacoes: string[]; basePath?: string };
 
+// Filtros rápidos por CD — mapeados para o campo `local` do banco
+const CDS = [
+  { id: "104", label: "CD 104 · Manaus",      local: "AM - MANAUS" },
+  { id: "170", label: "CD 170 · Porto Velho", local: "RO - PORTO VELHO" },
+  { id: "402", label: "CD 402 · Rio Branco",  local: "AC - RIO BRANCO" },
+  // CD 148 Tarumã ainda aparece como "AM - MANAUS" no banco — atualizar o campo local para separar
+  { id: "148", label: "CD 148 · Tarumã",      local: "AM - MANAUS" },
+] as const;
+
 const OPERACIONAIS = [
   { value: "all", label: "Todos status" },
   { value: "disponivel", label: "Disponível" },
@@ -64,7 +73,38 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
     return () => window.clearTimeout(handle);
   }, [search, searchParams]);
 
+  const localizacaoAtual = searchParams.get("localizacao") ?? "all";
+  const cdAtivo = CDS.find((cd) => cd.local === localizacaoAtual)?.id ?? null;
+
   return (
+    <div className="space-y-2">
+      {/* Chips de CD */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => update("localizacao", "all")}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            !cdAtivo ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Todos os CDs
+        </button>
+        {CDS.map((cd) => (
+          <button
+            key={cd.id}
+            type="button"
+            onClick={() => update("localizacao", cd.local)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              cdAtivo === cd.id
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {cd.label}
+          </button>
+        ))}
+      </div>
+
     <div className="rounded-lg border bg-white p-3 shadow-sm">
       <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.2fr)_repeat(5,minmax(150px,.8fr))_auto]">
         <div className="relative">
@@ -163,6 +203,7 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
           Limpar
         </Button>
       </div>
+    </div>
     </div>
   );
 }
