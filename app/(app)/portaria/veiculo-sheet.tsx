@@ -1,20 +1,37 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle, CheckCircle2, Clock, Gauge, LogIn, LogOut,
-  Lock, MessageSquare, RefreshCw, Truck, User, ChevronRight, XCircle,
+  Lock, MessageSquare, RefreshCw, Truck, User, ChevronRight, XCircle, ImageOff,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn, formatNumber } from "@/lib/utils";
+import { PortariaSubmitButton } from "./portaria-submit-button";
 import {
   registrarMovimentacaoPortariaAction,
   bloquearSaidaAction,
   solicitarCorrecaoAction,
 } from "./_actions";
+
+// Wrapper que adiciona toast após ação de portaria
+function withToast(
+  action: (fd: FormData) => Promise<void>,
+  successMsg: string
+): (fd: FormData) => Promise<void> {
+  return async (fd) => {
+    try {
+      await action(fd);
+      toast.success(successMsg);
+    } catch {
+      toast.error("Algo deu errado. Tente novamente.");
+    }
+  };
+}
 import type { ChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
 import type { StatusPortaria } from "@/lib/repos/checklists";
 
@@ -34,12 +51,36 @@ const STATUS_GERAL_CLASS: Record<string, string> = {
 };
 
 function FotoPreview({ url, label }: { url: string | null; label: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
   if (!url) return null;
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={label} className="max-h-40 w-full rounded-lg border object-cover" loading="lazy" />
+      <div className="relative overflow-hidden rounded-lg border bg-slate-100">
+        {!loaded && !error && (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+          </div>
+        )}
+        {error ? (
+          <div className="flex h-24 flex-col items-center justify-center gap-1 text-muted-foreground">
+            <ImageOff className="h-6 w-6 opacity-40" />
+            <span className="text-xs">Imagem não disponível</span>
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt={label}
+            className={cn("max-h-40 w-full object-cover transition-opacity", loaded ? "opacity-100" : "opacity-0")}
+            loading="lazy"
+            onLoad={() => setLoaded(true)}
+            onError={() => { setError(true); setLoaded(true); }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -263,24 +304,24 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
               <p className="text-sm font-semibold">Ações da portaria</p>
 
               {canLiberar && (
-                <form action={registrarMovimentacaoPortariaAction}>
+                <form action={withToast(registrarMovimentacaoPortariaAction, "Saída registrada com sucesso!")}>
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <input type="hidden" name="tipo_movimentacao" value="SAIDA" />
-                  <Button type="submit" className="w-full">
+                  <PortariaSubmitButton loadingText="Registrando saída...">
                     <LogOut className="mr-2 h-4 w-4" /> Liberar saída
-                  </Button>
+                  </PortariaSubmitButton>
                 </form>
               )}
 
               {canEntrada && (
-                <form action={registrarMovimentacaoPortariaAction}>
+                <form action={withToast(registrarMovimentacaoPortariaAction, "Entrada registrada com sucesso!")}>
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <input type="hidden" name="tipo_movimentacao" value="ENTRADA" />
-                  <Button type="submit" variant="outline" className="w-full">
+                  <PortariaSubmitButton variant="outline" loadingText="Registrando entrada...">
                     <LogIn className="mr-2 h-4 w-4" /> Registrar entrada
-                  </Button>
+                  </PortariaSubmitButton>
                 </form>
               )}
 
@@ -291,14 +332,14 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                 </Button>
               )}
               {canBloquear && showBloqueioForm && (
-                <form action={bloquearSaidaAction} className="space-y-2">
+                <form action={withToast(bloquearSaidaAction, "Saída bloqueada e registrada.")} className="space-y-2">
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <Label htmlFor="motivo_bl" className="text-xs">Motivo do bloqueio</Label>
                   <textarea id="motivo_bl" name="motivo" rows={2} required placeholder="Ex: Pneu com corte visível..."
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                   <div className="flex gap-2">
-                    <Button type="submit" variant="destructive" size="sm" className="flex-1">Confirmar bloqueio</Button>
+                    <PortariaSubmitButton variant="destructive" size="sm" loadingText="Bloqueando...">Confirmar bloqueio</PortariaSubmitButton>
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowBloqueioForm(false)}>Cancelar</Button>
                   </div>
                 </form>
@@ -318,7 +359,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                 </Button>
               )}
               {canLiberarForcado && showCorrecaoForm && (
-                <form action={registrarMovimentacaoPortariaAction} className="space-y-2">
+                <form action={withToast(registrarMovimentacaoPortariaAction, "Liberação forçada registrada.")} className="space-y-2">
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <input type="hidden" name="tipo_movimentacao" value="SAIDA" />
@@ -329,7 +370,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                     placeholder="Ex: Motorista ciente do problema, frota liberada por decisão do gestor..."
                     className="w-full rounded-md border border-amber-300 bg-background px-3 py-2 text-sm" />
                   <div className="flex gap-2">
-                    <Button type="submit" size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700">Confirmar liberação</Button>
+                    <PortariaSubmitButton size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700" loadingText="Liberando...">Confirmar liberação</PortariaSubmitButton>
                     <Button type="button" variant="outline" size="sm" onClick={() => setShowCorrecaoForm(false)}>Cancelar</Button>
                   </div>
                 </form>

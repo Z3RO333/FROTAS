@@ -715,20 +715,28 @@ function OcrStatusCard({
       <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
         <div className="flex items-center gap-1.5 font-semibold">
           <XCircle className="h-4 w-4" aria-hidden="true" />
-          Leitura inconsistente — digitação obrigatória
+          Leitura inconsistente — digite o KM manualmente
         </div>
-        <p className="mt-1 text-xs">
-          {ocrState.km_lido != null ? (
-            <>
-              IA leu: <strong>{formatNumber(ocrState.km_lido)} km</strong>
-              {kmAnterior != null && (
-                <span className="ml-1">· Último registrado: <strong>{formatNumber(kmAnterior)} km</strong></span>
-              )}
-            </>
-          ) : (
-            "Não foi possível ler a quilometragem."
-          )}
-        </p>
+        {/* Comparação visual lado a lado */}
+        {(ocrState.km_lido != null || kmAnterior != null) && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {ocrState.km_lido != null && (
+              <div className="rounded-md bg-red-100 px-2 py-1.5 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">IA leu</p>
+                <p className="text-base font-bold tabular-nums">{formatNumber(ocrState.km_lido)} km</p>
+              </div>
+            )}
+            {kmAnterior != null && (
+              <div className="rounded-md bg-white/60 px-2 py-1.5 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Último registrado</p>
+                <p className="text-base font-bold tabular-nums">{formatNumber(kmAnterior)} km</p>
+              </div>
+            )}
+          </div>
+        )}
+        {ocrState.km_lido == null && (
+          <p className="mt-1 text-xs">Não foi possível ler a quilometragem.</p>
+        )}
         {ocrState.candidatos_descartados && ocrState.candidatos_descartados.length > 0 && (
           <p className="mt-1 text-xs opacity-70">
             Outros valores detectados:{" "}

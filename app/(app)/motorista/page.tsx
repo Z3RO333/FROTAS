@@ -80,8 +80,9 @@ export default async function MotoristaHomePage() {
               </div>
             </>
           ) : (
-            <div className="md:col-span-2 rounded-md border bg-slate-50 p-4 text-sm text-muted-foreground">
-              Nenhuma frota disponível para checklist.
+            <div className="md:col-span-2 space-y-1 rounded-md border bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-700">Nenhuma frota atribuída</p>
+              <p className="text-xs text-muted-foreground">Você ainda não tem uma frota designada. Aguarde a atribuição pelo administrador ou entre em contato com a equipe de operação.</p>
             </div>
           )}
         </CardContent>

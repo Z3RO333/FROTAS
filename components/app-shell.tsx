@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppSidebar, type NavIconName } from "@/components/app-sidebar";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { UserMenu } from "@/components/user-menu";
+import { MobileNav } from "@/components/mobile-nav";
 import {
   canAccessDocumentos,
   canAccessManutencao,
@@ -130,12 +131,16 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-4 border-b bg-white/98 px-4 shadow-sm backdrop-blur-sm lg:px-6">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
-              Frotas Bemol
-            </p>
-            <div className="hidden md:block">
-              <BreadcrumbNav sections={sections} />
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Hamburger só no mobile */}
+            <MobileNav sections={sections} perfil={perfil} />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+                Frotas Bemol
+              </p>
+              <div className="hidden md:block">
+                <BreadcrumbNav sections={sections} />
+              </div>
             </div>
           </div>
           <UserMenu email={email} name={name} />

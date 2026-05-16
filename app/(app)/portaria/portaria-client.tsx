@@ -129,7 +129,9 @@ export function PortariaClient({ rows, erro }: Props) {
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="rounded-xl border bg-white p-8 text-center text-sm text-muted-foreground">
-            Nenhuma frota encontrada.
+            {query
+              ? `Nenhuma frota encontrada para "${query}". Tente pesquisar pela placa ou número da frota.`
+              : "Nenhuma frota aguardando ação no momento."}
           </div>
         )}
         {filtered.map((row) => (
