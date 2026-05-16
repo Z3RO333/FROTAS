@@ -1,7 +1,9 @@
 import { requireAppUser, canAccessManutencao } from "@/lib/rbac";
 import { listServicosRecentes, SERVICO_CONFIG } from "@/lib/repos/manutencao/servicos";
 import { redirect } from "next/navigation";
+import { Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +20,13 @@ export default async function ManutencaoPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Manutenção</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Radar de Serviços</h1>
-      </div>
+      <PageHeader
+        eyebrow="Manutenção"
+        title="Radar de Serviços"
+        description="Histórico recente por tipo de serviço e últimos 100 atendimentos."
+        icon={Wrench}
+        severity="MANUTENCAO"
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {porTipo.map((cfg) => (

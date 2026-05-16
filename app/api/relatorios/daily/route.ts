@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRelatorioKpis, getRankingFrotas } from "@/lib/repos/relatorios";
 import { listAlertasAbertos } from "@/lib/repos/alertas";
 import { listAnalisesDia } from "@/lib/repos/analises-ia";
+import { sendRelatorioDiarioIa } from "@/lib/email";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 const INTERNAL_SECRET = process.env.FROTAS_INTERNAL_SECRET ?? "";
@@ -35,24 +36,48 @@ export async function GET(req: NextRequest) {
 
   const html = buildEmailHtml({ hoje, kpis, alertas, rankingFrotas, criticos });
 
-  const destinatarios = (process.env.FROTAS_RELATORIO_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
+  // Le destinatarios das agendas ativas do tipo RELATORIO_DIARIO_IA
+  const { data: schedules, error: schedulesError } = await supabaseManutencao
+    .from("email_schedules")
+    .select("id, destinatarios")
+    .eq("tipo", "RELATORIO_DIARIO_IA")
+    .eq("ativo", true);
 
-  if (destinatarios.length === 0) {
-    return NextResponse.json({ aviso: "FROTAS_RELATORIO_EMAILS não configurado", html });
+  if (schedulesError) {
+    console.error("[relatorios/daily] falha ao buscar email_schedules", schedulesError);
+    return NextResponse.json({ erro: "Falha ao buscar destinatarios", detalhe: schedulesError.message }, { status: 500 });
   }
 
-  await supabaseManutencao.from("email_logs").insert({
-    tipo: "RELATORIO_DIARIO_IA",
-    destinatarios: destinatarios.join(","),
-    assunto: `[Frotas] Relatório IA — ${hoje}`,
-    enviado_em: new Date().toISOString(),
-    enviado_por: "sistema",
-    status: "SIMULADO",
-    erro_msg: "Integração de envio pendente — implementar com provedor de e-mail configurado",
-  });
+  const destinatarios = Array.from(
+    new Set(
+      (schedules ?? [])
+        .flatMap((s) => (s.destinatarios as string[] | null) ?? [])
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+
+  if (destinatarios.length === 0) {
+    return NextResponse.json({
+      aviso: "Nenhuma agenda ativa do tipo RELATORIO_DIARIO_IA. Cadastre em /administracao/emails.",
+      html_preview: html.slice(0, 500),
+    });
+  }
+
+  const assunto = `[Frotas] Relatório IA — ${hoje}`;
+  const sendResult = await sendRelatorioDiarioIa({ destinatarios, html, assunto });
+
+  // Marca ultimo_envio nas schedules usadas
+  if (sendResult.ok && schedules && schedules.length > 0) {
+    const scheduleIds = schedules.map((s) => s.id);
+    await supabaseManutencao
+      .from("email_schedules")
+      .update({ ultimo_envio: new Date().toISOString() })
+      .in("id", scheduleIds)
+      .then((res) => {
+        if (res.error) console.warn("[relatorios/daily] falha ao atualizar ultimo_envio", res.error);
+      });
+  }
 
   return NextResponse.json({
     data: hoje,
@@ -60,6 +85,8 @@ export async function GET(req: NextRequest) {
     total_criticos: criticos.length,
     alertas_abertos: alertas.length,
     destinatarios,
+    enviado: sendResult.ok,
+    erro_envio: sendResult.ok ? null : sendResult.error,
     html_preview: html.slice(0, 500),
   });
 }

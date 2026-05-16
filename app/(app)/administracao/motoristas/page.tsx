@@ -1,5 +1,7 @@
+import { Users } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listMotoristasStats } from "@/lib/repos/motoristas";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +12,13 @@ export default async function MotoristasAdminPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Motoristas</h1>
-        <p className="text-sm text-muted-foreground">
-          {motoristas.length} motorista(s) com movimentações registradas
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Administração"
+        title="Motoristas"
+        description={`${motoristas.length} motorista(s) com movimentações registradas.`}
+        icon={Users}
+        severity="INFO"
+      />
 
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
         <table className="w-full text-sm">

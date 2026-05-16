@@ -18,6 +18,7 @@ type Props = {
   title: string;
   triggerLabel?: string;
   triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+  triggerClassName?: string;
   action: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
@@ -25,6 +26,7 @@ export function EnviarRelatorioDialog({
   title,
   triggerLabel = "Enviar relatório",
   triggerVariant = "default",
+  triggerClassName,
   action,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -50,7 +52,7 @@ export function EnviarRelatorioDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant}>
+        <Button type="button" variant={triggerVariant} className={triggerClassName}>
           <Mail className="h-4 w-4" aria-hidden="true" />
           {triggerLabel}
         </Button>

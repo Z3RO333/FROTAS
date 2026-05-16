@@ -326,36 +326,70 @@ async function allFrotas(): Promise<Frota[]> {
   return ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
 }
 
-export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
-  const { page, pageSize } = pagination(f);
+/** Detecta se a query precisa de filtros derivados em JS (cálculos baseados na data atual). */
+function needsJsDerivedFilter(f: FrotaFilters): boolean {
+  // operacional=baixado é puramente vendido=true → fica em SQL.
+  // outros valores de operacional dependem do mapeamento de status → JS.
+  if (f.operacional && f.operacional !== "baixado") return true;
+  if (f.condicao) return true;
+  if (f.cadastro === "incompleto") return true;
+  if (f.idadeMin != null) return true;
+  return false;
+}
 
-  // Monta query com filtros SQL — COLS_LIST exclui combustivel/arla/observacoes (~10 colunas pesadas)
-  let q = supabaseManutencao.from("veiculos").select(COLS_LIST);
-
+/**
+ * Aplica os filtros SQL comuns na query supabase.
+ * Tipado como `any` porque o querybuilder do supabase-js usa um union complexo
+ * entre PostgrestQueryBuilder e PostgrestFilterBuilder pós-select que dificulta
+ * tipagem cooperativa em helpers fluentes. O contrato (entrada/saída chainable) é claro.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applySqlFilters(q: any, f: FrotaFilters): any {
+  let next = q;
   if (f.vendidos || f.operacional === "baixado") {
-    q = q.eq("vendido", true);
+    next = next.eq("vendido", true);
   } else {
-    q = q.eq("vendido", false).eq("ativo", true);
+    next = next.eq("vendido", false).eq("ativo", true);
   }
 
-  if (f.modelo) q = q.eq("modelo", f.modelo);
-  if (f.localizacao) q = q.eq("local", f.localizacao);
-  if (f.ano) q = q.eq("ano_fabricacao", f.ano);
-  if (f.status) q = q.eq("status", f.status);
-  if (f.semKm) q = q.is("km_atual", null);
+  if (f.modelo) next = next.eq("modelo", f.modelo);
+  if (f.localizacao) next = next.eq("local", f.localizacao);
+  if (f.ano) next = next.eq("ano_fabricacao", f.ano);
+  if (f.status) next = next.eq("status", f.status);
+  if (f.semKm) next = next.is("km_atual", null);
   if (f.search) {
     const s = f.search.replace(/[%_]/g, "\\$&"); // escapa wildcards SQL
-    q = q.or(
+    next = next.or(
       `codigo_frota.ilike.%${s}%,placa.ilike.%${s}%,modelo.ilike.%${s}%,chassi.ilike.%${s}%,local.ilike.%${s}%`
     );
   }
+  return next;
+}
 
+export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
+  const { page, pageSize } = pagination(f);
+  const needsJs = needsJsDerivedFilter(f);
+
+  // Branch rápida: nenhum filtro derivado → paginação real no banco (count + range).
+  if (!needsJs) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const base = supabaseManutencao.from("veiculos").select(COLS_LIST, { count: "exact" });
+    const q = applySqlFilters(base, f);
+    const { data, error, count } = await q.order("id", { ascending: true }).range(from, to);
+    if (error) throw new Error(`listFrotas: ${error.message}`);
+    const rows = ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
+    return { rows, total: count ?? rows.length };
+  }
+
+  // Branch derivada: precisa de filtros em JS (condicao, idadeMin, cadastro, operacional≠baixado).
+  // Continua puxando até 5000 com SELECT enxuto e filtrando depois.
+  const base = supabaseManutencao.from("veiculos").select(COLS_LIST);
+  const q = applySqlFilters(base, f);
   const { data, error } = await q.order("id", { ascending: true }).limit(5000);
   if (error) throw new Error(`listFrotas: ${error.message}`);
 
   const allRows = ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
-
-  // Filtros derivados que precisam de JS (condição, idade, cadastro)
   const filtered = allRows.filter((frota) => {
     if (f.operacional && f.operacional !== "baixado" && operacional(frota) !== f.operacional) return false;
     if (f.condicao && condition(frota) !== f.condicao) return false;

@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CheckCircle2, List, Plus, Truck, Wrench, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
@@ -68,41 +70,56 @@ export default async function FrotasPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Operacao</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Tabela de frotas</h1>
-          <p className="text-sm text-muted-foreground">{total} frota(s) encontrada(s)</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <EnviarRelatorioDialog
-            title="Enviar relatorio geral"
-            action={enviarRelatorioGeralAction}
-            triggerVariant="outline"
-          />
-          <Button asChild>
-            <Link href="/frotas/novo">
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Nova frota
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Operação"
+        title="Tabela de frotas"
+        description={`${total} frota(s) encontrada(s)${sp.localizacao ? ` em ${sp.localizacao}` : ""}.`}
+        icon={List}
+        severity="INFO"
+        actions={
+          <>
+            <EnviarRelatorioDialog
+              title="Enviar relatório geral"
+              action={enviarRelatorioGeralAction}
+              triggerVariant="outline"
+            />
+            <Button asChild>
+              <Link href="/frotas/novo">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Nova frota
+              </Link>
+            </Button>
+          </>
+        }
+      />
       <FrotasFilters modelos={modelos} localizacoes={localizacoes} />
       {kpisFiltro && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Total", value: kpisFiltro.total, color: "text-slate-700" },
-            { label: "Disponíveis", value: kpisFiltro.disponiveis, color: "text-emerald-600" },
-            { label: "Manutenção", value: kpisFiltro.manutencao, color: "text-violet-600" },
-            { label: "Indisponíveis", value: kpisFiltro.indisponiveis, color: "text-red-600" },
-          ].map((k) => (
-            <div key={k.label} className="rounded-xl border bg-white p-4 text-center shadow-sm">
-              <p className={`text-2xl font-bold tabular-nums ${k.color}`}>{k.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{k.label}</p>
-            </div>
-          ))}
-        </div>
+        <MetricGrid cols={4}>
+          <MetricCard
+            label={`Total${sp.localizacao ? ` · ${sp.localizacao}` : ""}`}
+            value={kpisFiltro.total}
+            icon={Truck}
+            severity="INFO"
+          />
+          <MetricCard
+            label="Disponíveis"
+            value={kpisFiltro.disponiveis}
+            icon={CheckCircle2}
+            severity="OK"
+          />
+          <MetricCard
+            label="Manutenção"
+            value={kpisFiltro.manutencao}
+            icon={Wrench}
+            severity="MANUTENCAO"
+          />
+          <MetricCard
+            label="Indisponíveis"
+            value={kpisFiltro.indisponiveis}
+            icon={XCircle}
+            severity="CRITICO"
+          />
+        </MetricGrid>
       )}
       <FrotasTable rows={rows} />
       {totalPages > 1 && (

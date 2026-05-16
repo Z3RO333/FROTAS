@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
+import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
+import { PerfilBadge } from "@/components/administracao/perfil-badge";
+import { UsuarioRowActions } from "@/components/administracao/usuario-row-actions";
 import { PERFIL_LABELS, PERFIS_USUARIO, isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
 import { canManageUsers, requireAppUser } from "@/lib/rbac";
 import { listUsuarios, type UsuarioApp } from "@/lib/repos/usuarios";
@@ -34,19 +38,18 @@ export default async function UsuariosPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Usuários e cargos</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Perfis agora são definidos manualmente no banco. O e-mail corporativo autentica a pessoa,
-            mas quem decide o cargo no FROTAS é esta tela.
-          </p>
-        </div>
-        <Badge variant="outline" className="w-fit bg-white px-3 py-1 text-slate-700">
-          {usuarios.length} usuário(s)
-        </Badge>
-      </div>
+      <PageHeader
+        eyebrow="Administração"
+        title="Usuários e cargos"
+        description="Perfis são definidos manualmente. O e-mail corporativo autentica a pessoa, mas o cargo no FROTAS é decidido aqui."
+        icon={Users}
+        severity="INFO"
+        actions={
+          <Badge variant="outline" className="bg-white px-3 py-1 text-slate-700">
+            {usuarios.length} usuário(s)
+          </Badge>
+        }
+      />
 
       {sp.sucesso ? <Alert tone="success" message={sp.sucesso} /> : null}
       {sp.erro ? <Alert tone="danger" message={sp.erro} /> : null}
@@ -90,6 +93,7 @@ export default async function UsuariosPage({
               <PerfilSelect name="perfil" defaultValue={perfil ?? ""} includeAll />
               <select
                 name="ativo"
+                aria-label="Filtrar por status"
                 defaultValue={ativo}
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
               >
@@ -171,35 +175,49 @@ function UsuarioRow({
 
       <div>
         <MobileLabel>Cargo</MobileLabel>
-        <PerfilSelect name="perfil" defaultValue={usuario.perfil} disabled={!canEditDev} allowDev={actorPerfil === "DEV"} />
+        <div className="space-y-1.5">
+          <div className="lg:hidden">
+            <PerfilBadge perfil={usuario.perfil} />
+          </div>
+          <PerfilSelect name="perfil" defaultValue={usuario.perfil} disabled={!canEditDev} allowDev={actorPerfil === "DEV"} />
+        </div>
       </div>
 
       <div>
         <MobileLabel>Status</MobileLabel>
         <input type="hidden" name="ativo" value="false" />
-        <label className="flex h-10 items-center gap-2 rounded-md border bg-white px-3 text-sm">
+        <label
+          className={`flex h-10 items-center gap-2 rounded-md border px-3 text-sm transition-colors ${
+            usuario.ativo
+              ? "border-emerald-200 bg-emerald-50/60 text-emerald-900"
+              : "border-slate-200 bg-slate-50 text-slate-600"
+          }`}
+        >
           <input
             type="checkbox"
             name="ativo"
             value="true"
             defaultChecked={usuario.ativo}
             disabled={!canEditDev || isSelf}
-            className="h-4 w-4"
+            className="h-4 w-4 accent-emerald-600"
           />
-          {usuario.ativo ? "Ativo" : "Inativo"}
+          <span className="font-medium">{usuario.ativo ? "Ativo" : "Inativo"}</span>
         </label>
       </div>
 
       <div>
         <MobileLabel>Criado em</MobileLabel>
-        <div className="flex h-10 items-center text-sm text-muted-foreground">{formatDate(usuario.criado_em)}</div>
+        <div className="flex h-10 items-center text-sm text-muted-foreground tabular-nums">
+          {formatDate(usuario.criado_em)}
+        </div>
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" variant="outline" disabled={!canEditDev}>
-          Salvar
-        </Button>
-      </div>
+      <UsuarioRowActions
+        usuarioId={usuario.id}
+        usuarioLabel={usuario.nome ?? usuario.email}
+        wasActive={usuario.ativo}
+        disabled={!canEditDev}
+      />
     </form>
   );
 }
@@ -231,6 +249,7 @@ function PerfilSelect({
   return (
     <select
       name={name}
+      aria-label="Cargo"
       defaultValue={defaultValue}
       disabled={disabled}
       className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"

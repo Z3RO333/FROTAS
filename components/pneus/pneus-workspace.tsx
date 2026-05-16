@@ -1,11 +1,11 @@
 "use client";
 
-import { type ElementType, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Flame, Gauge, RotateCcw, Save, Search, Truck } from "lucide-react";
 import { registrarTrocaAction } from "@/app/(app)/pneus/_actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { VehicleTireMap } from "@/components/pneus/vehicle-tire-map";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 import {
@@ -14,6 +14,7 @@ import {
   NOME_LAYOUT_PNEUS,
 } from "@/lib/pneus-layout";
 import type { Veiculo } from "@/lib/repos/manutencao/types";
+import { cn } from "@/lib/utils";
 
 export function PneusWorkspace({
   veiculos,
@@ -67,60 +68,57 @@ export function PneusWorkspace({
     setObservacoes("");
   }
 
+  const totalPneusMapeados = veiculos.reduce((total, item) => total + Number(item.qtd_pneus ?? 0), 0);
+  const semLayout = veiculos.filter((item) => !getTipoLayoutPneus(item.qtd_pneus)).length;
+
   return (
     <div className="space-y-5 pb-24">
-      <section className="overflow-hidden rounded-md border bg-white shadow-sm">
-        <div className="grid gap-0 lg:grid-cols-[360px_1fr]">
-          <div className="border-b bg-slate-950 p-5 text-white lg:border-b-0 lg:border-r">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-500/20">
-                <Truck className="h-5 w-5 text-blue-200" aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-200">Serviço</p>
-                <h1 className="text-2xl font-semibold">Troca de pneus</h1>
-              </div>
-            </div>
-            <p className="mt-4 text-sm text-slate-300">
-              Selecione a frota, marque as posições substituídas no desenho e registre a troca com número de fogo previsto.
-            </p>
-
-            <form className="mt-5 grid gap-2" action="/pneus">
-              <label className="relative">
-                <span className="sr-only">Buscar frota</span>
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  name="q"
-                  defaultValue={query ?? ""}
-                  placeholder="Buscar frota, placa ou modelo"
-                  className="border-white/10 bg-white/10 pl-9 text-white placeholder:text-slate-400"
-                />
-              </label>
-              <Button type="submit" variant="secondary">
-                Buscar
-              </Button>
-            </form>
-          </div>
-
-          <div className="grid gap-4 p-5 md:grid-cols-3">
-            <Metric icon={Truck} label="Veículos filtrados" value={String(veiculos.length)} />
-            <Metric
-              icon={Gauge}
-              label="Pneus mapeados"
-              value={String(veiculos.reduce((total, item) => total + Number(item.qtd_pneus ?? 0), 0))}
-            />
-            <Metric
-              icon={AlertTriangle}
-              label="Sem layout visual"
-              value={String(veiculos.filter((item) => !getTipoLayoutPneus(item.qtd_pneus)).length)}
-              tone="warning"
-            />
-          </div>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Serviço · Pneus"
+        title="Troca de pneus"
+        description="Selecione a frota, marque as posições substituídas no desenho e registre a troca com número de fogo previsto."
+        icon={Truck}
+        actions={
+          <form className="flex w-full max-w-md items-center gap-2" action="/pneus">
+            <label className="relative flex-1">
+              <span className="sr-only">Buscar frota</span>
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
+              <Input
+                name="q"
+                defaultValue={query ?? ""}
+                placeholder="Buscar frota, placa ou modelo"
+                className="border-white/15 bg-white/10 pl-9 text-white placeholder:text-slate-400 focus-visible:ring-blue-400/30"
+              />
+            </label>
+            <Button type="submit" variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
+              Buscar
+            </Button>
+          </form>
+        }
+      >
+        <HeroStat
+          label="Veículos filtrados"
+          value={veiculos.length}
+          icon={Truck}
+          severity="INFO"
+        />
+        <HeroStat
+          label="Pneus mapeados"
+          value={totalPneusMapeados}
+          icon={Gauge}
+          severity="OK"
+        />
+        <HeroStat
+          label="Sem layout visual"
+          value={semLayout}
+          icon={AlertTriangle}
+          severity={semLayout > 0 ? "ATENCAO" : "OK"}
+          hint={semLayout > 0 ? "Configurar qtd. de pneus" : "Todos prontos"}
+        />
+      </PageHero>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="space-y-5 rounded-md border bg-white p-5 shadow-sm">
+        <section className="space-y-5 rounded-xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="space-y-3">
               <label className="text-sm font-medium text-slate-700" htmlFor="veiculo">
@@ -129,11 +127,12 @@ export function PneusWorkspace({
               <select
                 id="veiculo"
                 value={selectedId}
+                aria-label="Selecionar frota"
                 onChange={(event) => {
                   setSelectedId(event.target.value);
                   setSelectedPositions([]);
                 }}
-                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
               >
                 {veiculos.map((veiculo) => (
                   <option key={veiculo.id} value={veiculo.id}>
@@ -152,8 +151,17 @@ export function PneusWorkspace({
               ) : null}
             </div>
 
-            <div className="rounded-md border bg-slate-50 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</div>
+            <div
+              className={cn(
+                "rounded-xl border p-4 ring-1 ring-inset",
+                layoutType
+                  ? "border-emerald-200 bg-emerald-50/70 ring-emerald-100"
+                  : "border-amber-200 bg-amber-50/70 ring-amber-100"
+              )}
+            >
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Status
+              </div>
               <div className="mt-2 flex items-center gap-2">
                 {layoutType ? (
                   <>
@@ -167,28 +175,38 @@ export function PneusWorkspace({
                   </>
                 )}
               </div>
-              <div className="mt-3 text-sm text-muted-foreground">
-                {selectedPositions.length} posição(ões) selecionada(s)
+              <div className="mt-3 text-sm text-slate-600">
+                <span className="text-base font-semibold tabular-nums text-slate-900">
+                  {selectedPositions.length}
+                </span>{" "}
+                posição(ões) selecionada(s)
                 {selected ? ` de ${selected.qtd_pneus ?? 0}` : ""}
               </div>
             </div>
           </div>
 
-          <div className="rounded-md border bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-200/70 bg-gradient-to-b from-slate-50 to-white p-4">
             {selected && layoutType ? (
               <VehicleTireMap tipo={layoutType} selected={selectedPositions} onToggle={togglePosition} />
             ) : (
-              <div className="flex min-h-72 items-center justify-center text-center text-sm text-muted-foreground">
+              <div className="flex min-h-72 items-center justify-center text-center text-sm text-slate-500">
                 Selecione uma frota com quantidade de pneus mapeada para visualizar as posições.
               </div>
             )}
           </div>
         </section>
 
-        <aside className="space-y-5">
-          <section className="rounded-md border bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold">Resumo da troca</h2>
-            <p className="text-sm text-muted-foreground">Revise os dados antes de confirmar o registro.</p>
+        <aside className="space-y-5 xl:sticky xl:top-20 xl:self-start">
+          <section className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Resumo da troca</h2>
+              {selectedDetails.length > 0 && (
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-100 px-1.5 text-[11px] font-semibold tabular-nums text-blue-700">
+                  {selectedDetails.length}
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">Revise os dados antes de confirmar o registro.</p>
             <div className="mt-4 space-y-4">
               <Info label="Frota selecionada" value={selected?.codigo_frota ?? "-"} />
               <Info label="Layout" value={layoutType ? NOME_LAYOUT_PNEUS[layoutType] : "-"} />
@@ -198,37 +216,47 @@ export function PneusWorkspace({
                 tone={incluiEstepe ? "warning" : undefined}
               />
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   Posições selecionadas
                 </div>
                 {selectedDetails.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-2 flex flex-wrap gap-1.5">
                     {selectedDetails.map((item) => (
-                      <Badge key={item.position} variant="outline" title={item.description} className="bg-blue-50 text-blue-800">
+                      <span
+                        key={item.position}
+                        title={item.description}
+                        className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
                         {item.label}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">Nenhuma posição selecionada.</p>
+                  <p className="mt-1 text-sm text-slate-400">Nenhuma posição selecionada.</p>
                 )}
               </div>
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  <Flame className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <Flame className="h-3.5 w-3.5 text-amber-500" />
                   Número de fogo previsto
                 </div>
                 {selectedDetails.length > 0 ? (
                   <div className="mt-2 space-y-1">
                     {selectedDetails.map((item) => (
-                      <div key={item.position} className="flex items-center justify-between rounded-md border bg-slate-50 px-3 py-2 text-sm">
-                        <span>{item.label}</span>
-                        <strong className="tracking-wide text-blue-700">{item.numeroFogo}</strong>
+                      <div
+                        key={item.position}
+                        className="flex items-center justify-between rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-white px-3 py-2 text-sm"
+                      >
+                        <span className="font-medium text-slate-700">{item.label}</span>
+                        <strong className="font-mono tabular-nums tracking-wide text-blue-700">
+                          {item.numeroFogo}
+                        </strong>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">--</p>
+                  <p className="mt-1 text-sm text-slate-400">--</p>
                 )}
               </div>
             </div>
@@ -241,7 +269,7 @@ export function PneusWorkspace({
                 clearSelection();
               });
             }}
-            className="rounded-md border bg-white p-5 shadow-sm"
+            className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]"
           >
             <input type="hidden" name="id_veiculo" value={selected?.codigo_frota ?? ""} />
             <input type="hidden" name="posicoes" value={posicoesPayload} />
@@ -293,33 +321,16 @@ export function PneusWorkspace({
   );
 }
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: ElementType;
-  label: string;
-  value: string;
-  tone?: "warning";
-}) {
-  return (
-    <div className="rounded-md border bg-slate-50 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
-        <Icon className={tone === "warning" ? "h-4 w-4 text-amber-600" : "h-4 w-4 text-blue-700"} />
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
-    </div>
-  );
-}
-
 function Info({ label, value, tone }: { label: string; value: string; tone?: "warning" }) {
   return (
     <div>
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
-      <div className={tone === "warning" ? "mt-1 font-semibold text-amber-700" : "mt-1 font-semibold text-slate-900"}>
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</div>
+      <div
+        className={cn(
+          "mt-1 font-semibold",
+          tone === "warning" ? "text-amber-700" : "text-slate-900"
+        )}
+      >
         {value}
       </div>
     </div>

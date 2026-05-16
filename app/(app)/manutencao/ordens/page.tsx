@@ -1,5 +1,7 @@
+import { FileText } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { getCustosPorPeriodo, getCustosTotais } from "@/lib/repos/custos";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +14,13 @@ export default async function OrdensPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Manutenção</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Ordens de manutenção</h1>
-        <p className="text-sm text-muted-foreground">Últimos 12 períodos</p>
-      </div>
+      <PageHeader
+        eyebrow="Manutenção"
+        title="Ordens de manutenção"
+        description="Últimos 12 períodos."
+        icon={FileText}
+        severity="INFO"
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border bg-white p-5 shadow-sm">

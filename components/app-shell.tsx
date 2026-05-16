@@ -126,16 +126,16 @@ export function AppShell({
   const sections = buildSections(perfil);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-foreground lg:flex">
+    <div className="min-h-screen text-foreground lg:flex bg-[radial-gradient(ellipse_at_top_left,_rgba(59,130,246,0.06),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(15,23,42,0.05),_transparent_50%)] bg-slate-50">
       <AppSidebar sections={sections} perfil={perfil} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-4 border-b bg-white/98 px-4 shadow-sm backdrop-blur-sm lg:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-30 flex min-h-12 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/85 px-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-md lg:min-h-14 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2 lg:gap-3">
             {/* Hamburger só no mobile */}
             <MobileNav sections={sections} perfil={perfil} />
             <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-600 lg:text-[11px]">
                 Frotas Bemol
               </p>
               <div className="hidden md:block">
@@ -143,9 +143,18 @@ export function AppShell({
               </div>
             </div>
           </div>
-          <UserMenu email={email} name={name} />
+          <div className="flex items-center gap-2 lg:gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 lg:inline-flex">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              Sistema online
+            </span>
+            <UserMenu email={email} name={name} />
+          </div>
         </header>
-        <main className="flex-1 overflow-auto p-4 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-3 lg:p-8">{children}</main>
       </div>
     </div>
   );

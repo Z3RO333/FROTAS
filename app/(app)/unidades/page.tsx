@@ -2,6 +2,7 @@ import { Building2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { countUnidades, listUnidades } from "@/lib/repos/unidades";
 import { requireAdminUser } from "@/lib/rbac";
 
@@ -21,20 +22,20 @@ export default async function UnidadesPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Base importada</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Unidades operacionais</h1>
-          <p className="text-sm text-muted-foreground">
-            Dados da planilha de lojas, centros, CNPJ, inscrições e endereços.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <SummaryCard label="Unidades" value={String(total)} />
-          <SummaryCard label="Negócios" value={String(negocios.size)} />
-          <SummaryCard label="UFs" value={String(ufs.size)} />
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Base importada"
+        title="Unidades operacionais"
+        description="Dados da planilha de lojas, centros, CNPJ, inscrições e endereços."
+        icon={Building2}
+        severity="INFO"
+        actions={
+          <div className="grid gap-3 sm:grid-cols-3">
+            <SummaryCard label="Unidades" value={String(total)} />
+            <SummaryCard label="Negócios" value={String(negocios.size)} />
+            <SummaryCard label="UFs" value={String(ufs.size)} />
+          </div>
+        }
+      />
 
       <Card>
         <CardContent className="p-4">

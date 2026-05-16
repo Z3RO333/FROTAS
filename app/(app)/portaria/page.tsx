@@ -1,6 +1,9 @@
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogIn } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listPortariaToday } from "@/lib/repos/checklists";
 import { PortariaClient } from "./portaria-client";
+import { PageHeader } from "@/components/ui/page-header";
+import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -26,29 +29,46 @@ export default async function PortariaPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Portaria</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Liberação de frotas</h1>
-        <p className="text-sm text-muted-foreground">
-          Hoje: {formatDate(new Date())} · {rows.length} frota(s) ativa(s)
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Portaria"
+        title="Liberação de frotas"
+        description={`Hoje: ${formatDate(new Date())} · ${rows.length} frota(s) ativa(s).`}
+        icon={DoorOpen}
+        severity="INFO"
+      />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {[
-          { label: "Checklists hoje", value: kpis.checklistsHoje, color: "text-blue-600" },
-          { label: "Liberadas", value: kpis.liberadas, color: "text-emerald-600" },
-          { label: "Saídas", value: kpis.saidasRegistradas, color: "text-blue-500" },
-          { label: "Bloqueadas", value: kpis.bloqueadas, color: "text-red-600" },
-          { label: "Pendentes", value: kpis.pendentes, color: "text-slate-500" },
-        ].map((k) => (
-          <div key={k.label} className="rounded-xl border bg-white p-4 text-center shadow-sm">
-            <p className={`text-2xl font-bold tabular-nums ${k.color}`}>{k.value}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{k.label}</p>
-          </div>
-        ))}
-      </div>
+      <MetricGrid cols={5}>
+        <MetricCard
+          label="Checklists hoje"
+          value={kpis.checklistsHoje}
+          icon={ClipboardCheck}
+          severity="INFO"
+        />
+        <MetricCard
+          label="Liberadas"
+          value={kpis.liberadas}
+          icon={CheckCircle2}
+          severity="OK"
+        />
+        <MetricCard
+          label="Saídas"
+          value={kpis.saidasRegistradas}
+          icon={LogIn}
+          severity="INFO"
+        />
+        <MetricCard
+          label="Bloqueadas"
+          value={kpis.bloqueadas}
+          icon={AlertTriangle}
+          severity="CRITICO"
+        />
+        <MetricCard
+          label="Pendentes"
+          value={kpis.pendentes}
+          icon={Clock}
+          severity="ATENCAO"
+        />
+      </MetricGrid>
 
       <PortariaClient rows={rows} erro={sp.erro} />
     </div>

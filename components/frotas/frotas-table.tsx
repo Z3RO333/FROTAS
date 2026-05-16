@@ -210,6 +210,13 @@ function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
   );
 }
 
+const STATUS_LEFT_BORDER: Record<StatusOperacional, string> = {
+  disponivel: "border-l-emerald-500",
+  manutencao: "border-l-amber-500",
+  indisponivel: "border-l-red-500",
+  baixado: "border-l-slate-400",
+};
+
 function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
   const status = statusOperacional(frota);
   const condicao = condicaoFrota(frota);
@@ -219,24 +226,34 @@ function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }
     <button
       type="button"
       onClick={onOpen}
-      className="rounded-lg border bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+      className={`group relative w-full overflow-hidden rounded-xl border border-l-4 border-slate-200/70 bg-white p-4 text-left transition-all duration-150 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] hover:-translate-y-[1px] hover:border-blue-300 hover:shadow-[0_2px_0_rgba(15,23,42,0.04),0_16px_32px_-12px_rgba(15,23,42,0.22)] ${STATUS_LEFT_BORDER[status]}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate font-semibold">{frotaTitle(frota)}</div>
-          <div className="mt-1 truncate text-sm text-muted-foreground">
-            {frota.placa ?? "Sem placa"} · {frota.modelo ?? "Sem modelo"}
+          <div className="truncate text-base font-semibold tracking-tight text-slate-950">
+            {frotaTitle(frota)}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-slate-500">
+            {frota.placa && (
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">
+                {frota.placa}
+              </span>
+            )}
+            <span className="truncate">{frota.modelo ?? "Sem modelo"}</span>
           </div>
         </div>
-        <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
-          {CONDICAO_LABELS[condicao]}
-        </Badge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+          <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
+            {CONDICAO_LABELS[condicao]}
+          </Badge>
+        </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
         <MiniMetric icon={<MapPin className="h-4 w-4" />} label="Local" value={frota.localizacao ?? "-"} />
         <MiniMetric icon={<Gauge className="h-4 w-4" />} label="KM" value={formatNumber(frota.km_atual)} />
         <MiniMetric icon={<CalendarClock className="h-4 w-4" />} label="Idade" value={idade != null ? `${idade} ano(s)` : "-"} />
-        <MiniMetric icon={<FileText className="h-4 w-4" />} label="Status" value={STATUS_OPERACIONAL_LABELS[status]} />
+        <MiniMetric icon={<FileText className="h-4 w-4" />} label="Atualização" value={formatDate(frota.atualizado_em) ?? "-"} />
       </div>
     </button>
   );

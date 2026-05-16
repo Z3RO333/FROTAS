@@ -1,10 +1,10 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
+import { validatePdfFile } from "@/lib/upload-validation";
 import type { DocumentRecord, DocumentRecordWithSignedUrls } from "./types";
 
 const T = "documents";
 const DOCUMENTS_BUCKET = "documents";
 const SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 15;
-const MAX_PDF_BYTES = 25 * 1024 * 1024;
 
 export type DocumentUpsertInput = Pick<DocumentRecord, "frota" | "placa" | "modelo"> & {
   dut_url?: string | null;
@@ -72,7 +72,7 @@ export async function getDocumentById(id: string): Promise<DocumentRecord | null
 }
 
 export async function uploadDocumentFile(file: File, placa: string, kind: "dut" | "crlv"): Promise<string> {
-  validatePdfFile(file, kind);
+  await validatePdfFile(file, kind.toUpperCase());
 
   const plateSegment = toStorageSegment(placa);
   if (!plateSegment) throw new Error("Placa invalida para gerar caminho de armazenamento.");
@@ -174,13 +174,6 @@ export function normalizeDocumentStoragePath(pathOrUrl: string | null | undefine
   } catch {
     return null;
   }
-}
-
-function validatePdfFile(file: File, label: string): void {
-  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-  if (!isPdf) throw new Error(`${label.toUpperCase()} precisa ser um arquivo PDF.`);
-  if (file.size <= 0) throw new Error(`${label.toUpperCase()} esta vazio.`);
-  if (file.size > MAX_PDF_BYTES) throw new Error(`${label.toUpperCase()} excede 25 MB.`);
 }
 
 function toStorageSegment(value: string): string {
