@@ -379,6 +379,33 @@ export async function getFrota(id: number): Promise<Frota | null> {
   return data ? fromVeiculo(data as VeiculoRow) : null;
 }
 
+export type KpisFiltro = {
+  total: number;
+  disponiveis: number;
+  manutencao: number;
+  indisponiveis: number;
+};
+
+export async function getKpisPorFiltro(localizacao: string): Promise<KpisFiltro> {
+  const [total, disponiveis, manutencao, indisponiveis] = await Promise.all([
+    supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
+      .eq("ativo", true).eq("vendido", false).eq("local", localizacao),
+    supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
+      .eq("ativo", true).eq("vendido", false).eq("local", localizacao)
+      .not("status", "in", '("manutencao","critico")'),
+    supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
+      .eq("ativo", true).eq("vendido", false).eq("local", localizacao).eq("status", "manutencao"),
+    supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
+      .eq("ativo", true).eq("vendido", false).eq("local", localizacao).eq("status", "critico"),
+  ]);
+  return {
+    total: total.count ?? 0,
+    disponiveis: disponiveis.count ?? 0,
+    manutencao: manutencao.count ?? 0,
+    indisponiveis: indisponiveis.count ?? 0,
+  };
+}
+
 export async function kpis(): Promise<Kpis> {
   // Uma única query SQL agrega tudo no banco — sem transferir rows para JS
   // Antes: allFrotas() carregava ~300 rows; agora retorna 1 JSON

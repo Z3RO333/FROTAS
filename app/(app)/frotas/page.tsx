@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
-import { listFrotas } from "@/lib/repos/frotas";
+import { listFrotas, getKpisPorFiltro } from "@/lib/repos/frotas";
 import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import type { StatusFrota } from "@/lib/rules";
 import { enviarRelatorioGeralAction } from "./_actions";
@@ -57,10 +57,12 @@ export default async function FrotasPage({
     pageSize: 50,
   };
 
-  const [{ rows, total }, modelos, localizacoes] = await Promise.all([
+  const [{ rows, total }, modelos, localizacoes, kpisFiltro] = await Promise.all([
     listFrotas(filters),
     modelosDistintosCached(),
     localizacoesDistintasCached(),
+    // KPIs filtrados — só carrega se houver filtro de localização
+    sp.localizacao ? getKpisPorFiltro(sp.localizacao) : Promise.resolve(null),
   ]);
   const totalPages = Math.ceil(total / 50);
 
@@ -87,6 +89,21 @@ export default async function FrotasPage({
         </div>
       </div>
       <FrotasFilters modelos={modelos} localizacoes={localizacoes} />
+      {kpisFiltro && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Total", value: kpisFiltro.total, color: "text-slate-700" },
+            { label: "Disponíveis", value: kpisFiltro.disponiveis, color: "text-emerald-600" },
+            { label: "Manutenção", value: kpisFiltro.manutencao, color: "text-violet-600" },
+            { label: "Indisponíveis", value: kpisFiltro.indisponiveis, color: "text-red-600" },
+          ].map((k) => (
+            <div key={k.label} className="rounded-xl border bg-white p-4 text-center shadow-sm">
+              <p className={`text-2xl font-bold tabular-nums ${k.color}`}>{k.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{k.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
       <FrotasTable rows={rows} />
       {totalPages > 1 && (
         <div className="flex flex-wrap justify-center gap-2">
