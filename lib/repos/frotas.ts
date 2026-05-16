@@ -309,6 +309,10 @@ function analyticsCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Pr
 const COLS_MINIMAL =
   "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
 
+// Colunas para listagem (inclui campos exibidos na tabela, exclui combustivel/arla/km_meta)
+const COLS_LIST =
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,status_operacional,vendido,ativo,updated_at,atualizado_por,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_bloqueia_checklist,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_iniciado_por";
+
 // Mantida para compatibilidade com kpis() e funções de analytics internas
 async function allFrotas(): Promise<Frota[]> {
   const { data, error } = await supabaseManutencao
@@ -325,8 +329,8 @@ async function allFrotas(): Promise<Frota[]> {
 export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
   const { page, pageSize } = pagination(f);
 
-  // Monta query com filtros SQL para as condições simples
-  let q = supabaseManutencao.from("veiculos").select("*");
+  // Monta query com filtros SQL — COLS_LIST exclui combustivel/arla/observacoes (~10 colunas pesadas)
+  let q = supabaseManutencao.from("veiculos").select(COLS_LIST);
 
   if (f.vendidos || f.operacional === "baixado") {
     q = q.eq("vendido", true);
