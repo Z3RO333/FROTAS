@@ -258,7 +258,7 @@ export function PneusWorkspace({
                   inputMode="numeric"
                   value={km}
                   onChange={(event) => setKm(event.target.value)}
-                  placeholder="58240"
+                  
                 />
               </div>
               <div className="space-y-2">

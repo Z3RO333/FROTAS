@@ -553,7 +553,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 type="number"
                 min={0}
                 inputMode="numeric"
-                placeholder="58240"
+                
                 value={kmValue}
                 onChange={(e) => setKmValue(e.target.value)}
               />
