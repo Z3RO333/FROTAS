@@ -380,50 +380,43 @@ export async function getFrota(id: number): Promise<Frota | null> {
 }
 
 export async function kpis(): Promise<Kpis> {
-  const [frotas, prevResult] = await Promise.all([
-    allFrotas().then((all) => all.filter((f) => f.ativo && !f.vendido)),
+  // Uma única query SQL agrega tudo no banco — sem transferir rows para JS
+  // Antes: allFrotas() carregava ~300 rows; agora retorna 1 JSON
+  const [kpiResult, prevResult] = await Promise.all([
+    supabaseManutencao.rpc("get_frotas_kpis"),
     supabaseManutencao
       .from("fact_manutencao_programada")
       .select("tipo_servico, status")
       .in("status", ["VENCIDO", "PROXIMO_VENCIMENTO"]),
   ]);
 
-  const ages = frotas.map(idade).filter((v): v is number => v != null);
-  const kms = frotas.map((f) => f.km_atual).filter((v): v is number => v != null);
-  const agora = Date.now();
-  const LONGA_MS = 7 * 86400000;
-  const emManutencao = frotas.filter((f) => f.status === "manutencao");
+  const raw = (kpiResult.data ?? {}) as Record<string, number | null>;
   const prev = prevResult.data ?? [];
 
+  const total_ativos = Number(raw.total_ativos ?? 0);
+  const total_disponiveis = Number(raw.total_disponiveis ?? 0);
+
   return {
-    total_ativos: frotas.length,
-    total_disponiveis: frotas.filter((f) => operacional(f) === "disponivel").length,
-    total_indisponiveis: frotas.filter((f) => ["manutencao", "indisponivel"].includes(operacional(f))).length,
-    total_atencao: frotas.filter((f) => condition(f) === "atencao").length,
-    total_critico: frotas.filter((f) => condition(f) === "critico").length,
-    total_manutencao: emManutencao.length,
-    total_manutencao_atrasada: emManutencao.filter((f) => {
-      if (!f.manutencao_prev_retorno) return false;
-      const d = new Date(f.manutencao_prev_retorno).getTime();
-      return Number.isFinite(d) && d < agora;
-    }).length,
-    total_manutencao_longa: emManutencao.filter((f) => {
-      if (!f.manutencao_iniciado_em) return false;
-      const d = new Date(f.manutencao_iniciado_em).getTime();
-      return Number.isFinite(d) && agora - d >= LONGA_MS;
-    }).length,
-    total_sem_km: frotas.filter((f) => f.km_atual == null).length,
-    total_acima_7: frotas.filter((f) => (idade(f) ?? 0) >= 7).length,
-    total_cadastro_incompleto: frotas.filter(cadastroIncompleto).length,
-    idade_media: ages.length ? ages.reduce((s, v) => s + v, 0) / ages.length : null,
-    km_medio: kms.length ? kms.reduce((s, v) => s + v, 0) / kms.length : null,
+    total_ativos,
+    total_disponiveis,
+    total_indisponiveis: Number(raw.total_indisponiveis ?? 0),
+    total_atencao: Number(raw.total_atencao ?? 0),
+    total_critico: Number(raw.total_critico ?? 0),
+    total_manutencao: Number(raw.total_manutencao ?? 0),
+    total_manutencao_atrasada: Number(raw.total_manutencao_atrasada ?? 0),
+    total_manutencao_longa: Number(raw.total_manutencao_longa ?? 0),
+    total_sem_km: Number(raw.total_sem_km ?? 0),
+    total_acima_7: Number(raw.total_acima_7 ?? 0),
+    total_cadastro_incompleto: Number(raw.total_cadastro_incompleto ?? 0),
+    idade_media: raw.idade_media != null ? Number(raw.idade_media) : null,
+    km_medio: raw.km_medio != null ? Number(raw.km_medio) : null,
     preventiva_atrasada: prev.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length,
     alinhamento_atrasado: prev.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length,
     arcondicionado_atrasado: prev.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length,
     tacografo_atrasado: prev.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length,
     lavagem_atrasada: prev.filter((p) => p.tipo_servico === "LAVAGEM" && p.status === "VENCIDO").length,
-    disponibilidade_pct: frotas.length > 0
-      ? Math.round((frotas.filter((f) => operacional(f) === "disponivel").length / frotas.length) * 100)
+    disponibilidade_pct: total_ativos > 0
+      ? Math.round((total_disponiveis / total_ativos) * 100)
       : 0,
   };
 }
