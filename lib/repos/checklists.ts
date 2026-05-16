@@ -197,23 +197,36 @@ async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T)
   }
 }
 
+// Calcula offset UTC em horas a partir do Intl.DateTimeFormat (ex: "GMT-4" → 4)
+function getUtcOffsetHours(tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    timeZoneName: "shortOffset",
+  }).formatToParts(new Date());
+  const tzName = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
+  const m = tzName.match(/GMT([+-])(\d+)(?::(\d+))?/);
+  if (!m) return 0;
+  const sign = m[1] === "+" ? 1 : -1;
+  return -sign * (parseInt(m[2]) + (parseInt(m[3] ?? "0") / 60));
+}
+
 // dateStr: "YYYY-MM-DD" no timezone local. Se omitido, usa hoje.
 function dateRange(dateStr?: string) {
   const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
-  const offsetHours = /Manaus/i.test(tz) ? 4 : 3;
 
   let year: number, month: number, day: number;
 
   if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     [year, month, day] = dateStr.split("-").map(Number);
   } else {
-    const now = new Date();
     const fmt = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
     });
-    [year, month, day] = fmt.format(now).split("-").map(Number);
+    [year, month, day] = fmt.format(new Date()).split("-").map(Number);
   }
 
+  // Offset dinâmico — funciona para qualquer timezone, incluindo com DST
+  const offsetHours = getUtcOffsetHours(tz);
   const start = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0));
   const end = new Date(start.getTime() + 86_400_000);
   return { start: start.toISOString(), end: end.toISOString() };

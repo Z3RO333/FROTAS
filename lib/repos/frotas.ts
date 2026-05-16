@@ -294,25 +294,79 @@ function matchesFilters(frota: Frota, f: FrotaFilters): boolean {
   return frota.ativo;
 }
 
+// Cache de analytics (30s) para evitar re-fetch em múltiplas calls por página
+const _analyticsCache = new Map<string, { val: unknown; exp: number }>();
+function analyticsCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = _analyticsCache.get(key);
+  if (hit && Date.now() < hit.exp) return Promise.resolve(hit.val as T);
+  return fn().then((val) => {
+    _analyticsCache.set(key, { val, exp: Date.now() + ttlMs });
+    return val;
+  });
+}
+
+// Colunas mínimas para cálculos derivados (condition/operacional/cadastroIncompleto)
+const COLS_MINIMAL =
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
+
+// Mantida para compatibilidade com kpis() e funções de analytics internas
 async function allFrotas(): Promise<Frota[]> {
   const { data, error } = await supabaseManutencao
     .from("veiculos")
-    .select("*")
+    .select(COLS_MINIMAL) // antes era SELECT * com 30+ colunas desnecessárias
+    .eq("ativo", true)
+    .eq("vendido", false)
     .order("id", { ascending: true })
-    .limit(20000);
-  if (error) throw new Error(`listFrotas: ${error.message}`);
+    .limit(5000);
+  if (error) throw new Error(`allFrotas: ${error.message}`);
   return ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
 }
 
 export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
   const { page, pageSize } = pagination(f);
-  const filtered = (await allFrotas()).filter((frota) => matchesFilters(frota, f));
+
+  // Monta query com filtros SQL para as condições simples
+  let q = supabaseManutencao.from("veiculos").select("*");
+
+  if (f.vendidos || f.operacional === "baixado") {
+    q = q.eq("vendido", true);
+  } else {
+    q = q.eq("vendido", false).eq("ativo", true);
+  }
+
+  if (f.modelo) q = q.eq("modelo", f.modelo);
+  if (f.localizacao) q = q.eq("local", f.localizacao);
+  if (f.ano) q = q.eq("ano_fabricacao", f.ano);
+  if (f.status) q = q.eq("status", f.status);
+  if (f.semKm) q = q.is("km_atual", null);
+  if (f.search) {
+    const s = f.search.replace(/[%_]/g, "\\$&"); // escapa wildcards SQL
+    q = q.or(
+      `codigo_frota.ilike.%${s}%,placa.ilike.%${s}%,modelo.ilike.%${s}%,chassi.ilike.%${s}%,local.ilike.%${s}%`
+    );
+  }
+
+  const { data, error } = await q.order("id", { ascending: true }).limit(5000);
+  if (error) throw new Error(`listFrotas: ${error.message}`);
+
+  const allRows = ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
+
+  // Filtros derivados que precisam de JS (condição, idade, cadastro)
+  const filtered = allRows.filter((frota) => {
+    if (f.operacional && f.operacional !== "baixado" && operacional(frota) !== f.operacional) return false;
+    if (f.condicao && condition(frota) !== f.condicao) return false;
+    if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;
+    if (f.idadeMin && (idade(frota) ?? -1) < f.idadeMin) return false;
+    return true;
+  });
+
   const offset = (page - 1) * pageSize;
   return { rows: filtered.slice(offset, offset + pageSize), total: filtered.length };
 }
 
 export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]> {
-  return (await allFrotas()).filter((frota) => matchesFilters(frota, f));
+  const { rows } = await listFrotas({ ...f, pageSize: 5000, page: 1 });
+  return rows;
 }
 
 export async function getFrota(id: number): Promise<Frota | null> {
@@ -371,40 +425,62 @@ export async function kpis(): Promise<Kpis> {
 }
 
 export async function modelosDistintos(): Promise<string[]> {
-  return Array.from(new Set((await allFrotas()).map((frota) => frota.modelo).filter(Boolean) as string[])).sort();
+  // SQL DISTINCT em vez de carregar todas as frotas em memória
+  const { data } = await supabaseManutencao
+    .from("veiculos")
+    .select("modelo")
+    .eq("ativo", true)
+    .eq("vendido", false)
+    .not("modelo", "is", null)
+    .order("modelo");
+  return [...new Set((data ?? []).map((r: { modelo: string | null }) => r.modelo).filter(Boolean) as string[])];
 }
 
 export async function localizacoesDistintas(): Promise<string[]> {
-  return Array.from(new Set((await allFrotas()).map((frota) => frota.localizacao).filter(Boolean) as string[])).sort();
+  const { data } = await supabaseManutencao
+    .from("veiculos")
+    .select("local")
+    .eq("ativo", true)
+    .eq("vendido", false)
+    .not("local", "is", null)
+    .order("local");
+  return [...new Set((data ?? []).map((r: { local: string | null }) => r.local).filter(Boolean) as string[])];
 }
 
 export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {
-  const counts = new Map<string, number>();
-  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
-    const key = operacional(frota);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
+  // Cache 30s — chamada múltiplas vezes por página, dados não precisam ser real-time
+  return analyticsCache("statusBreakdown", 30_000, async () => {
+    const counts = new Map<string, number>();
+    for (const frota of await allFrotas()) {
+      const key = operacional(frota);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
+  });
 }
 
 export async function frotasByYear(): Promise<{ ano: number | null; total: number }[]> {
-  const counts = new Map<string, { ano: number | null; total: number }>();
-  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
-    const key = String(frota.ano_fabricacao ?? "sem_ano");
-    const current = counts.get(key) ?? { ano: frota.ano_fabricacao, total: 0 };
-    current.total += 1;
-    counts.set(key, current);
-  }
-  return Array.from(counts.values()).sort((a, b) => (a.ano ?? 9999) - (b.ano ?? 9999));
+  return analyticsCache("frotasByYear", 30_000, async () => {
+    const counts = new Map<string, { ano: number | null; total: number }>();
+    for (const frota of await allFrotas()) {
+      const key = String(frota.ano_fabricacao ?? "sem_ano");
+      const current = counts.get(key) ?? { ano: frota.ano_fabricacao, total: 0 };
+      current.total += 1;
+      counts.set(key, current);
+    }
+    return Array.from(counts.values()).sort((a, b) => (a.ano ?? 9999) - (b.ano ?? 9999));
+  });
 }
 
 export async function conditionBreakdown(): Promise<{ status: string; total: number }[]> {
-  const counts = new Map<string, number>();
-  for (const frota of (await allFrotas()).filter((item) => item.ativo && !item.vendido)) {
-    const key = condition(frota);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
+  return analyticsCache("conditionBreakdown", 30_000, async () => {
+    const counts = new Map<string, number>();
+    for (const frota of await allFrotas()) {
+      const key = condition(frota);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([status, total]) => ({ status, total }));
+  });
 }
 
 export async function createFrota(input: FrotaInput, userEmail: string): Promise<number> {
