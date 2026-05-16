@@ -3,10 +3,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
-  ClipboardX,
-  FileText,
   Gauge,
-
   Timer,
   TrendingUp,
   Truck,
@@ -16,7 +13,7 @@ import {
 import { FrotasPorAnoChart } from "@/components/dashboard/frotas-por-ano-chart";
 import { StatusDonut } from "@/components/dashboard/status-donut";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
@@ -41,31 +38,63 @@ export default async function DashboardPage() {
   const atingiuMeta =
     plan?.disp_hoje != null && plan.disp_meta != null && plan.disp_hoje >= plan.disp_meta;
 
+  const criticosTotal = k.total_indisponiveis + (k.total_manutencao_atrasada ?? 0);
+
   return (
     <div className="space-y-8">
-      <PageHeader
+      <PageHero
         eyebrow="Cockpit de Frotas"
         title="Operação Bemol"
         description="Visão executiva em tempo real — disponibilidade, manutenção, documentos e indicadores críticos."
+        icon={Gauge}
         actions={
           <EnviarRelatorioDialog
             title="Enviar relatório geral"
             action={enviarRelatorioGeralAction}
           />
         }
-      />
+      >
+        <HeroStat
+          label="Disponibilidade"
+          value={dispPct}
+          hint={`Meta ${metaPct}`}
+          icon={TrendingUp}
+          severity={atingiuMeta ? "OK" : "ATENCAO"}
+        />
+        <HeroStat
+          label="Frotas ativas"
+          value={formatNumber(k.total_ativos)}
+          hint={`${formatNumber(k.total_disponiveis)} disponíveis`}
+          icon={Truck}
+          severity="INFO"
+        />
+        <HeroStat
+          label="Em atenção crítica"
+          value={formatNumber(criticosTotal)}
+          hint={
+            k.total_manutencao_atrasada > 0
+              ? `${k.total_manutencao_atrasada} manutenções atrasadas`
+              : "Indisponíveis + atrasos"
+          }
+          icon={AlertTriangle}
+          severity="CRITICO"
+        />
+        <HeroStat
+          label="Meta operacional"
+          value={metaPct}
+          hint={atingiuMeta ? "Meta atingida hoje" : "Abaixo da meta"}
+          icon={atingiuMeta ? CheckCircle2 : Timer}
+          severity={atingiuMeta ? "OK" : "ATENCAO"}
+        />
+      </PageHero>
 
       {/* Frota — visão consolidada */}
       <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Frota</h2>
-        <MetricGrid cols={5}>
-          <MetricCard
-            label="Total ativas"
-            value={formatNumber(k.total_ativos)}
-            icon={Truck}
-            severity="INFO"
-            href="/frotas"
-          />
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <span className="h-1 w-6 rounded-full bg-blue-500" />
+          Frota
+        </h2>
+        <MetricGrid cols={4}>
           <MetricCard
             label="Disponíveis"
             value={formatNumber(k.total_disponiveis)}
@@ -107,10 +136,11 @@ export default async function DashboardPage() {
       {/* Disponibilidade + Indicadores críticos */}
       {plan && (
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <span className="h-1 w-6 rounded-full bg-emerald-500" />
             Indicadores operacionais
           </h2>
-          <MetricGrid cols={5}>
+          <MetricGrid cols={3}>
             <MetricCard
               label="Disponibilidade"
               value={dispPct}
@@ -120,20 +150,12 @@ export default async function DashboardPage() {
               href="/planejamento/disponibilidade"
             />
             <MetricCard
-              label="Docs vencidos"
-              value={plan.docs_vencidos}
-              icon={FileText}
-              severity="CRITICO"
-              href="/planejamento/documentos"
-            />
-            <MetricCard
               label="Manutenções atrasadas"
               value={plan.manut_atrasadas}
               icon={Wrench}
               severity="ATENCAO"
               href="/planejamento/manutencao"
             />
-
             <MetricCard
               label="Lavagem atrasada"
               value={plan.lavagem_atrasada}
@@ -147,24 +169,11 @@ export default async function DashboardPage() {
 
       {/* Cadastro e Operação */}
       <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <span className="h-1 w-6 rounded-full bg-amber-500" />
           Cadastro e dados
         </h2>
-        <MetricGrid cols={4}>
-          <MetricCard
-            label="Sem KM informado"
-            value={formatNumber(k.total_sem_km)}
-            icon={Gauge}
-            severity="ATENCAO"
-            href="/frotas?semKm=1"
-          />
-          <MetricCard
-            label="Cadastro incompleto"
-            value={formatNumber(k.total_cadastro_incompleto)}
-            icon={ClipboardX}
-            severity="ATENCAO"
-            href="/frotas?cadastro=incompleto"
-          />
+        <MetricGrid cols={2}>
           <MetricCard
             label="Idade média"
             value={k.idade_media != null ? `${k.idade_media.toFixed(1)}a` : "—"}

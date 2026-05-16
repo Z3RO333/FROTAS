@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
-import { validateImageFile } from "@/lib/upload-validation";
+import { imageExtensionFromMime, validateImageFile } from "@/lib/upload-validation";
 
 export const CHECKLIST_IMAGES_BUCKET = "checklist-images";
 
@@ -45,9 +45,9 @@ export async function uploadChecklistImage(
     itemCodigo?: string | null;
   }
 ): Promise<string> {
-  validateImageFile(file, labelFromSource(args.sourceType));
+  await validateImageFile(file, labelFromSource(args.sourceType));
 
-  const extension = extensionFromFile(file);
+  const extension = imageExtensionFromMime(file.type);
   const dateSegment = new Date().toISOString().slice(0, 10);
   const itemSegment = args.itemCodigo ? `-${sanitizeSegment(args.itemCodigo)}` : "";
   const path = [
@@ -192,16 +192,6 @@ function labelFromSource(sourceType: ChecklistImageSourceType): string {
     default:
       return "Foto do item";
   }
-}
-
-function extensionFromFile(file: File): string {
-  const fromName = file.name.split(".").pop()?.toLowerCase();
-  if (fromName && /^[a-z0-9]+$/.test(fromName) && fromName.length <= 5) return fromName;
-  if (file.type === "image/png") return "png";
-  if (file.type === "image/webp") return "webp";
-  if (file.type === "image/heic") return "heic";
-  if (file.type === "image/heif") return "heif";
-  return "jpg";
 }
 
 function sanitizeSegment(value: string): string {

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { History } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { getFrotasDoMotorista, getChecklistStatsMotorista } from "@/lib/repos/motoristas";
+import { PageHeader } from "@/components/ui/page-header";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +16,13 @@ export default async function MotoristaHistoricoPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">Motorista</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Meu histórico</h1>
-      </div>
+      <PageHeader
+        eyebrow="Motorista"
+        title="Meu histórico"
+        description="Resumo das suas movimentações e checklists."
+        icon={History}
+        severity="INFO"
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

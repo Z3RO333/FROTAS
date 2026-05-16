@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import type { ComponentType } from "react";
 import {
-  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, Search, ChevronRight,
+  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, ChevronRight,
+  ClipboardCheck, Layers,
 } from "lucide-react";
+import type { LucideProps } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { FilterBar, FilterSearch, FilterChip } from "@/components/ui/filter-bar";
 import { cn, formatNumber } from "@/lib/utils";
+import type { SeverityKey } from "@/lib/design/tokens";
 import { VeiculoSheet } from "./veiculo-sheet";
 import type { PortariaRow, StatusPortaria } from "@/lib/repos/checklists";
 import type { ChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
@@ -31,12 +35,17 @@ const STATUS_LABELS: Record<StatusPortaria, string> = {
   ENTRADA_REGISTRADA: "Entrada registrada",
 };
 
-const FILTER_TABS: { label: string; value: StatusPortaria | "TODAS" }[] = [
-  { label: "Todas", value: "TODAS" },
-  { label: "Aguardando", value: "LIBERADA_SAIDA" },
-  { label: "Pendentes", value: "PENDENTE_CHECKLIST" },
-  { label: "Bloqueadas", value: "BLOQUEADA_CHECKLIST" },
-  { label: "Saídas", value: "SAIDA_REGISTRADA" },
+const FILTER_TABS: {
+  label: string;
+  value: StatusPortaria | "TODAS";
+  icon: ComponentType<LucideProps>;
+  severity?: SeverityKey;
+}[] = [
+  { label: "Todas", value: "TODAS", icon: Layers },
+  { label: "Aguardando", value: "LIBERADA_SAIDA", icon: LogOut, severity: "OK" },
+  { label: "Pendentes", value: "PENDENTE_CHECKLIST", icon: Clock, severity: "ATENCAO" },
+  { label: "Bloqueadas", value: "BLOQUEADA_CHECKLIST", icon: AlertTriangle, severity: "CRITICO" },
+  { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
 type Props = { rows: PortariaRow[]; erro?: string | null };
@@ -89,41 +98,32 @@ export function PortariaClient({ rows, erro }: Props) {
         </div>
       )}
 
-      {/* Pesquisa */}
-      <div className="relative">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar frota, placa ou motorista..."
-          className="pl-9"
+      <FilterBar sticky>
+        <FilterSearch
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
+          onChange={setQuery}
+          placeholder="Buscar frota, placa ou motorista…"
         />
-      </div>
-
-      {/* Tabs de filtro compactas */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {FILTER_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setFiltroStatus(tab.value)}
-            className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-              filtroStatus === tab.value
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            )}
-          >
-            {tab.label}
-            {tab.value !== "TODAS" && (
-              <span className="ml-1 opacity-70">
-                ({rows.filter((r) => r.status_portaria === tab.value).length})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {FILTER_TABS.map((tab) => {
+            const count =
+              tab.value === "TODAS"
+                ? rows.length
+                : rows.filter((r) => r.status_portaria === tab.value).length;
+            return (
+              <FilterChip
+                key={tab.value}
+                label={tab.label}
+                icon={tab.icon}
+                count={count}
+                active={filtroStatus === tab.value}
+                severity={filtroStatus === tab.value ? tab.severity : undefined}
+                onClick={() => setFiltroStatus(tab.value)}
+              />
+            );
+          })}
+        </div>
+      </FilterBar>
 
       {/* Lista de veículos */}
       <div className="space-y-2">
@@ -139,7 +139,16 @@ export function PortariaClient({ rows, erro }: Props) {
             key={row.frota_id}
             type="button"
             onClick={() => handleRowClick(row)}
-            className="group w-full rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+            className={cn(
+              "group relative w-full overflow-hidden rounded-xl border border-slate-200/70 bg-white p-4 text-left transition-all duration-150",
+              "shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]",
+              "hover:-translate-y-[1px] hover:border-blue-300 hover:shadow-[0_2px_0_rgba(15,23,42,0.04),0_16px_32px_-12px_rgba(15,23,42,0.22)]",
+              row.status_portaria === "BLOQUEADA_CHECKLIST" && "border-l-4 border-l-red-500",
+              row.status_portaria === "BLOQUEADA_MANUTENCAO" && "border-l-4 border-l-violet-500",
+              row.status_portaria === "LIBERADA_SAIDA" && "border-l-4 border-l-emerald-500",
+              row.status_portaria === "SAIDA_REGISTRADA" && "border-l-4 border-l-blue-500",
+              row.status_portaria === "PENDENTE_CHECKLIST" && "border-l-4 border-l-amber-500"
+            )}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

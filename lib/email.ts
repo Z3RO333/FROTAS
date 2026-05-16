@@ -129,6 +129,45 @@ export async function sendRelatorioGeral(args: {
   }
 }
 
+export async function sendRelatorioDiarioIa(args: {
+  destinatarios: string[];
+  html: string;
+  assunto: string;
+  enviadoPor?: string;
+}): Promise<SendResult> {
+  const destinatarios = args.destinatarios.join(",");
+  const enviadoPor = args.enviadoPor ?? "sistema";
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: args.destinatarios,
+      subject: args.assunto,
+      html: args.html,
+    });
+    await safeLogEmail({
+      tipo: "diario_ia",
+      destinatarios,
+      assunto: args.assunto,
+      enviadoPor,
+      status: "enviado",
+    });
+    return { ok: true };
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("Erro no envio do relatório diário IA", msg);
+    await safeLogEmail({
+      tipo: "diario_ia",
+      destinatarios,
+      assunto: args.assunto,
+      enviadoPor,
+      status: "erro",
+      erroMsg: msg,
+    });
+    return { ok: false, error: publicEmailErrorMessage(msg) };
+  }
+}
+
 export async function sendRelatorioIndividual(args: {
   destinatarios: string[];
   frota: Frota;

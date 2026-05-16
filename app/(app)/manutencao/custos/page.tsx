@@ -1,5 +1,7 @@
+import { BarChart2 } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { getCustosPorPeriodo, getCustosTotais } from "@/lib/repos/custos";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +16,13 @@ export default async function CustosPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Manutenção</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Custos</h1>
-        <p className="text-sm text-muted-foreground">Análise financeira — últimos 12 períodos</p>
-      </div>
+      <PageHeader
+        eyebrow="Manutenção"
+        title="Custos"
+        description="Análise financeira — últimos 12 períodos."
+        icon={BarChart2}
+        severity="INFO"
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border bg-white p-5 shadow-sm">

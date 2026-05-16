@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
+import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DeleteFrotaButton } from "@/components/frotas/delete-frota-button";
@@ -100,6 +101,7 @@ export default async function FrotaDetailPage({
     {
       id: "resumo",
       label: "Resumo",
+      icon: "LayoutDashboard" as const,
       content: (
         <div className="space-y-5">
           <StatusOperacionalBanner
@@ -116,35 +118,6 @@ export default async function FrotaDetailPage({
               manutencao_iniciado_por: frota.manutencao_iniciado_por,
             }}
           />
-          <MetricGrid cols={3}>
-            <MetricCard
-              label="KM atual"
-              value={formatNumber(frota.km_atual)}
-              icon={Gauge}
-              severity="INFO"
-              hint={frota.km_atualizado_em ? `Atualizado em ${formatDate(frota.km_atualizado_em)}` : "Sem data"}
-            />
-            <MetricCard
-              label="Último checklist"
-              value={ultimoChecklist?.status_geral?.replace(/_/g, " ") ?? "—"}
-              icon={ClipboardCheck}
-              severity={
-                ultimoChecklist?.status_geral === "APROVADO"
-                  ? "OK"
-                  : ultimoChecklist?.status_geral === "CRITICO"
-                    ? "CRITICO"
-                    : "ATENCAO"
-              }
-              hint={ultimoChecklist ? formatDate(ultimoChecklist.data_checklist) : "Sem checklist"}
-            />
-            <MetricCard
-              label="Pendências"
-              value={pendenciasAbertas.length}
-              icon={AlertTriangle}
-              severity={pendenciasAbertas.length > 0 ? "CRITICO" : "OK"}
-              hint={pendenciasAbertas[0]?.item_nome ?? "Sem pendências"}
-            />
-          </MetricGrid>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <FuelGauge
@@ -169,6 +142,8 @@ export default async function FrotaDetailPage({
     {
       id: "manutencao",
       label: "Manutenção",
+      icon: "Wrench" as const,
+      count: servicos.length,
       content: (
         <Card>
           <CardHeader>
@@ -183,6 +158,8 @@ export default async function FrotaDetailPage({
     {
       id: "pneus",
       label: "Pneus",
+      icon: "Truck" as const,
+      count: pneusTrocados,
       content: (
         <Card>
           <CardHeader>
@@ -197,6 +174,8 @@ export default async function FrotaDetailPage({
     {
       id: "documentos",
       label: "Documentos",
+      icon: "FileText" as const,
+      count: documentosResult.total,
       content: (
         <Card>
           <CardHeader>
@@ -211,6 +190,8 @@ export default async function FrotaDetailPage({
     {
       id: "checklist",
       label: "Checklists",
+      icon: "ClipboardCheck" as const,
+      count: pendenciasAbertas.length || null,
       content: (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
@@ -235,6 +216,8 @@ export default async function FrotaDetailPage({
     {
       id: "abastecimentos",
       label: "Abastecimentos",
+      icon: "Fuel" as const,
+      count: abastecimentos.length,
       content: (
         <Card>
           <CardHeader>
@@ -249,6 +232,8 @@ export default async function FrotaDetailPage({
     {
       id: "historico",
       label: "Histórico",
+      icon: "History" as const,
+      count: eventos.length,
       content: (
         <div className="space-y-5">
           <Card>
@@ -266,43 +251,113 @@ export default async function FrotaDetailPage({
     },
   ];
 
+  const idadeFrota = frota.ano_fabricacao
+    ? new Date().getFullYear() - frota.ano_fabricacao
+    : null;
+
+  const heroTitle = frota.frota_geral ?? frota.placa ?? frota.chassi ?? `Frota #${frota.id}`;
+  const heroEyebrow = `Visão 360º · ${frota.modelo ?? "Sem modelo"}`;
+  const heroDescription = [
+    frota.placa ? `Placa ${frota.placa}` : null,
+    frota.localizacao,
+    frota.ano_fabricacao ? `${frota.ano_fabricacao} (${idadeFrota ?? "—"} anos)` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const checklistSeverity =
+    ultimoChecklist?.status_geral === "APROVADO"
+      ? "OK"
+      : ultimoChecklist?.status_geral === "CRITICO"
+        ? "CRITICO"
+        : ultimoChecklist
+          ? "ATENCAO"
+          : "NEUTRO";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="ghost" size="icon" aria-label="Voltar">
-            <Link href="/frotas">
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
-          <div className="min-w-0">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
-              Visão 360º do veículo
-            </div>
-            <h1 className="truncate text-2xl font-semibold tracking-tight">
-              {frota.frota_geral ?? frota.placa ?? frota.chassi ?? `Frota #${frota.id}`}
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {frota.placa ?? "—"} · {frota.modelo ?? "Sem modelo"} · {frota.localizacao ?? "Sem setor"}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/frotas/${frota.id}/editar`}>
-              <Edit className="mr-1 h-4 w-4" aria-hidden="true" />
-              Editar
-            </Link>
-          </Button>
-          <EnviarRelatorioDialog
-            title={`Enviar relatório de ${frota.placa ?? frota.id}`}
-            action={enviarRelatorioIndividualAction.bind(null, frota.id)}
-            triggerLabel="Enviar e-mail"
-            triggerVariant="outline"
-          />
-          <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
-        </div>
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
+          <Link href="/frotas">
+            <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+            Voltar
+          </Link>
+        </Button>
       </div>
+
+      <PageHero
+        eyebrow={heroEyebrow}
+        title={heroTitle}
+        description={heroDescription || undefined}
+        icon={Truck}
+        actions={
+          <>
+            <Button
+              asChild
+              variant="outline"
+              className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+            >
+              <Link href={`/frotas/${frota.id}/editar`}>
+                <Edit className="mr-1 h-4 w-4" aria-hidden="true" />
+                Editar
+              </Link>
+            </Button>
+            <EnviarRelatorioDialog
+              title={`Enviar relatório de ${frota.placa ?? frota.id}`}
+              action={enviarRelatorioIndividualAction.bind(null, frota.id)}
+              triggerLabel="Enviar e-mail"
+              triggerVariant="outline"
+              triggerClassName="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+            />
+            <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
+          </>
+        }
+      >
+        <HeroStat
+          label="KM atual"
+          value={formatNumber(frota.km_atual)}
+          hint={frota.km_atualizado_em ? `Atualizado ${formatDate(frota.km_atualizado_em)}` : "Sem data"}
+          icon={Gauge}
+          severity="INFO"
+        />
+        <HeroStat
+          label="Último checklist"
+          value={ultimoChecklist?.status_geral?.replace(/_/g, " ") ?? "—"}
+          hint={ultimoChecklist ? formatDate(ultimoChecklist.data_checklist) : "Sem checklist"}
+          icon={ClipboardCheck}
+          severity={checklistSeverity}
+        />
+        <HeroStat
+          label="Pendências abertas"
+          value={pendenciasAbertas.length}
+          hint={pendenciasAbertas[0]?.item_nome ?? "Sem pendências"}
+          icon={AlertTriangle}
+          severity={pendenciasAbertas.length > 0 ? "CRITICO" : "OK"}
+        />
+        <HeroStat
+          label="Combustível"
+          value={
+            frota.combustivel_atual_nivel != null
+              ? `${Math.min(100, Math.max(0, Math.round(frota.combustivel_atual_nivel * 25)))}%`
+              : "—"
+          }
+          hint={
+            frota.combustivel_atualizado_em
+              ? `${frota.combustivel_atual_nivel ?? 0}/4 · ${formatDate(frota.combustivel_atualizado_em)}`
+              : "Sem leitura"
+          }
+          icon={Fuel}
+          severity={
+            frota.combustivel_atual_nivel == null
+              ? "NEUTRO"
+              : frota.combustivel_atual_nivel <= 1
+                ? "CRITICO"
+                : frota.combustivel_atual_nivel <= 2
+                  ? "ATENCAO"
+                  : "OK"
+          }
+        />
+      </PageHero>
 
       <VeiculoTabs tabs={tabs} />
     </div>

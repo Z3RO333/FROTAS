@@ -1,4 +1,5 @@
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+export const MAX_PDF_SIZE = 25 * 1024 * 1024;
 
 export const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -7,6 +8,18 @@ export const ALLOWED_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
 ]);
+
+const IMAGE_MIME_TO_EXTENSION: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heif",
+};
+
+export function imageExtensionFromMime(mime: string): string {
+  return IMAGE_MIME_TO_EXTENSION[mime] ?? "jpg";
+}
 
 export function fileFromForm(value: FormDataEntryValue | null): File | null {
   if (!(value instanceof File) || value.size === 0) return null;
@@ -39,6 +52,37 @@ export async function validateImageFile(file: File | null, label: string): Promi
   const validMagic = await checkMagicBytes(file);
   if (!validMagic) {
     throw new Error(`${label}: arquivo não é uma imagem válida.`);
+  }
+}
+
+async function checkPdfMagicBytes(file: File): Promise<boolean> {
+  const ab = await file.arrayBuffer();
+  if (ab.byteLength < 5) return false;
+  const buf = new Uint8Array(ab, 0, 5);
+  // PDF: %PDF- => 25 50 44 46 2D
+  return buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46 && buf[4] === 0x2d;
+}
+
+/**
+ * Validação forte de PDF: MIME correto E extensão E magic bytes E tamanho.
+ * Cada check é AND, não OR — não confia em valor user-controllable isolado.
+ */
+export async function validatePdfFile(file: File | null, label: string): Promise<void> {
+  if (!file) return;
+  if (file.size <= 0) {
+    throw new Error(`${label}: arquivo vazio.`);
+  }
+  if (file.size > MAX_PDF_SIZE) {
+    throw new Error(`${label}: PDF acima de 25 MB.`);
+  }
+  const mimeOk = file.type === "application/pdf";
+  const extOk = file.name.toLowerCase().endsWith(".pdf");
+  if (!mimeOk || !extOk) {
+    throw new Error(`${label}: envie um arquivo PDF.`);
+  }
+  const magicOk = await checkPdfMagicBytes(file);
+  if (!magicOk) {
+    throw new Error(`${label}: arquivo não é um PDF válido.`);
   }
 }
 

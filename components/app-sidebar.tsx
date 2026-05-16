@@ -86,7 +86,8 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "border-b bg-slate-950 text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-slate-900",
+        "relative border-b text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-slate-900/60",
+        "bg-[linear-gradient(180deg,#0b1220_0%,#070d18_60%,#050913_100%)]",
         collapsed ? "lg:w-[64px]" : "lg:w-[264px]"
       )}
     >
@@ -126,10 +127,13 @@ export function AppSidebar({
           </div>
 
           {/* Badge de perfil abaixo da imagem */}
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
-              <span className="text-xs font-medium text-slate-300">{perfil}</span>
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 ring-1 ring-inset ring-white/10">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-[11px] font-semibold tracking-wide text-slate-200">{perfil}</span>
             </div>
           </div>
         </div>
@@ -175,16 +179,16 @@ export function AppSidebar({
                   type="button"
                   onClick={() => toggleSection(section.title)}
                   className={cn(
-                    "mb-1 hidden w-full items-center justify-between rounded-md px-2 py-1 text-left lg:flex",
+                    "group mb-1 hidden w-full items-center justify-between rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.03] lg:flex",
                     collapsed && "lg:hidden"
                   )}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 transition-colors group-hover:text-slate-400">
                     {section.title}
                   </span>
                   <ChevronDown
                     className={cn(
-                      "h-3 w-3 text-slate-600 transition-transform duration-150",
+                      "h-3 w-3 text-slate-600 transition-transform duration-150 group-hover:text-slate-400",
                       !isOpen && "-rotate-90"
                     )}
                   />
@@ -208,7 +212,13 @@ export function AppSidebar({
                 </div>
 
                 {/* Separador entre seções */}
-                <div className={cn("my-2 hidden border-t border-white/[0.06] lg:block", collapsed && "mx-0")} />
+                <div
+                  className={cn(
+                    "my-2.5 hidden h-px lg:block",
+                    "bg-gradient-to-r from-transparent via-white/[0.08] to-transparent",
+                    collapsed && "mx-0"
+                  )}
+                />
               </div>
             );
           })}
@@ -235,18 +245,33 @@ function SidebarLink({
       title={item.label}
       aria-label={item.label}
       className={cn(
-        "group flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/8 hover:text-white lg:w-full",
-        active && "bg-blue-500/15 text-white ring-1 ring-inset ring-blue-400/20",
+        "group relative flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 transition-all duration-150 lg:w-full",
+        "hover:bg-white/[0.06] hover:text-white hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]",
+        active &&
+          "bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(96,165,250,0.18)]",
         collapsed && "lg:justify-center lg:px-0 lg:w-10 lg:h-10"
       )}
     >
-      <Icon
+      {/* Barra esquerda azul no item ativo */}
+      <span
         className={cn(
-          "h-4 w-4 shrink-0 transition-colors",
-          active ? "text-blue-300" : "text-slate-500 group-hover:text-slate-300"
+          "pointer-events-none absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full transition-all duration-150",
+          active
+            ? "bg-gradient-to-b from-blue-400 to-sky-500 opacity-100 shadow-[0_0_8px_rgba(96,165,250,0.65)]"
+            : "opacity-0"
         )}
         aria-hidden="true"
       />
+      <span
+        className={cn(
+          "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-all duration-150",
+          active
+            ? "bg-blue-500/15 text-blue-300 ring-1 ring-inset ring-blue-400/20"
+            : "text-slate-500 group-hover:text-slate-200"
+        )}
+      >
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      </span>
       <span className={cn("truncate", collapsed && "lg:sr-only")}>{item.label}</span>
     </Link>
   );

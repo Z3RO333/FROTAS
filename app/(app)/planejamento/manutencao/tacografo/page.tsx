@@ -1,7 +1,9 @@
+import { ClipboardCheck } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listTacografoPorFrota } from "@/lib/repos/tacografo";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -37,11 +39,13 @@ export default async function TacografoPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Manutenção</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Tacógrafo</h1>
-        <p className="text-sm text-muted-foreground">{frotas.length} frotas monitoradas</p>
-      </div>
+      <PageHeader
+        eyebrow="Manutenção"
+        title="Tacógrafo"
+        description={`${frotas.length} frotas monitoradas.`}
+        icon={ClipboardCheck}
+        severity="ATENCAO"
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

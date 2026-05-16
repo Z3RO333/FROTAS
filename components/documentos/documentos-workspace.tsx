@@ -3,12 +3,14 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   Download,
   ExternalLink,
   FileCheck2,
   FileText,
+  FileX2,
+  Layers,
   Pencil,
-  Search,
   ShieldCheck,
   Trash2,
   Upload,
@@ -20,7 +22,6 @@ import {
   updateDocumentAction,
   type DocumentActionResult,
 } from "@/app/(app)/documentos/_actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHero, HeroStat } from "@/components/ui/page-header";
+import { FilterBar, FilterSearch, FilterChip } from "@/components/ui/filter-bar";
 import {
   Table,
   TableBody,
@@ -42,6 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { DocumentRecordWithSignedUrls } from "@/lib/repos/manutencao/types";
+import { cn } from "@/lib/utils";
 
 type Props = {
   documents: DocumentRecordWithSignedUrls[];
@@ -49,88 +53,168 @@ type Props = {
   canWrite: boolean;
 };
 
+type FiltroStatus = "TODOS" | "COMPLETO" | "PARCIAL" | "PENDENTE" | "SEM_DUT" | "SEM_CRLV";
+
+function statusDoDoc(doc: DocumentRecordWithSignedUrls): "COMPLETO" | "PARCIAL" | "PENDENTE" {
+  if (doc.dut_url && doc.crlv_url) return "COMPLETO";
+  if (doc.dut_url || doc.crlv_url) return "PARCIAL";
+  return "PENDENTE";
+}
+
 export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
   const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
-    const term = normalizeSearch(query);
-    if (!term) return documents;
-    return documents.filter((doc) => {
-      const haystack = normalizeSearch(`${doc.frota} ${doc.placa} ${doc.modelo}`);
-      return haystack.includes(term);
-    });
-  }, [documents, query]);
+  const [filtro, setFiltro] = useState<FiltroStatus>("TODOS");
 
   const complete = documents.filter((doc) => doc.dut_url && doc.crlv_url).length;
   const partial = documents.filter((doc) => (doc.dut_url || doc.crlv_url) && !(doc.dut_url && doc.crlv_url)).length;
   const pending = documents.filter((doc) => !doc.dut_url && !doc.crlv_url).length;
+  const semDut = documents.filter((doc) => !doc.dut_url).length;
+  const semCrlv = documents.filter((doc) => !doc.crlv_url).length;
   const files = documents.reduce((sum, doc) => sum + (doc.dut_url ? 1 : 0) + (doc.crlv_url ? 1 : 0), 0);
+  const completudePct =
+    documents.length > 0 ? Math.round((complete / documents.length) * 100) : 0;
+
+  const filtered = useMemo(() => {
+    const term = normalizeSearch(query);
+    return documents.filter((doc) => {
+      // Filtro de status
+      if (filtro !== "TODOS") {
+        const s = statusDoDoc(doc);
+        if (filtro === "COMPLETO" && s !== "COMPLETO") return false;
+        if (filtro === "PARCIAL" && s !== "PARCIAL") return false;
+        if (filtro === "PENDENTE" && s !== "PENDENTE") return false;
+        if (filtro === "SEM_DUT" && doc.dut_url) return false;
+        if (filtro === "SEM_CRLV" && doc.crlv_url) return false;
+      }
+      // Filtro de busca
+      if (term) {
+        const haystack = normalizeSearch(`${doc.frota} ${doc.placa} ${doc.modelo}`);
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [documents, query, filtro]);
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-md border bg-white shadow-sm">
-        <div className="grid gap-0 xl:grid-cols-[420px_1fr]">
-          <div className="bg-slate-950 p-5 text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-200">Documentos</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Central de Documentos</h1>
-            {canWrite ? <DocumentUploadDialog /> : null}
-          </div>
+      <PageHero
+        eyebrow="Documentos"
+        title="Central de Documentos"
+        description={`${total} frotas cadastradas · ${complete} completas, ${partial} parciais, ${pending} sem PDFs.`}
+        icon={ShieldCheck}
+        actions={canWrite ? <DocumentUploadDialog /> : undefined}
+      >
+        <HeroStat
+          label="Completude geral"
+          value={`${completudePct}%`}
+          hint={`${complete}/${documents.length} completas`}
+          icon={ShieldCheck}
+          severity={completudePct === 100 ? "OK" : completudePct >= 70 ? "ATENCAO" : "CRITICO"}
+        />
+        <HeroStat label="Registros" value={total} icon={Layers} severity="INFO" />
+        <HeroStat
+          label="Arquivos PDF"
+          value={files}
+          icon={FileCheck2}
+          severity="OK"
+        />
+        <HeroStat
+          label="Pendências"
+          value={partial + pending}
+          hint={`${semDut} sem DUT · ${semCrlv} sem CRLV`}
+          icon={AlertTriangle}
+          severity={partial + pending > 0 ? "CRITICO" : "OK"}
+        />
+      </PageHero>
 
-          <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={FileText} label="Registros" value={String(total)} />
-            <Metric icon={FileCheck2} label="Arquivos" value={String(files)} />
-            <Metric icon={ShieldCheck} label="Completos" value={String(complete)} />
-            <Metric icon={FileText} label="Pendentes" value={String(pending + partial)} tone="amber" />
-          </div>
+      <FilterBar sticky>
+        <FilterSearch
+          value={query}
+          onChange={setQuery}
+          placeholder="Buscar por frota, placa ou modelo…"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <FilterChip
+            label="Todos"
+            icon={Layers}
+            count={documents.length}
+            active={filtro === "TODOS"}
+            onClick={() => setFiltro("TODOS")}
+          />
+          <FilterChip
+            label="Completos"
+            icon={ShieldCheck}
+            count={complete}
+            active={filtro === "COMPLETO"}
+            severity={filtro === "COMPLETO" ? "OK" : undefined}
+            onClick={() => setFiltro("COMPLETO")}
+          />
+          <FilterChip
+            label="Parciais"
+            icon={AlertTriangle}
+            count={partial}
+            active={filtro === "PARCIAL"}
+            severity={filtro === "PARCIAL" ? "ATENCAO" : undefined}
+            onClick={() => setFiltro("PARCIAL")}
+          />
+          <FilterChip
+            label="Pendentes"
+            icon={FileX2}
+            count={pending}
+            active={filtro === "PENDENTE"}
+            severity={filtro === "PENDENTE" ? "CRITICO" : undefined}
+            onClick={() => setFiltro("PENDENTE")}
+          />
+          <FilterChip
+            label="Sem DUT"
+            count={semDut}
+            active={filtro === "SEM_DUT"}
+            onClick={() => setFiltro("SEM_DUT")}
+          />
+          <FilterChip
+            label="Sem CRLV"
+            count={semCrlv}
+            active={filtro === "SEM_CRLV"}
+            onClick={() => setFiltro("SEM_CRLV")}
+          />
         </div>
-      </section>
+      </FilterBar>
 
-      <section className="rounded-md border bg-white p-4 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filtrar em tempo real por frota, placa ou modelo"
-              className="pl-9"
-            />
+      <section className="hidden overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] md:block">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-950">Resultado da consulta</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {filtered.length} registro{filtered.length !== 1 ? "s" : ""} visível
+              {filtered.length !== 1 ? "s" : ""}
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <StatusPill label="Completos" value={complete} tone="green" />
-            <StatusPill label="Parciais" value={partial} tone="amber" />
-            <StatusPill label="Pendentes" value={pending} tone="slate" />
-          </div>
-        </div>
-      </section>
-
-      <section className="hidden overflow-hidden rounded-md border bg-white shadow-sm md:block">
-        <div className="border-b bg-slate-50 px-4 py-3">
-          <h2 className="font-semibold text-slate-950">Resultado da consulta</h2>
-          <p className="text-sm text-muted-foreground">
-            {filtered.length} registro{filtered.length !== 1 ? "s" : ""} visível{filtered.length !== 1 ? "s" : ""}
-          </p>
         </div>
         <Table>
           <TableHeader>
-            <TableRow className="bg-slate-50">
-              <TableHead>Frota</TableHead>
-              <TableHead>Placa</TableHead>
-              <TableHead>Modelo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>DUT</TableHead>
-              <TableHead>CRLV</TableHead>
-              <TableHead>Atualização</TableHead>
-              {canWrite ? <TableHead className="w-[150px] text-right">Ações</TableHead> : null}
+            <TableRow className="bg-slate-50/80">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Frota</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Placa</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Modelo</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Completude</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">DUT</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">CRLV</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Atualização</TableHead>
+              {canWrite ? <TableHead className="w-[120px] text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">Ações</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((doc) => (
-              <TableRow key={doc.id}>
+              <TableRow key={doc.id} className="transition-colors hover:bg-blue-50/40">
                 <TableCell className="font-semibold text-slate-950">{doc.frota}</TableCell>
-                <TableCell className="font-mono uppercase">{doc.placa}</TableCell>
-                <TableCell>{doc.modelo}</TableCell>
                 <TableCell>
-                  <DocumentStatus doc={doc} />
+                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] uppercase text-slate-700">
+                    {doc.placa}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm text-slate-700">{doc.modelo}</TableCell>
+                <TableCell>
+                  <CompletudeBar doc={doc} />
                 </TableCell>
                 <TableCell>
                   <DocumentActions signedUrl={doc.dut_signed_url} label="DUT" />
@@ -138,10 +222,12 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                 <TableCell>
                   <DocumentActions signedUrl={doc.crlv_signed_url} label="CRLV" />
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{formatDate(doc.updated_at ?? doc.created_at)}</TableCell>
+                <TableCell className="text-xs tabular-nums text-slate-500">
+                  {formatDate(doc.updated_at ?? doc.created_at)}
+                </TableCell>
                 {canWrite ? (
                   <TableCell>
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1">
                       <DocumentEditDialog document={doc} />
                       <DocumentDeleteDialog document={doc} />
                     </div>
@@ -151,8 +237,11 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
             ))}
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canWrite ? 8 : 7} className="h-32 text-center text-muted-foreground">
-                  Nenhum documento encontrado.
+                <TableCell
+                  colSpan={canWrite ? 8 : 7}
+                  className="h-32 text-center text-sm text-slate-500"
+                >
+                  Nenhum documento encontrado com os filtros atuais.
                 </TableCell>
               </TableRow>
             ) : null}
@@ -165,11 +254,34 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
           <DocumentMobileCard key={doc.id} document={doc} canWrite={canWrite} />
         ))}
         {filtered.length === 0 ? (
-          <div className="rounded-md border bg-white p-5 text-sm text-muted-foreground">
-            Nenhum documento encontrado.
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center text-sm text-slate-500">
+            Nenhum documento encontrado com os filtros atuais.
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function CompletudeBar({ doc }: { doc: DocumentRecordWithSignedUrls }) {
+  const has = (doc.dut_url ? 1 : 0) + (doc.crlv_url ? 1 : 0);
+  const pct = (has / 2) * 100;
+  const status = statusDoDoc(doc);
+  const barColor =
+    status === "COMPLETO" ? "bg-emerald-500" : status === "PARCIAL" ? "bg-amber-500" : "bg-red-500";
+  const label =
+    status === "COMPLETO" ? "Completo" : status === "PARCIAL" ? "Parcial" : "Pendente";
+  const labelColor =
+    status === "COMPLETO" ? "text-emerald-700" : status === "PARCIAL" ? "text-amber-700" : "text-red-700";
+  return (
+    <div className="min-w-[120px] space-y-1">
+      <div className="flex items-center justify-between text-[10.5px] font-semibold">
+        <span className={labelColor}>{label}</span>
+        <span className="tabular-nums text-slate-500">{has}/2</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div className={cn("h-full transition-all duration-300", barColor)} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -328,26 +440,53 @@ function DocumentDeleteDialog({ document }: { document: DocumentRecordWithSigned
   );
 }
 
-function DocumentMobileCard({ document, canWrite }: { document: DocumentRecordWithSignedUrls; canWrite: boolean }) {
+function DocumentMobileCard({
+  document,
+  canWrite,
+}: {
+  document: DocumentRecordWithSignedUrls;
+  canWrite: boolean;
+}) {
+  const status = statusDoDoc(document);
+  const borderColor =
+    status === "COMPLETO"
+      ? "border-l-emerald-500"
+      : status === "PARCIAL"
+        ? "border-l-amber-500"
+        : "border-l-red-500";
   return (
-    <article className="rounded-md border bg-white p-4 shadow-sm">
+    <article
+      className={cn(
+        "rounded-xl border border-l-4 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]",
+        borderColor
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h3 className="font-semibold text-slate-950">Frota {document.frota}</h3>
-          <p className="font-mono text-sm uppercase text-muted-foreground">{document.placa}</p>
+          <p className="mt-0.5 flex items-center gap-2">
+            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] uppercase text-slate-700">
+              {document.placa}
+            </span>
+            <span className="truncate text-xs text-slate-500">{document.modelo}</span>
+          </p>
         </div>
         <DocumentStatus doc={document} />
       </div>
-      <p className="mt-2 text-sm text-slate-700">{document.modelo}</p>
+
+      <div className="mt-3">
+        <CompletudeBar doc={document} />
+      </div>
+
       <div className="mt-3 grid grid-cols-2 gap-2">
         <DocumentActions signedUrl={document.dut_signed_url} label="DUT" />
         <DocumentActions signedUrl={document.crlv_signed_url} label="CRLV" />
       </div>
-      <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+      <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
         Atualizado em {formatDate(document.updated_at ?? document.created_at)}
       </div>
       {canWrite ? (
-        <div className="mt-3 flex justify-end gap-2">
+        <div className="mt-3 flex justify-end gap-1">
           <DocumentEditDialog document={document} />
           <DocumentDeleteDialog document={document} />
         </div>
@@ -357,66 +496,62 @@ function DocumentMobileCard({ document, canWrite }: { document: DocumentRecordWi
 }
 
 function DocumentActions({ signedUrl, label }: { signedUrl: string | null; label: string }) {
-  if (!signedUrl) return <span className="text-xs text-muted-foreground">Indisponível</span>;
+  if (!signedUrl) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-400 ring-1 ring-inset ring-slate-200">
+        <FileX2 className="h-3 w-3" aria-hidden="true" />
+        Sem {label}
+      </span>
+    );
+  }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <Button asChild variant="outline" size="sm">
-        <a href={signedUrl} target="_blank" rel="noopener noreferrer">
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          {label}
-        </a>
-      </Button>
-      <Button asChild variant="ghost" size="icon" aria-label={`Baixar ${label}`}>
-        <a href={signedUrl} download>
-          <Download className="h-4 w-4" aria-hidden="true" />
-        </a>
-      </Button>
+    <div className="inline-flex items-center gap-0.5 rounded-lg bg-blue-50/60 p-0.5 ring-1 ring-inset ring-blue-100">
+      <a
+        href={signedUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-white"
+      >
+        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        {label}
+      </a>
+      <a
+        href={signedUrl}
+        download
+        aria-label={`Baixar ${label}`}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-700 transition-colors hover:bg-white"
+      >
+        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+      </a>
     </div>
   );
 }
 
 function DocumentStatus({ doc }: { doc: DocumentRecordWithSignedUrls }) {
-  if (doc.dut_url && doc.crlv_url) {
-    return <Badge className="border-transparent bg-emerald-600 text-white hover:bg-emerald-600">Completo</Badge>;
+  const s = statusDoDoc(doc);
+  if (s === "COMPLETO") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        Completo
+      </span>
+    );
   }
-  if (doc.dut_url || doc.crlv_url) {
-    return <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">Parcial</Badge>;
+  if (s === "PARCIAL") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Parcial
+      </span>
+    );
   }
-  return <Badge variant="outline">Pendente</Badge>;
-}
-
-function Metric({
-  icon: Icon,
-  label,
-  value,
-  tone = "blue",
-}: {
-  icon: typeof FileText;
-  label: string;
-  value: string;
-  tone?: "blue" | "amber";
-}) {
   return (
-    <div className="rounded-md border bg-slate-50 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
-        <Icon className={tone === "amber" ? "h-4 w-4 text-amber-600" : "h-4 w-4 text-blue-700"} aria-hidden="true" />
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
-    </div>
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200">
+      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+      Pendente
+    </span>
   );
-}
-
-function StatusPill({ label, value, tone }: { label: string; value: number; tone: "green" | "amber" | "slate" }) {
-  const className =
-    tone === "green"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-200 bg-slate-50 text-slate-700";
-
-  return <span className={`rounded-full border px-3 py-1 font-medium ${className}`}>{label}: {value}</span>;
 }
 
 function Field({

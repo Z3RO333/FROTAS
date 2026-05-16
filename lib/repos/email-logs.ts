@@ -1,7 +1,7 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 export async function logEmail(args: {
-  tipo: "geral" | "individual";
+  tipo: "geral" | "individual" | "diario_ia";
   frotaId?: number | null;
   destinatarios: string;
   assunto: string;

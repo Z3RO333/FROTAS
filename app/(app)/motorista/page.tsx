@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, Fuel, History, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Fuel, History, Home, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { listDriverChecklists } from "@/lib/repos/checklists";
 import { listFrotas } from "@/lib/repos/frotas";
 import { requireAppUser } from "@/lib/rbac";
@@ -21,10 +22,13 @@ export default async function MotoristaHomePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">Hoje: {formatDate(new Date())}</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Bem-vindo, {user.name}</h1>
-      </div>
+      <PageHeader
+        eyebrow={`Hoje · ${formatDate(new Date())}`}
+        title={`Bem-vindo, ${user.name}`}
+        description={fezChecklistHoje ? "Checklist do dia já registrado." : "Registre o checklist antes de iniciar o uso da frota."}
+        icon={Home}
+        severity={fezChecklistHoje ? "OK" : "ATENCAO"}
+      />
 
       {!fezChecklistHoje ? (
         <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-950">

@@ -1,7 +1,9 @@
+import { Settings } from "lucide-react";
 import { requireAppUser, canAccessManutencao } from "@/lib/rbac";
 import { listEquipamentos } from "@/lib/repos/manutencao/equipamentos";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import type { EquipamentoApp, SegmentoEquipamento } from "@/lib/repos/manutencao/types";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +28,13 @@ export default async function EquipamentosPage({
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Equipamentos</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Equipamentos</h1>
-      </div>
+      <PageHeader
+        eyebrow="Administração"
+        title="Equipamentos"
+        description="Empilhadeiras, selecionadoras e paleteiras cadastradas."
+        icon={Settings}
+        severity="INFO"
+      />
 
       <div className="flex gap-2">
         {(["EMPILHADEIRA", "SELECIONADORA", "PALETEIRA"] as SegmentoEquipamento[]).map((s) => (

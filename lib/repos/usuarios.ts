@@ -182,6 +182,51 @@ export async function getUsuarioById(id: string): Promise<UsuarioApp | null> {
   return data ? mapUsuario(data as UsuarioRow) : null;
 }
 
+export type UsuarioAuditoriaEntry = {
+  id: number;
+  usuario_id: string;
+  acao: string;
+  valor_antigo: Record<string, unknown> | null;
+  valor_novo: Record<string, unknown> | null;
+  alterado_por: string | null;
+  alterado_em: string;
+};
+
+function safeParse(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listUsuarioAuditoria(usuarioId: string, limit = 50): Promise<UsuarioAuditoriaEntry[]> {
+  const { data, error } = await supabaseManutencao
+    .from("usuarios_auditoria")
+    .select("id,usuario_id,acao,valor_antigo,valor_novo,alterado_por,alterado_em")
+    .eq("usuario_id", usuarioId)
+    .order("alterado_em", { ascending: false })
+    .limit(limit);
+
+  // Se a tabela não existe (deploy parcial), retorna vazio em vez de quebrar a UI
+  if (error) {
+    if (error.message.toLowerCase().includes("usuarios_auditoria")) return [];
+    throw new Error(`listUsuarioAuditoria: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id as number,
+    usuario_id: row.usuario_id as string,
+    acao: row.acao as string,
+    valor_antigo: safeParse((row.valor_antigo as string | null) ?? null),
+    valor_novo: safeParse((row.valor_novo as string | null) ?? null),
+    alterado_por: (row.alterado_por as string | null) ?? null,
+    alterado_em: row.alterado_em as string,
+  }));
+}
+
 async function logUsuarioAudit(
   usuarioId: string,
   acao: string,

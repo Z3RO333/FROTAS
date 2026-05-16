@@ -1,0 +1,60 @@
+name: Relatorio Diario IA
+
+on:
+  schedule:
+    # 22:00 UTC = 18:00 Manaus (UTC-4, sem horario de verao)
+    # GitHub Actions cron pode atrasar ate ~15min, suficiente pra relatorio diario.
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+    # Permite disparar manualmente em Actions > Relatorio Diario IA > Run workflow
+
+concurrency:
+  group: daily-report
+  cancel-in-progress: false
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar /api/relatorios/daily
+        env:
+          ENDPOINT: https://gestaofrotas.azurewebsites.net/api/relatorios/daily
+          SECRET: ${{ secrets.FROTAS_INTERNAL_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::error::Secret FROTAS_INTERNAL_SECRET nao configurado no repo (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X GET "$ENDPOINT" \
+            -H "x-internal-secret: $SECRET" \
+            --max-time 120)
+
+          echo "HTTP $HTTP_CODE"
+          echo "--- response ---"
+          cat response.json || true
+          echo "----------------"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Endpoint retornou $HTTP_CODE"
+            exit 1
+          fi
+
+          # Checa se "enviado: true" no JSON de resposta (jq vem instalado nos runners ubuntu)
+          ENVIADO=$(jq -r '.enviado // false' response.json)
+          AVISO=$(jq -r '.aviso // empty' response.json)
+
+          if [ -n "$AVISO" ]; then
+            echo "::warning::$AVISO"
+          fi
+
+          if [ "$ENVIADO" != "true" ]; then
+            ERRO=$(jq -r '.erro_envio // .aviso // "envio nao confirmado"' response.json)
+            echo "::warning::Relatorio nao foi enviado: $ERRO"
+          else
+            DEST=$(jq -r '.destinatarios | join(",")' response.json)
+            CRITICOS=$(jq -r '.total_criticos // 0' response.json)
+            echo "::notice::Relatorio enviado para $DEST (criticos=$CRITICOS)"
+          fi

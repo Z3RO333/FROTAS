@@ -2,6 +2,7 @@ import { requireAppUser, canAccessManutencao } from "@/lib/rbac";
 import { listOficinas } from "@/lib/repos/manutencao/oficinas";
 import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { MapPin } from "lucide-react";
 import type { OficinasApp } from "@/lib/repos/manutencao/types";
 
@@ -15,10 +16,13 @@ export default async function OficinasPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Manutenção</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Oficinas</h1>
-      </div>
+      <PageHeader
+        eyebrow="Manutenção"
+        title="Oficinas"
+        description="Rede de oficinas parceiras cadastradas."
+        icon={MapPin}
+        severity="INFO"
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {oficinas.map((o) => (

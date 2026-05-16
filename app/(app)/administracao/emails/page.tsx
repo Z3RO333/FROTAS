@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listEmailSchedules } from "@/lib/repos/email-schedule";
 import {
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ const TIPO_LABELS: Record<string, string> = {
   FROTAS_PARADAS: "Frotas paradas",
   CUSTOS: "Custos",
   ALERTAS: "Alertas operacionais",
+  RELATORIO_DIARIO_IA: "Relatório diário IA",
 };
 
 export default async function EmailsPage({
@@ -33,11 +36,13 @@ export default async function EmailsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Programação de E-mails</h1>
-        <p className="text-sm text-muted-foreground">{schedules.length} programação(ões) configurada(s)</p>
-      </div>
+      <PageHeader
+        eyebrow="Administração"
+        title="Programação de E-mails"
+        description={`${schedules.length} programação(ões) configurada(s).`}
+        icon={FileText}
+        severity="INFO"
+      />
 
       {sp.sucesso && (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
