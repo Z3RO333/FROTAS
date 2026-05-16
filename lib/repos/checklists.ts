@@ -1,6 +1,14 @@
 import { CHECKLIST_ITEMS, type ChecklistStatusGeral, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import { gravidadePendencia, KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
+
+// Colunas necessárias para listagem — exclui ocr_*, foto_km_url, observacao_*, analise_*
+const COLS_CHECKLIST_LIST =
+  "id,frota_id,motorista_id,motorista_nome,data_checklist,km_informado,status_geral,criado_em";
+
+// Colunas de pendências para listagem
+const COLS_PENDENCIA_LIST =
+  "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
 import { createAbastecimento } from "@/lib/repos/abastecimentos";
 import { aplicarResumoAbastecimento, aplicarResumoChecklist, getFrota } from "@/lib/repos/frotas";
 import {
@@ -262,7 +270,7 @@ export async function listDriverChecklists(email: string, limit = 20): Promise<C
   return safeSupabase("listagem do motorista", async () => {
     const { data, error } = await supabaseManutencao
       .from("checklists_frota")
-      .select("*")
+      .select(COLS_CHECKLIST_LIST)
       .eq("motorista_id", email)
       .order("criado_em", { ascending: false })
       .limit(limit);
@@ -278,7 +286,7 @@ export async function listAdminChecklists(limit = 100): Promise<ChecklistListRow
   return safeSupabase("listagem admin", async () => {
     const { data, error } = await supabaseManutencao
       .from("checklists_frota")
-      .select("*")
+      .select(COLS_CHECKLIST_LIST)
       .order("criado_em", { ascending: false })
       .limit(limit);
 
@@ -293,7 +301,7 @@ export async function listChecklistsByFrota(frotaId: number, limit = 10): Promis
   return safeSupabase("checklists da frota", async () => {
     const { data, error } = await supabaseManutencao
       .from("checklists_frota")
-      .select("*")
+      .select(COLS_CHECKLIST_LIST)
       .eq("frota_id", frotaId)
       .order("data_checklist", { ascending: false })
       .order("id", { ascending: false })
@@ -323,7 +331,7 @@ export async function listOpenPendencias(limit = 100): Promise<PendenciaRow[]> {
   return safeSupabase("pendencias abertas", async () => {
     const { data, error } = await supabaseManutencao
       .from("pendencias_frota")
-      .select("*")
+      .select(COLS_PENDENCIA_LIST)
       .in("status", ["ABERTA", "EM_TRATATIVA"])
       .order("criado_em", { ascending: false })
       .limit(limit);
@@ -353,7 +361,7 @@ export async function listPendenciasByFrota(frotaId: number, limit = 20): Promis
   return safeSupabase("pendencias da frota", async () => {
     const { data, error } = await supabaseManutencao
       .from("pendencias_frota")
-      .select("*")
+      .select(COLS_PENDENCIA_LIST)
       .eq("frota_id", frotaId)
       .order("criado_em", { ascending: false })
       .order("id", { ascending: false })
