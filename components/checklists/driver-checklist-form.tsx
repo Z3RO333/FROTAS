@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -71,8 +71,24 @@ async function comprimirImagemParaOcr(file: File, maxPx = 720, qualidade = 0.72)
 
 export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const router = useRouter();
+  const fotoKmFileRef = useRef<File | null>(null);
+
+  const actionWithPhotoInjection = useCallback(
+    async (prevState: Parameters<typeof enviarChecklistMotoristaAction>[0], formData: FormData) => {
+      const file = fotoKmFileRef.current;
+      if (file) {
+        const existing = formData.get("foto_km");
+        if (!(existing instanceof File) || existing.size === 0) {
+          formData.set("foto_km", file);
+        }
+      }
+      return enviarChecklistMotoristaAction(prevState, formData);
+    },
+    []
+  );
+
   const [actionState, formAction] = useActionState(
-    enviarChecklistMotoristaAction,
+    actionWithPhotoInjection,
     CHECKLIST_MOTORISTA_INITIAL_STATE
   );
   const [step, setStep] = useState(0);
@@ -119,7 +135,9 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     const file = event.target.files?.[0];
     setOcrState(null);
     setFotoKmPreview(null);
-    if (!file) return;
+    fotoKmFileRef.current = null;
+    if (!file || file.size === 0) return;
+    fotoKmFileRef.current = file;
     // Preview imediato com a imagem original (qualidade total)
     setFotoKmPreview(URL.createObjectURL(file));
     setOcrLoading(true);
@@ -194,8 +212,15 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     setStep(2);
   }
 
+  function handlePreSubmit(e: { preventDefault(): void }) {
+    if (!fotoKmFileRef.current) {
+      e.preventDefault();
+      setStepErro("Selecione a foto do hodômetro antes de enviar.");
+    }
+  }
+
   return (
-    <form action={formAction} className="mx-auto max-w-3xl space-y-5">
+    <form action={formAction} onSubmit={handlePreSubmit} className="mx-auto max-w-3xl space-y-5">
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />
