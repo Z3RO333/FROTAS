@@ -94,6 +94,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const [step, setStep] = useState(0);
   const [frotaId, setFrotaId] = useState("");
   const [frotaQuery, setFrotaQuery] = useState("");
+  const [placaQuery, setPlacaQuery] = useState("");
   const [kmValue, setKmValue] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrState, setOcrState] = useState<OcrState | null>(null);
@@ -119,17 +120,15 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
-    if (!q) return frotas.slice(0, 50);
+    const p = placaQuery.trim().toLowerCase();
     return frotas
-      .filter((f) =>
-        [f.frota_geral, f.placa, f.modelo, f.chassi, f.localizacao]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(q)
-      )
+      .filter((f) => {
+        if (q && !String(f.frota_geral ?? "").toLowerCase().includes(q)) return false;
+        if (p && !String(f.placa ?? "").toLowerCase().includes(p)) return false;
+        return true;
+      })
       .slice(0, 50);
-  }, [frotaQuery, frotas]);
+  }, [frotaQuery, placaQuery, frotas]);
 
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -302,15 +301,27 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
         <div className="overflow-hidden rounded-md border bg-white">
           <div className="space-y-2 border-b p-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <Input
-                placeholder="Pesquisar veículo..."
-                className="pl-9"
-                value={frotaQuery}
-                onChange={(e) => setFrotaQuery(e.target.value)}
-                autoComplete="off"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  placeholder="Nº frota..."
+                  className="pl-9"
+                  value={frotaQuery}
+                  onChange={(e) => setFrotaQuery(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
+                  placeholder="Placa..."
+                  className="pl-9"
+                  value={placaQuery}
+                  onChange={(e) => setPlacaQuery(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               {filteredFrotas.length} resultado{filteredFrotas.length !== 1 ? "s" : ""} mostrado

@@ -18,6 +18,15 @@ import {
   solicitarCorrecaoAction,
 } from "./_actions";
 
+function isNextRedirect(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+  );
+}
+
 // Wrapper que adiciona toast após ação de portaria
 function withToast(
   action: (fd: FormData) => Promise<void>,
@@ -27,8 +36,10 @@ function withToast(
     try {
       await action(fd);
       toast.success(successMsg);
-    } catch {
-      toast.error("Algo deu errado. Tente novamente.");
+    } catch (error) {
+      if (isNextRedirect(error)) throw error;
+      const msg = error instanceof Error ? error.message : "Algo deu errado. Tente novamente.";
+      toast.error(msg);
     }
   };
 }
