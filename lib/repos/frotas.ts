@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
+import { normalizeCdNome } from "@/lib/repos/disponibilidade";
 
 export type Frota = {
   id: number;
@@ -89,6 +90,7 @@ export type FrotaFilters = {
   search?: string;
   modelo?: string;
   localizacao?: string;
+  cd?: string;
   ano?: number;
   status?: StatusFrota;
   operacional?: "disponivel" | "manutencao" | "indisponivel" | "baixado";
@@ -284,6 +286,7 @@ function matchesFilters(frota: Frota, f: FrotaFilters): boolean {
   }
   if (f.modelo && frota.modelo !== f.modelo) return false;
   if (f.localizacao && frota.localizacao !== f.localizacao) return false;
+  if (f.cd && normalizeCdNome(frota.localizacao) !== f.cd) return false;
   if (f.ano && frota.ano_fabricacao !== f.ano) return false;
   if (f.status && frota.status !== f.status) return false;
   if (f.operacional && operacional(frota) !== f.operacional) return false;
@@ -328,6 +331,7 @@ async function allFrotas(): Promise<Frota[]> {
 
 /** Detecta se a query precisa de filtros derivados em JS (cálculos baseados na data atual). */
 function needsJsDerivedFilter(f: FrotaFilters): boolean {
+  if (f.cd) return true;
   // operacional=baixado é puramente vendido=true → fica em SQL.
   // outros valores de operacional dependem do mapeamento de status → JS.
   if (f.operacional && f.operacional !== "baixado") return true;
@@ -391,6 +395,7 @@ export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[];
 
   const allRows = ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
   const filtered = allRows.filter((frota) => {
+    if (f.cd && normalizeCdNome(frota.localizacao) !== f.cd) return false;
     if (f.operacional && f.operacional !== "baixado" && operacional(frota) !== f.operacional) return false;
     if (f.condicao && condition(frota) !== f.condicao) return false;
     if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;

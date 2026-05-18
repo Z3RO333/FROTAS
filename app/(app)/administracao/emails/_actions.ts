@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAppUser, canManageUsers } from "@/lib/rbac";
+import { requireAppUser, canManageEmailSchedules } from "@/lib/rbac";
 import {
   createEmailSchedule,
   toggleEmailSchedule,
@@ -25,7 +25,7 @@ const ScheduleSchema = z.object({
   destinatarios: z
     .string()
     .transform((s) => s.split(",").map((e) => e.trim()).filter(Boolean)),
-  frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL"]),
+  frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL", "PERSONALIZADO"]),
   hora_envio: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
   cds_incluidos: z
     .string()
@@ -43,7 +43,7 @@ function isRedirectError(error: unknown): boolean {
 
 export async function createScheduleAction(formData: FormData) {
   const user = await requireAppUser();
-  if (!canManageUsers(user.perfil)) redirect("/");
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
   try {
     const raw = {
@@ -75,7 +75,7 @@ export async function createScheduleAction(formData: FormData) {
 
 export async function toggleScheduleAction(formData: FormData) {
   const user = await requireAppUser();
-  if (!canManageUsers(user.perfil)) redirect("/");
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
   const id = Number(formData.get("id"));
   const ativo = formData.get("ativo") === "true";
@@ -85,7 +85,7 @@ export async function toggleScheduleAction(formData: FormData) {
 
 export async function deleteScheduleAction(formData: FormData) {
   const user = await requireAppUser();
-  if (!canManageUsers(user.perfil)) redirect("/");
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
   const id = Number(formData.get("id"));
   await deleteEmailSchedule(id);

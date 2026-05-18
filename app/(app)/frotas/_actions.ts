@@ -105,6 +105,20 @@ export async function editarFrotaAction(id: number, formData: FormData) {
   redirect(`/frotas/${id}`);
 }
 
+export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
+  const email = await requireUser();
+  const id = Number(formData.get("id"));
+  const localizacaoRaw = formData.get("localizacao");
+  const localizacao = typeof localizacaoRaw === "string" && localizacaoRaw.trim() ? localizacaoRaw.trim() : null;
+
+  if (!Number.isFinite(id)) throw new Error("Frota inválida");
+
+  await updateFrota(id, { localizacao }, email);
+  revalidatePath(`/frotas/${id}`);
+  revalidatePath("/frotas/disponibilidades");
+  revalidateFrotasCache();
+}
+
 export async function excluirFrotaAction(id: number) {
   const email = await requireUser();
   await softDeleteFrota(id, email);

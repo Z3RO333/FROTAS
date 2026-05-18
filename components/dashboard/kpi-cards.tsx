@@ -97,7 +97,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
       label: "Disponibilidade",
       value: `${kpis.disponibilidade_pct}%`,
       icon: CheckCircle2,
-      href: "/operacao/disponibilidade",
+      href: "/frotas/disponibilidades",
       tone: kpis.disponibilidade_pct >= 80 ? "text-emerald-700" : kpis.disponibilidade_pct >= 60 ? "text-amber-700" : "text-red-700",
     },
   ];

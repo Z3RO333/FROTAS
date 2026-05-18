@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/rbac";
 import {
@@ -103,7 +104,8 @@ export async function enviarManutencaoAction(
     revalidatePath("/planejamento");
     revalidatePath("/portaria");
 
-    return { ok: true, mensagem: "Frota enviada para manutenção." };
+    redirect(`/frotas/${parsed.data.frota_id}`);
+    return { ok: true, mensagem: "" }; // never reached — redirect throws
   } catch (error) {
     if (isRedirectError(error)) throw error;
     const msg = error instanceof z.ZodError

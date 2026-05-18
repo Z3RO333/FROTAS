@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin } from "lucide-react";
+import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,8 @@ import { BemolTruck } from "@/components/frotas/bemol-truck";
 import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import { EnviarManutencaoDialog } from "@/components/frotas/manutencao/enviar-manutencao-dialog";
 import { RetornarOperacaoDialog } from "@/components/frotas/manutencao/retornar-operacao-dialog";
+import { CDS_OPERACIONAIS } from "@/lib/cds";
+import { normalizeCdNome } from "@/lib/cd-utils";
 import type { Frota } from "@/lib/repos/frotas";
 import { calcularIdade } from "@/lib/rules";
 import {
@@ -67,7 +69,21 @@ function EmptyValue() {
   return <span className="text-muted-foreground">&mdash;</span>;
 }
 
-export function FrotasTable({ rows }: { rows: Frota[] }) {
+type UpdateLocalizacaoAction = (formData: FormData) => void | Promise<void>;
+
+function localizacaoOptions(): string[] {
+  return [...CDS_OPERACIONAIS];
+}
+
+export function FrotasTable({
+  rows,
+  localizacoes = [],
+  updateLocalizacaoAction,
+}: {
+  rows: Frota[];
+  localizacoes?: string[];
+  updateLocalizacaoAction?: UpdateLocalizacaoAction;
+}) {
   const [selected, setSelected] = useState<Frota | null>(null);
   const [tab, setTab] = useState<Tab>("Resumo");
 
@@ -117,20 +133,44 @@ export function FrotasTable({ rows }: { rows: Frota[] }) {
           </TableHeader>
           <TableBody>
             {rows.map((f) => (
-              <FrotaRow key={f.id} frota={f} onOpen={() => openDrawer(f)} />
+              <FrotaRow
+                key={f.id}
+                frota={f}
+                localizacoes={localizacoes}
+                updateLocalizacaoAction={updateLocalizacaoAction}
+                onOpen={() => openDrawer(f)}
+              />
             ))}
           </TableBody>
         </Table>
       </div>
 
       <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
-        {selected ? <FrotaDrawer frota={selected} tab={tab} onTabChange={setTab} /> : null}
+        {selected ? (
+          <FrotaDrawer
+            frota={selected}
+            tab={tab}
+            localizacoes={localizacoes}
+            updateLocalizacaoAction={updateLocalizacaoAction}
+            onTabChange={setTab}
+          />
+        ) : null}
       </Sheet>
     </>
   );
 }
 
-function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
+function FrotaRow({
+  frota,
+  localizacoes,
+  updateLocalizacaoAction,
+  onOpen,
+}: {
+  frota: Frota;
+  localizacoes: string[];
+  updateLocalizacaoAction?: UpdateLocalizacaoAction;
+  onOpen: () => void;
+}) {
   const idade = calcularIdade(frota.ano_fabricacao);
   const status = statusOperacional(frota);
   const condicao = condicaoFrota(frota);
@@ -158,7 +198,18 @@ function FrotaRow({ frota, onOpen }: { frota: Frota; onOpen: () => void }) {
           <div className="text-xs text-muted-foreground">{idade != null ? `${idade} ano(s)` : "Sem ano"}</div>
         </div>
       </TableCell>
-      <TableCell className="max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</TableCell>
+      <TableCell className="min-w-[240px]" onClick={(event) => event.stopPropagation()}>
+        {updateLocalizacaoAction ? (
+          <LocalizacaoSelectForm
+            frota={frota}
+            localizacoes={localizacoes}
+            action={updateLocalizacaoAction}
+            compact
+          />
+        ) : (
+          <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
+        )}
+      </TableCell>
       <TableCell className="text-right tabular-nums">{formatNumber(frota.km_atual)}</TableCell>
       <TableCell>
         <div className="flex flex-col items-start gap-1">
@@ -259,7 +310,66 @@ function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }
   );
 }
 
-function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTabChange: (tab: Tab) => void }) {
+function LocalizacaoSelectForm({
+  frota,
+  localizacoes,
+  action,
+  compact = false,
+}: {
+  frota: Frota;
+  localizacoes: string[];
+  action: UpdateLocalizacaoAction;
+  compact?: boolean;
+}) {
+  const options = localizacaoOptions();
+
+  return (
+    <form
+      action={action}
+      className={compact ? "flex min-w-[220px] items-center gap-1" : "flex flex-col gap-2 sm:flex-row"}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <input type="hidden" name="id" value={frota.id} />
+      <select
+        name="localizacao"
+        defaultValue={normalizeCdNome(frota.localizacao) === "Sem CD" ? "" : normalizeCdNome(frota.localizacao)}
+        aria-label="CD ou localização da frota"
+        className={
+          compact
+            ? "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+            : "h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+        }
+      >
+        <option value="">Sem CD</option>
+        {options
+          .filter((local) => local !== "Sem CD")
+          .map((local) => (
+            <option key={local} value={local}>
+              {local}
+            </option>
+          ))}
+      </select>
+      <Button type="submit" variant="outline" size={compact ? "sm" : "default"} className="shrink-0">
+        <Save className="h-4 w-4" aria-hidden="true" />
+        {!compact ? "Salvar" : null}
+      </Button>
+    </form>
+  );
+}
+
+function FrotaDrawer({
+  frota,
+  tab,
+  localizacoes,
+  updateLocalizacaoAction,
+  onTabChange,
+}: {
+  frota: Frota;
+  tab: Tab;
+  localizacoes: string[];
+  updateLocalizacaoAction?: UpdateLocalizacaoAction;
+  onTabChange: (tab: Tab) => void;
+}) {
   const status = statusOperacional(frota);
   const condicao = condicaoFrota(frota);
   const idade = calcularIdade(frota.ano_fabricacao);
@@ -309,7 +419,13 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === "Resumo" ? <ResumoTab frota={frota} /> : null}
+        {tab === "Resumo" ? (
+          <ResumoTab
+            frota={frota}
+            localizacoes={localizacoes}
+            updateLocalizacaoAction={updateLocalizacaoAction}
+          />
+        ) : null}
         {tab === "Cadastro" ? <CadastroTab frota={frota} /> : null}
         {tab === "KM" ? <KmTab frota={frota} /> : null}
         {tab === "Histórico" ? <HistoricoTab frota={frota} /> : null}
@@ -348,11 +464,31 @@ function FrotaDrawer({ frota, tab, onTabChange }: { frota: Frota; tab: Tab; onTa
   );
 }
 
-function ResumoTab({ frota }: { frota: Frota }) {
+function ResumoTab({
+  frota,
+  localizacoes,
+  updateLocalizacaoAction,
+}: {
+  frota: Frota;
+  localizacoes: string[];
+  updateLocalizacaoAction?: UpdateLocalizacaoAction;
+}) {
   const motivos = motivosAtencao(frota);
 
   return (
     <div className="space-y-5">
+      {updateLocalizacaoAction ? (
+        <div className="rounded-md border bg-slate-50 p-3">
+          <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+            Trocar CD / localização
+          </div>
+          <LocalizacaoSelectForm
+            frota={frota}
+            localizacoes={localizacoes}
+            action={updateLocalizacaoAction}
+          />
+        </div>
+      ) : null}
       <InfoGrid>
         <Field label="Localização" value={frota.localizacao} />
         <Field label="Status operacional" value={STATUS_OPERACIONAL_LABELS[statusOperacional(frota)]} />

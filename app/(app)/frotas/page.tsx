@@ -8,8 +8,9 @@ import { FrotasTable } from "@/components/frotas/frotas-table";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { listFrotas, getKpisPorFiltro } from "@/lib/repos/frotas";
 import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
+import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import type { StatusFrota } from "@/lib/rules";
-import { enviarRelatorioGeralAction } from "./_actions";
+import { atualizarLocalizacaoFrotaAction, enviarRelatorioGeralAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,7 @@ export default async function FrotasPage({
     search: sp.search,
     modelo: sp.modelo,
     localizacao: sp.localizacao,
+    cd: sp.cd,
     ano: ano && Number.isFinite(ano) ? ano : undefined,
     status,
     operacional,
@@ -59,10 +61,11 @@ export default async function FrotasPage({
     pageSize: 50,
   };
 
-  const [{ rows, total }, modelos, localizacoes, kpisFiltro] = await Promise.all([
+  const [{ rows, total }, modelos, localizacoes, cds, kpisFiltro] = await Promise.all([
     listFrotas(filters),
     modelosDistintosCached(),
     localizacoesDistintasCached(),
+    listCDsDisponibilidade(),
     // KPIs filtrados — só carrega se houver filtro de localização
     sp.localizacao ? getKpisPorFiltro(sp.localizacao) : Promise.resolve(null),
   ]);
@@ -73,7 +76,7 @@ export default async function FrotasPage({
       <PageHeader
         eyebrow="Operação"
         title="Tabela de frotas"
-        description={`${total} frota(s) encontrada(s)${sp.localizacao ? ` em ${sp.localizacao}` : ""}.`}
+        description={`${total} frota(s) encontrada(s)${sp.cd ? ` em ${sp.cd}` : sp.localizacao ? ` em ${sp.localizacao}` : ""}.`}
         icon={List}
         severity="INFO"
         actions={
@@ -92,7 +95,7 @@ export default async function FrotasPage({
           </>
         }
       />
-      <FrotasFilters modelos={modelos} localizacoes={localizacoes} />
+      <FrotasFilters modelos={modelos} localizacoes={localizacoes} cds={cds} />
       {kpisFiltro && (
         <MetricGrid cols={4}>
           <MetricCard
@@ -121,7 +124,11 @@ export default async function FrotasPage({
           />
         </MetricGrid>
       )}
-      <FrotasTable rows={rows} />
+      <FrotasTable
+        rows={rows}
+        localizacoes={localizacoes}
+        updateLocalizacaoAction={atualizarLocalizacaoFrotaAction}
+      />
       {totalPages > 1 && (
         <div className="flex flex-wrap justify-center gap-2">
           {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (

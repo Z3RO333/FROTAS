@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BemolTruck } from "@/components/frotas/bemol-truck";
 import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import type { Frota } from "@/lib/repos/frotas";
+import { normalizeCdNome } from "@/lib/cd-utils";
 import { calcularIdade } from "@/lib/rules";
 import {
   CONDICAO_LABELS,
@@ -70,7 +71,8 @@ export function FrotaInfo({ frota }: { frota: Frota }) {
           <Field label="Renavam" value={frota.renavam} />
           <Field label="Ano de fabricação" value={frota.ano_fabricacao} />
           <Field label="Idade" value={idade != null ? `${idade} ano(s)` : null} />
-          <Field label="Localização" value={frota.localizacao} />
+          <Field label="CD" value={normalizeCdNome(frota.localizacao)} />
+          <Field label="Setor" value={frota.localizacao} />
           <Field label="Km atual" value={formatNumber(frota.km_atual)} />
           <Field label="Última atualização" value={atualizado || null} />
           <div className="md:col-span-3">

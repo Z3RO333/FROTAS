@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
-import { requireAppUser } from "@/lib/rbac";
+import { redirect } from "next/navigation";
+import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
 import { listEmailSchedules } from "@/lib/repos/email-schedule";
 import {
   createScheduleAction,
@@ -30,7 +31,8 @@ export default async function EmailsPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireAppUser();
+  const user = await requireAppUser();
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
   const sp = await searchParams;
   const schedules = await listEmailSchedules();
 
@@ -96,6 +98,7 @@ export default async function EmailsPage({
               <option value="SEMANAL">Semanal</option>
               <option value="QUINZENAL">Quinzenal</option>
               <option value="MENSAL">Mensal</option>
+              <option value="PERSONALIZADO">Personalizado</option>
             </select>
           </div>
           <div className="space-y-1.5">
