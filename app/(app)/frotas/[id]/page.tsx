@@ -38,7 +38,7 @@ import { listServicosByVeiculo } from "@/lib/repos/manutencao/servicos";
 import type { DocumentRecordWithSignedUrls, ServicoApp, TrocaPneuApp } from "@/lib/repos/manutencao/types";
 import { findUnidadeForFrota } from "@/lib/repos/unidades";
 import { listEventosByVeiculo } from "@/lib/services/veiculo-eventos";
-import { requireGestorUser, canEditFrota } from "@/lib/rbac";
+import { requireAdminUser, canEditFrota } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { enviarRelatorioIndividualAction } from "../_actions";
 
@@ -53,7 +53,7 @@ export default async function FrotaDetailPage({
   const frotaId = Number.parseInt(id, 10);
   if (Number.isNaN(frotaId)) notFound();
 
-  const user = await requireGestorUser();
+  const user = await requireAdminUser();
 
   const frota = await getFrota(frotaId);
   if (!frota) notFound();
