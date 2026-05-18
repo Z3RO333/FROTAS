@@ -53,7 +53,7 @@ type Props = { rows: PortariaRow[]; erro?: string | null };
 export function PortariaClient({ rows, erro }: Props) {
   const [queryFrota, setQueryFrota] = useState("");
   const [queryPlaca, setQueryPlaca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("TODAS");
+  const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("LIBERADA_SAIDA");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
   const [detalhe, setDetalhe] = useState<ChecklistDetalhePortaria | null>(null);

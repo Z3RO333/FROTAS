@@ -1,5 +1,4 @@
 import { Wrench } from "lucide-react";
-import { EnviarManutencaoDialog } from "./enviar-manutencao-dialog";
 import { RetornarOperacaoDialog } from "./retornar-operacao-dialog";
 
 type FrotaStatusInput = {
@@ -43,20 +42,14 @@ export function StatusOperacionalBanner({ frota }: { frota: FrotaStatusInput }) 
 
   if (!emManutencao) {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
-            <Wrench className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Em operação</p>
-            <p className="text-xs text-muted-foreground">
-              Status atual: {frota.status ?? "—"}. Use o botão ao lado se a frota precisar entrar
-              em manutenção.
-            </p>
-          </div>
+      <div className="flex items-center gap-3 rounded-lg border bg-white p-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200">
+          <Wrench className="h-4 w-4" />
         </div>
-        <EnviarManutencaoDialog frotaId={frota.id} frotaLabel={frota.label} size="sm" />
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Em operação</p>
+          <p className="text-xs text-muted-foreground">Status atual: {frota.status ?? "—"}.</p>
+        </div>
       </div>
     );
   }

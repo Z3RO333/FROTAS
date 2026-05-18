@@ -1,0 +1,185 @@
+{
+  "name": "3c120d4e-9f5b-4402-9896-09c1631e9e3d",
+  "type": "Microsoft.ProcessSimple/environments/flows",
+  "properties": {
+    "displayName": "LEMBRETE DIARIO POSTO3000",
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "undefined",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2026-04-07T14:00:00.000Z"
+          },
+          "evaluatedRecurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2026-04-07T14:00:00.000Z"
+          },
+          "metadata": {
+            "operationMetadataId": "60c4f8cd-678e-4028-ba82-557ff1cec60a"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Obter_itens": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "a2786b85-53f0-47b4-b1e2-11340f842870"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "GetItems"
+            },
+            "parameters": {
+              "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+              "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+              "$filter": "Confirmado eq 0",
+              "$top": 5000
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Aplicar_a_cada": {
+          "foreach": "@body('Filtrar_pendentes')",
+          "actions": {
+            "Condição": {
+              "actions": {
+                "Enviar_email_(V4)": {
+                  "runAfter": {},
+                  "metadata": {
+                    "operationMetadataId": "8a9007bb-d382-4b64-9a06-e0903526f804"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+                      "connectionName": "shared_sendgrid",
+                      "operationId": "SendEmailV4"
+                    },
+                    "parameters": {
+                      "request/from": "ordensmanutencao@bemol.com.br",
+                      "request/to": "@items('Aplicar_a_cada')?['EMAILLOJA']",
+                      "request/subject": "Lembrete - Confirmar recebimento de diesel",
+                      "request/text": "<div style=\"font-family: Arial, Helvetica, sans-serif; background:#f4f6f8; padding:24px; color:#1f2937;\">\n  <div style=\"max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #d9dee5; border-radius:8px; overflow:hidden;\">\n    <div style=\"background:#92400e; color:#ffffff; padding:18px 22px;\">\n      <div style=\"font-size:18px; font-weight:bold;\">Lembrete de confirma&ccedil;&atilde;o de diesel</div>\n      <div style=\"font-size:13px; color:#fde68a; margin-top:4px;\">Solicita&ccedil;&atilde;o aguardando confirma&ccedil;&atilde;o h&aacute; mais de 2 dias</div>\n    </div>\n\n    <div style=\"padding:22px;\">\n      <p style=\"font-size:14px; margin-top:0; line-height:1.5;\">\n        Identificamos que a solicita&ccedil;&atilde;o abaixo ainda n&atilde;o foi confirmada pela unidade.\n      </p>\n\n      <table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n        <tr>\n          <td style=\"padding:8px 0; color:#64748b; width:170px;\">Unidade/Centro</td>\n          <td style=\"padding:8px 0; font-weight:bold;\">@{items('Aplicar_a_cada')?['UNIDADE']}</td>\n        </tr>\n        <tr>\n          <td style=\"padding:8px 0; color:#64748b;\">Quantidade</td>\n          <td style=\"padding:8px 0; font-weight:bold;\">@{items('Aplicar_a_cada')?['QNTDLITROS']} litros</td>\n        </tr>\n        <tr>\n          <td style=\"padding:8px 0; color:#64748b;\">Data de envio</td>\n          <td style=\"padding:8px 0;\">@{formatDateTime(items('Aplicar_a_cada')?['DataEnvio'],'dd/MM/yyyy')}</td>\n        </tr>\n        <tr>\n          <td style=\"padding:8px 0; color:#64748b;\">C&oacute;digo</td>\n          <td style=\"padding:8px 0; font-weight:bold;\">@{items('Aplicar_a_cada')?['ID_Confirmacao']}</td>\n        </tr>\n      </table>\n\n      <div style=\"margin-top:20px; padding:14px 16px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; color:#78350f; font-size:14px; line-height:1.5;\">\n        Caso o diesel j&aacute; tenha sido recebido, confirme o recebimento usando o c&oacute;digo acima. Se ainda n&atilde;o recebeu, desconsidere este aviso.\n      </div>\n\n      <div style=\"margin-top:22px;\">\n        <a href=\"https://forms.office.com/r/yh00gV0S8v?origin=lprLink\" target=\"_blank\" style=\"background:#d97706; color:#ffffff; padding:12px 18px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;\">Confirmar recebimento</a>\n      </div>\n    </div>\n  </div>\n</div>"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Atualizar_item": {
+                  "runAfter": {
+                    "Enviar_email_(V4)": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "444f90cf-fe95-46a4-a390-3d2c3f0ee987"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "connectionName": "shared_sharepointonline",
+                      "operationId": "PatchItem"
+                    },
+                    "parameters": {
+                      "dataset": "https://bemol.sharepoint.com/sites/Manuteno145",
+                      "table": "b8b64d69-c2e8-4775-9451-f1291728e2de",
+                      "id": "@items('Aplicar_a_cada')?['ID']",
+                      "item/Title": "@items('Aplicar_a_cada')?['Title']",
+                      "item/UNIDADE": "@items('Aplicar_a_cada')?['UNIDADE']",
+                      "item/QNTDLITROS": "@items('Aplicar_a_cada')?['QNTDLITROS']",
+                      "item/EMAILLOJA": "@items('Aplicar_a_cada')?['EMAILLOJA']",
+                      "item/STATUS/Value": "SOLICITAÇÃO",
+                      "item/DataSolicitacao": "@items('Aplicar_a_cada')?['DataSolicitacao']",
+                      "item/DataEnvio": "@items('Aplicar_a_cada')?['DataEnvio']",
+                      "item/DataRecebimento": "@items('Aplicar_a_cada')?['DataRecebimento']",
+                      "item/Confirmado": false,
+                      "item/ID_Confirmacao": "@items('Aplicar_a_cada')?['ID_Confirmacao']",
+                      "item/LembreteEnviado": true,
+                      "item/DataUltimoLembrete_x2192_Data": "@convertTimeZone(utcNow(),'UTC','SA Western Standard Time')"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "runAfter": {},
+              "expression": {
+                "equals": [
+                  "@items('Aplicar_a_cada')?['Confirmado']",
+                  false
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "2589512f-0012-48c8-b224-417cc5a1099b"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Filtrar_pendentes": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "53d73667-2f6e-40b1-88a6-7b42828831b4"
+          },
+          "type": "Foreach"
+        },
+        "Filtrar_pendentes": {
+          "runAfter": {
+            "Obter_itens": [
+              "Succeeded"
+            ]
+          },
+          "type": "Query",
+          "inputs": {
+            "from": "@outputs('Obter_itens')?['body/value']",
+            "where": "@and(equals(item()?['Confirmado'], false), equals(coalesce(item()?['LembreteEnviado'], false), false), not(empty(item()?['EMAILLOJA'])), lessOrEquals(ticks(coalesce(item()?['DataEnvio'], utcNow())), ticks(addDays(utcNow(), -2))))"
+          }
+        }
+      }
+    },
+    "connectionReferences": {
+      "shared_sharepointonline": {
+        "connectionName": "shared-sharepointonl-9cab5c63-902d-4c99-9ef4-8bfbc53ca118",
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "displayName": "SharePoint",
+        "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png",
+        "brandColor": "",
+        "tier": "Standard",
+        "apiName": "sharepointonline",
+        "isProcessSimpleApiReferenceConversionAlreadyDone": false
+      },
+      "shared_sendgrid": {
+        "connectionName": "shared-sendgrid-7d3bed2f-e90a-4345-9dcb-52b8e6ca061e",
+        "source": "Embedded",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sendgrid",
+        "displayName": "SendGrid",
+        "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1778/1.0.1778.4420/sendgrid/icon.png",
+        "brandColor": "#34455F",
+        "tier": "Standard",
+        "apiName": "sendgrid",
+        "isProcessSimpleApiReferenceConversionAlreadyDone": false
+      }
+    },
+    "state": "Started"
+  }
+}
