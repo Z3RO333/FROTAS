@@ -5,6 +5,7 @@ import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { listFrotas } from "@/lib/repos/frotas";
 import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
+import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import type { StatusFrota } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export default async function FrotasVendidasPage({
     search: sp.search,
     modelo: sp.modelo,
     localizacao: sp.localizacao,
+    cd: sp.cd,
     status,
     condicao,
     cadastro: sp.cadastro === "incompleto" ? ("incompleto" as const) : undefined,
@@ -49,10 +51,11 @@ export default async function FrotasVendidasPage({
     pageSize: 50,
   };
 
-  const [{ rows, total }, modelos, localizacoes] = await Promise.all([
+  const [{ rows, total }, modelos, localizacoes, cds] = await Promise.all([
     listFrotas(filters),
     modelosDistintosCached(),
     localizacoesDistintasCached(),
+    listCDsDisponibilidade(),
   ]);
   const totalPages = Math.ceil(total / 50);
 
@@ -72,7 +75,7 @@ export default async function FrotasVendidasPage({
         </Button>
       </div>
 
-      <FrotasFilters modelos={modelos} localizacoes={localizacoes} basePath="/frotas/vendidos" />
+      <FrotasFilters modelos={modelos} localizacoes={localizacoes} cds={cds} basePath="/frotas/vendidos" />
       <FrotasTable rows={rows} />
 
       {totalPages > 1 && (

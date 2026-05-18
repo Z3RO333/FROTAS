@@ -22,8 +22,8 @@ export async function listDocuments(filters: {
   const to = from + pageSize - 1;
 
   let q = supabaseManutencao.from(T).select("*", { count: "exact" });
-  if (frota) q = q.ilike("frota", `%${frota}%`);
-  if (placa) q = q.ilike("placa", `%${placa}%`);
+  if (frota) q = q.eq("frota", frota);
+  if (placa) q = q.eq("placa", placa);
 
   const { data, error, count } = await q
     .order("created_at", { ascending: false })

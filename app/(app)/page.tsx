@@ -147,7 +147,7 @@ export default async function DashboardPage() {
               icon={TrendingUp}
               severity={atingiuMeta ? "OK" : "ATENCAO"}
               hint={`Meta ${metaPct}`}
-              href="/planejamento/disponibilidade"
+              href="/frotas/disponibilidades"
             />
             <MetricCard
               label="Manutenções atrasadas"

@@ -24,7 +24,7 @@ const COCKPIT_NAV: NavItem[] = [
 const FROTA_NAV: NavItem[] = [
   { href: "/frotas", label: "Veículos", icon: "List" },
   { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
-  { href: "/planejamento/disponibilidade", label: "Disponibilidade", icon: "Gauge" },
+  { href: "/frotas/disponibilidades", label: "Disponibilidade", icon: "Gauge" },
   { href: "/checklists/validacao-km", label: "Quilometragem", icon: "Gauge" },
   { href: "/frotas/vendidos", label: "Vendidos", icon: "ShoppingCart" },
 ];

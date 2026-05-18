@@ -13,16 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Props = { modelos: string[]; localizacoes: string[]; basePath?: string };
-
-// Filtros rápidos por CD — mapeados para o campo `local` do banco
-const CDS = [
-  { id: "104", label: "CD 104 · Manaus",      local: "AM - MANAUS" },
-  { id: "170", label: "CD 170 · Porto Velho", local: "RO - PORTO VELHO" },
-  { id: "402", label: "CD 402 · Rio Branco",  local: "AC - RIO BRANCO" },
-  // CD 148 Tarumã ainda aparece como "AM - MANAUS" no banco — atualizar o campo local para separar
-  { id: "148", label: "CD 148 · Tarumã",      local: "AM - MANAUS" },
-] as const;
+type Props = {
+  modelos: string[];
+  localizacoes: string[];
+  cds: string[];
+  basePath?: string;
+};
 
 const OPERACIONAIS = [
   { value: "all", label: "Todos status" },
@@ -38,7 +34,7 @@ const CONDICOES = [
   { value: "critico", label: "Crítico" },
 ];
 
-export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: Props) {
+export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
@@ -73,137 +69,133 @@ export function FrotasFilters({ modelos, localizacoes, basePath = "/frotas" }: P
     return () => window.clearTimeout(handle);
   }, [search, searchParams]);
 
-  const localizacaoAtual = searchParams.get("localizacao") ?? "all";
-  const cdAtivo = CDS.find((cd) => cd.local === localizacaoAtual)?.id ?? null;
+  const cdAtual = searchParams.get("cd") ?? "all";
 
   return (
     <div className="space-y-2">
-      {/* Chips de CD */}
       <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
-          onClick={() => update("localizacao", "all")}
+          onClick={() => applyChanges({ cd: "", localizacao: "" })}
           className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            !cdAtivo ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            cdAtual === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
           }`}
         >
           Todos os CDs
         </button>
-        {CDS.map((cd) => (
+        {cds.map((cd) => (
           <button
-            key={cd.id}
+            key={cd}
             type="button"
-            onClick={() => update("localizacao", cd.local)}
+            onClick={() => applyChanges({ cd, localizacao: "" })}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              cdAtivo === cd.id
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              cdAtual === cd ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            {cd.label}
+            {cd}
           </button>
         ))}
       </div>
 
-    <div className="rounded-lg border bg-white p-3 shadow-sm">
-      <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.2fr)_repeat(5,minmax(150px,.8fr))_auto]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar placa, chassi, modelo, localização..."
-            className="pl-9"
-          />
+      <div className="rounded-lg border bg-white p-3 shadow-sm">
+        <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.2fr)_repeat(5,minmax(150px,.8fr))_auto]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar placa, chassi, modelo, localização..."
+              className="pl-9"
+            />
+          </div>
+
+          <Select value={searchParams.get("modelo") ?? "all"} onValueChange={(v) => update("modelo", v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Modelo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos modelos</SelectItem>
+              {modelos.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={searchParams.get("localizacao") ?? "all"}
+            onValueChange={(v) => applyChanges({ localizacao: v, cd: "" })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Localização" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas localizações</SelectItem>
+              {localizacoes.map((l) => (
+                <SelectItem key={l} value={l}>
+                  {l}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={searchParams.get("operacional") ?? "all"}
+            onValueChange={(v) => update("operacional", v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {OPERACIONAIS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={searchParams.get("condicao") ?? "all"} onValueChange={(v) => update("condicao", v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Condição" />
+            </SelectTrigger>
+            <SelectContent>
+              {CONDICOES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={searchParams.get("cadastro") ?? (searchParams.get("semKm") ? "semKm" : "all")}
+            onValueChange={(v) => {
+              if (v === "semKm") applyChanges({ semKm: "1", cadastro: "" });
+              else applyChanges({ semKm: "", cadastro: v });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Cadastro" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos cadastros</SelectItem>
+              <SelectItem value="incompleto">Incompletos</SelectItem>
+              <SelectItem value="semKm">Sem KM</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant="ghost"
+            onClick={() => startTransition(() => router.replace(basePath, { scroll: false }))}
+            className="justify-center gap-2"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+            Limpar
+          </Button>
         </div>
-
-        <Select value={searchParams.get("modelo") ?? "all"} onValueChange={(v) => update("modelo", v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Modelo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos modelos</SelectItem>
-            {modelos.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={searchParams.get("localizacao") ?? "all"}
-          onValueChange={(v) => update("localizacao", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Localização" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas localizações</SelectItem>
-            {localizacoes.map((l) => (
-              <SelectItem key={l} value={l}>
-                {l}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={searchParams.get("operacional") ?? "all"}
-          onValueChange={(v) => update("operacional", v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {OPERACIONAIS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={searchParams.get("condicao") ?? "all"} onValueChange={(v) => update("condicao", v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Condição" />
-          </SelectTrigger>
-          <SelectContent>
-            {CONDICOES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={searchParams.get("cadastro") ?? (searchParams.get("semKm") ? "semKm" : "all")}
-          onValueChange={(v) => {
-            if (v === "semKm") applyChanges({ semKm: "1", cadastro: "" });
-            else applyChanges({ semKm: "", cadastro: v });
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Cadastro" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos cadastros</SelectItem>
-            <SelectItem value="incompleto">Incompletos</SelectItem>
-            <SelectItem value="semKm">Sem KM</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button
-          variant="ghost"
-          onClick={() => startTransition(() => router.replace(basePath, { scroll: false }))}
-          className="justify-center gap-2"
-        >
-          <X className="h-4 w-4" aria-hidden="true" />
-          Limpar
-        </Button>
       </div>
-    </div>
     </div>
   );
 }

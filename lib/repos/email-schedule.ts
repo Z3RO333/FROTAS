@@ -5,7 +5,7 @@ export type EmailSchedule = {
   nome: string;
   tipo: string;
   destinatarios: string[];
-  frequencia: "DIARIO" | "SEMANAL" | "QUINZENAL" | "MENSAL";
+  frequencia: "DIARIO" | "SEMANAL" | "QUINZENAL" | "MENSAL" | "PERSONALIZADO";
   dia_semana: number | null;
   hora_envio: string;
   cds_incluidos: string[];

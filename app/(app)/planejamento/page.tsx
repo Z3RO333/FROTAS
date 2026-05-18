@@ -92,7 +92,7 @@ export default async function PlanejamentoPage() {
                 ? "OK"
                 : "ATENCAO"
             }
-            href="/planejamento/disponibilidade"
+            href="/frotas/disponibilidades"
             hint={`Meta ${metaPct}`}
           />
           <MetricCard

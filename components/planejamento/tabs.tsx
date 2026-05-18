@@ -9,7 +9,7 @@ const TABS = [
   { href: "/planejamento/paradas", label: "Frotas Paradas" },
   { href: "/planejamento/manutencao", label: "Manutenção" },
   { href: "/planejamento/documentos", label: "Documentos" },
-  { href: "/planejamento/disponibilidade", label: "Disponibilidade" },
+  { href: "/frotas/disponibilidades", label: "Disponibilidade" },
   { href: "/planejamento/pneus", label: "Pneus" },
   { href: "/planejamento/lavagem", label: "Lavagem" },
   { href: "/planejamento/seguranca", label: "Kit Segurança" },
