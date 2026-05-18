@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Trash } from "lucide-react";
+import { EyeOff } from "lucide-react";
 import { excluirFrotaAction } from "@/app/(app)/frotas/_actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,17 +22,17 @@ export function DeleteFrotaButton({ id, label }: { id: number; label: string }) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="destructive">
-          <Trash className="mr-2 h-4 w-4" aria-hidden="true" />
-          Excluir
+        <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-50">
+          <EyeOff className="mr-2 h-4 w-4" aria-hidden="true" />
+          Ocultar frota
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Excluir frota?</DialogTitle>
+          <DialogTitle>Ocultar frota?</DialogTitle>
           <DialogDescription>
-            A frota <strong>{label}</strong> será marcada como inativa e deixará de aparecer na lista
-            padrão.
+            A frota <strong>{label}</strong> será marcada como inativa e deixará de aparecer na lista.
+            O histórico é preservado e ela pode ser reativada futuramente.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -52,7 +52,7 @@ function DeleteSubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="destructive" disabled={pending}>
-      {pending ? "Excluindo..." : "Confirmar"}
+      {pending ? "Ocultando..." : "Confirmar"}
     </Button>
   );
 }

@@ -128,4 +128,16 @@ export function canManageUsers(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "DEV";
 }
 
+export function canEditFrota(perfil: PerfilUsuario): boolean {
+  return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
+}
+
+export async function requireGestorUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canEditFrota(user.perfil)) {
+    redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
+  }
+  return user;
+}
+
 export { PERFIS_USUARIO };

@@ -592,8 +592,17 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
 }
 
 function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): StatusPortaria {
-  if (row.ultimo_tipo_movimentacao === "SAIDA") return "SAIDA_REGISTRADA";
-  if (row.ultimo_tipo_movimentacao === "ENTRADA") return "ENTRADA_REGISTRADA";
+  // Se há movimentação, compara o timestamp com o do checklist.
+  // Checklist mais recente que a movimentação → checklist prevalece (ex: novo checklist após ENTRADA).
+  if (row.ultimo_tipo_movimentacao && row.ultimo_movimento_em) {
+    const movTime = new Date(row.ultimo_movimento_em).getTime();
+    const ckTime = row.data_checklist ? new Date(row.data_checklist).getTime() : 0;
+    if (movTime >= ckTime) {
+      if (row.ultimo_tipo_movimentacao === "SAIDA") return "SAIDA_REGISTRADA";
+      if (row.ultimo_tipo_movimentacao === "ENTRADA") return "ENTRADA_REGISTRADA";
+    }
+  }
+
   if (!row.checklist_id) return "PENDENTE_CHECKLIST";
 
   // Regra de liberação: bloqueia apenas quando há itens OBRIGATÓRIOS inconforme.

@@ -1,0 +1,6 @@
+137. [GET] https://api.flow.microsoft.com/providers/Microsoft.ProcessSimple/environments/Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec?api-version=2020-06-01&$expand=properties/permissions&refreshCache=true => [200] 
+200. [GET] https://us.api.flow.microsoft.com/providers/Microsoft.ProcessSimple/environments/Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec/flows/b77d7148-bb27-4c0f-94be-32e1d933e195?api-version=2016-11-01&$expand=properties.connectionreferences.apidefinition,properties.definitionsummary.operations.apioperation,operationDefinition,plan,properties.throttleData,properties.estimatedsuspensiondata,properties.powerFlowType => [200] 
+314. [GET] https://defaultf10f91e5f90548aa8c4ca68d0ae5f6.ec.environment.api.powerplatform.com/connectivity/connections?api-version=1&%24filter=environment+eq+%27Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec%27 => [200] 
+326. [GET] https://us.api.flow.microsoft.com/providers/Microsoft.ProcessSimple/environments/Default-f10f91e5-f905-48aa-8c4c-a68d0ae5f6ec/checkaccess?api-version=2016-11-01
+
+Note: 226 static requests not shown, run with "static" option to see them.

@@ -5,21 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { Frota } from "@/lib/repos/frotas";
-
-const STATUSES = [
-  { value: "disponivel", label: "Disponível" },
-  { value: "manutencao", label: "Manutenção" },
-  { value: "atencao", label: "Atenção" },
-  { value: "critico", label: "Crítico" },
-] as const;
 
 type Props = {
   initial?: Partial<Frota>;
@@ -49,22 +35,6 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       />
       <Field label="Localização" name="localizacao" defaultValue={initial?.localizacao ?? ""} />
       <Field label="Km atual" name="km_atual" type="number" defaultValue={initial?.km_atual ?? ""} />
-
-      <div className="space-y-1.5">
-        <Label htmlFor="status">Status</Label>
-        <Select name="status" defaultValue={initial?.status ?? "disponivel"}>
-          <SelectTrigger id="status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUSES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       <div className="space-y-1.5 md:col-span-2">
         <Label htmlFor="observacoes">Observações</Label>

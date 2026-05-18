@@ -18,7 +18,6 @@ import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { DeleteFrotaButton } from "@/components/frotas/delete-frota-button";
 import { FrotaInfo } from "@/components/frotas/frota-info";
 import { HistoricoTimeline } from "@/components/frotas/historico-timeline";
 import { KmEvolutionChart } from "@/components/frotas/km-evolution-chart";
@@ -39,6 +38,7 @@ import { listServicosByVeiculo } from "@/lib/repos/manutencao/servicos";
 import type { DocumentRecordWithSignedUrls, ServicoApp, TrocaPneuApp } from "@/lib/repos/manutencao/types";
 import { findUnidadeForFrota } from "@/lib/repos/unidades";
 import { listEventosByVeiculo } from "@/lib/services/veiculo-eventos";
+import { requireGestorUser, canEditFrota } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { enviarRelatorioIndividualAction } from "../_actions";
 
@@ -52,6 +52,8 @@ export default async function FrotaDetailPage({
   const { id } = await params;
   const frotaId = Number.parseInt(id, 10);
   if (Number.isNaN(frotaId)) notFound();
+
+  const user = await requireGestorUser();
 
   const frota = await getFrota(frotaId);
   if (!frota) notFound();
@@ -292,16 +294,18 @@ export default async function FrotaDetailPage({
         icon={Truck}
         actions={
           <>
-            <Button
-              asChild
-              variant="outline"
-              className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
-            >
-              <Link href={`/frotas/${frota.id}/editar`}>
-                <Edit className="mr-1 h-4 w-4" aria-hidden="true" />
-                Editar
-              </Link>
-            </Button>
+            {canEditFrota(user.perfil) && (
+              <Button
+                asChild
+                variant="outline"
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+              >
+                <Link href={`/frotas/${frota.id}/editar`}>
+                  <Edit className="mr-1 h-4 w-4" aria-hidden="true" />
+                  Editar
+                </Link>
+              </Button>
+            )}
             <EnviarRelatorioDialog
               title={`Enviar relatório de ${frota.placa ?? frota.id}`}
               action={enviarRelatorioIndividualAction.bind(null, frota.id)}
@@ -309,7 +313,6 @@ export default async function FrotaDetailPage({
               triggerVariant="outline"
               triggerClassName="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
             />
-            <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
           </>
         }
       >
