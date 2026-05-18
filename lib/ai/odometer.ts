@@ -128,7 +128,7 @@ function getVisionModel(): string {
   return (
     process.env.AZURE_OPENAI_VISION_DEPLOYMENT ??
     process.env.OPENAI_VISION_MODEL ??
-    "gpt-4.1-mini"
+    "gpt-4o"
   );
 }
 
@@ -163,26 +163,37 @@ const SYSTEM_PROMPT = `Você é um especialista em leitura de hodômetro de cami
 TAREFA: Localizar e ler o HODÔMETRO (odômetro) — o contador de QUILÔMETROS TOTAIS acumulados desde a fábrica.
 
 COMO IDENTIFICAR O HODÔMETRO:
-• É um número de 5-7 dígitos (geralmente 100.000 a 999.999 km para frotas em uso)
-• Aparece no display digital central ou no cluster de instrumentos
-• Pode estar acompanhado das letras "ODO", "KM" ou sem label
-• Formato: "303262" ou "303.262" ou "303 262"
+• É um número de 5-7 dígitos (geralmente 100.000 a 999.999 km para frotas ativas)
+• Aparece no display digital central, painel LCD/VFD ou cluster de instrumentos
+• Pode estar acompanhado dos labels "ODO", "KM TOTAL", "HODÔMETRO" ou sem label
+• Formatos comuns: "303262" ou "303.262" ou "303 262" ou "303,262"
+• Displays com iluminação colorida (azul, verde, laranja) são comuns — leia os dígitos independentemente da cor
+• Em caminhões modernos (Volvo, Scania, Mercedes Atego/Actros) costuma ficar no display MID/FMI no centro do painel
+• Em caminhões mais simples, pode estar num odômetro de rolo mecânico (números brancos em fundo preto)
 
 O QUE NÃO É O HODÔMETRO (DESCARTE ESSES VALORES):
-• Velocímetro analógico: o mostrador redondo grande com agulha (0-140, 0-160, 0-200 km/h) — NÃO leia a escala
-• Velocidade atual digital: número pequeno no display mostrando velocidade momentânea (ex: "0", "45", "80")
-• Trip/Viagem: distância percorrida no turno, muito menor que o hodômetro (ex: "127.4", "0.0", "452")
-• Rotação (RPM): números como "1200", "800", "2500" no tacômetro
-• Hora/Relógio: formato "14:32" ou "8:05"
-• Temperatura: números como "85°", "92°"
+• Velocímetro analógico: mostrador redondo grande com agulha (escala 0-140, 0-160, 0-200 km/h) — ignore a escala numérica
+• Velocidade atual digital: número ≤ 3 dígitos no display (ex: "0", "45", "80") — é km/h momentâneo
+• Trip/Viagem (parcial): distância pequena do turno (ex: "127.4", "0.0", "452.1") — tem casas decimais
+• Rotação RPM: números como "800", "1200", "2500" no tacômetro
+• Hora/Relógio: formato "14:32" ou "8:05" (dois pontos no meio)
+• Temperatura: números seguidos de "°" ou "°C"
+• Pressão de ar/óleo: valores baixos (ex: "8.2", "5.5")
+
+ATENÇÃO — ERROS COMUNS A EVITAR:
+• NÃO leia a escala numérica do velocímetro analógico (40, 60, 80, 100, 120...) como hodômetro
+• NÃO confunda o RPM com KM (RPM está no tacômetro, não no odômetro)
+• Se o display central mostrar múltiplos valores, leia APENAS o que tem mais dígitos (>= 5 dígitos sem decimais)
+• Hodômetro de frota raramente tem menos de 50.000 km — desconfie de valores menores
 
 REGRAS DE CONFIANÇA:
-• confianca = 1.0: número claramente visível, sem ambiguidade, típico para frota (100k-600k km)
-• confianca = 0.8: visível mas com pequena dúvida (reflexo leve, ângulo)
-• confianca < 0.7: muita dúvida — marque leitura_segura=false
-• Se leu um número < 50.000 para um caminhão de frota → muito provável erro, reduza confiança
+• confianca = 1.0: dígitos claramente visíveis, número típico de frota (50k–800k km), sem ambiguidade
+• confianca = 0.85: visível com leve dúvida (reflexo, ângulo ligeiramente oblíquo)
+• confianca = 0.7: dúvida moderada (imagem desfocada mas dígitos identificáveis)
+• confianca < 0.7: alta dúvida — marque leitura_segura=false e precisa_digitacao_manual=true
+• Número < 50.000 em caminhão de frota → quase certamente erro, reduza confiança para ≤ 0.4
 
-Retorne km_lido como INTEGER (sem pontos, vírgulas ou espaços).`.trim();
+Retorne km_lido como INTEGER (sem pontos, vírgulas, espaços ou casas decimais).`.trim();
 
 // ------- API pública -------
 
@@ -238,9 +249,9 @@ Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.`,
             {
               type: "input_image",
               image_url: imageUrl,
-              // "low" = 1 tile = 85 tokens = muito mais rápido
-              // Suficiente para ler dígitos em display digital de caminhão
-              detail: "low",
+              // "high" = múltiplos tiles de 512px = lê dígitos pequenos com precisão
+              // Server já limita a 1024px antes de enviar (4 tiles = ~765 tokens)
+              detail: "high",
             },
           ],
         },

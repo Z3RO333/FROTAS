@@ -44,7 +44,7 @@ const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "G
 // Redimensiona e comprime a imagem no browser antes de enviar para OCR.
 // De ~4 MB (foto de câmera) para ~40-60 KB — reduz upload de 4s para <0.5s em rede móvel.
 // O preview usa a imagem original (boa qualidade); o OCR recebe a comprimida (suficiente para ler dígitos).
-async function comprimirImagemParaOcr(file: File, maxPx = 720, qualidade = 0.72): Promise<File> {
+async function comprimirImagemParaOcr(file: File, maxPx = 1280, qualidade = 0.88): Promise<File> {
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(maxPx / bitmap.width, maxPx / bitmap.height, 1);
