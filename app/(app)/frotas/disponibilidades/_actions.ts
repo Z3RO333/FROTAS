@@ -35,7 +35,7 @@ export async function enviarRelatorioDisponibilidadeCDAction(
     if (typeof raw !== "string") return { ok: false, error: "Destinatários obrigatórios." };
     const destinatarios = EmailListSchema.parse(raw);
     const frotas = await listFrotasForReport(cdNome ? { cd: cdNome } : {});
-    const result = await sendRelatorioGeral({ destinatarios, frotas, enviadoPor: user.email });
+    const result = await sendRelatorioGeral({ destinatarios, frotas, enviadoPor: user.email, cdNome });
     return result.ok ? { ok: true } : { ok: false, error: (result as { error?: string }).error ?? "Erro ao enviar." };
   } catch (error) {
     if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };

@@ -89,12 +89,15 @@ export async function sendRelatorioGeral(args: {
   destinatarios: string[];
   frotas: Frota[];
   enviadoPor: string;
+  cdNome?: string;
 }): Promise<SendResult> {
   const sentAt = new Date();
-  const assunto = `Relatório de frotas - ${formatReportDate(sentAt)}`;
+  const cdLabel = args.cdNome ? ` — ${args.cdNome}` : "";
+  const assunto = `Relatório de frotas${cdLabel} - ${formatReportDate(sentAt)}`;
   const truckAttachment = await getTruckAttachment();
   const html = renderRelatorioGeral(args.frotas, sentAt, {
     truckImageSrc: truckAttachment ? `cid:${TRUCK_CID}` : undefined,
+    cdNome: args.cdNome,
   });
   const destinatarios = args.destinatarios.join(",");
 

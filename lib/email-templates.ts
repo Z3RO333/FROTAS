@@ -14,6 +14,7 @@ import { calcularIdade } from "@/lib/rules";
 
 type ReportOptions = {
   truckImageSrc?: string;
+  cdNome?: string;
 };
 
 const BLUE = "#0b3f8e";
@@ -119,12 +120,16 @@ function shell(content: string): string {
 }
 
 function header(title: string, subtitle: string, options: ReportOptions): string {
+  const cdBadge = options.cdNome
+    ? `<div style="display:inline-block;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:4px 14px;font-size:12px;font-weight:700;letter-spacing:.05em;color:#ffffff;margin-bottom:10px;text-transform:uppercase;">${escapeHtml(options.cdNome)}</div><br>`
+    : "";
   return `
     <tr>
       <td style="background:${BLUE};border-radius:14px 14px 0 0;padding:0;overflow:hidden;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
           <tr>
             <td style="padding:26px 28px;color:#ffffff;vertical-align:middle;">
+              ${cdBadge}
               <div style="font-size:27px;line-height:33px;font-weight:800;">${escapeHtml(title)}</div>
               <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
             </td>
@@ -163,50 +168,29 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
 
       return `
         <tr style="background:${bg};">
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">
-            <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-              <tr>
-                <td style="width:48px;vertical-align:middle;">${truckImage(options.truckImageSrc, 42)}</td>
-                <td style="vertical-align:middle;">
-                  <div style="font-size:13px;font-weight:800;color:${INK};">${display(
-                    f.frota_geral ?? f.id
-                  )}</div>
-                  <div style="font-size:11px;color:${MUTED};margin-top:2px;">Placa ${display(f.placa)}</div>
-                </td>
-              </tr>
-            </table>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">
+            <div style="font-size:13px;font-weight:800;color:${INK};">${display(f.frota_geral ?? f.id)}</div>
+            <div style="font-size:11px;color:${MUTED};margin-top:1px;">${display(f.placa)}</div>
           </td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
-            f.modelo
-          )}</td>
-          <td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
-            f.ano_fabricacao
-          )}<div style="font-size:11px;color:${MUTED};">${idade != null ? `${idade} ano(s)` : "&mdash;"}</div></td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
-            f.localizacao
-          )}</td>
-          <td style="padding:10px 8px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${display(
-            f.km_atual?.toLocaleString("pt-BR")
-          )}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(
-            STATUS_OPERACIONAL_LABELS[status],
-            statusTone(status)
-          )}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(
-            CONDICAO_LABELS[condicao],
-            conditionTone(condicao)
-          )}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;">${display(
-            motivo
-          )}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.modelo)}</td>
+          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.ano_fabricacao)}<div style="font-size:11px;color:${MUTED};">${idade != null ? `${idade}a` : "&mdash;"}</div></td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:12px;color:${MUTED};">${display(f.localizacao)}</td>
+          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;font-weight:600;">${display(f.km_atual?.toLocaleString("pt-BR"))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(STATUS_OPERACIONAL_LABELS[status], statusTone(status))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(CONDICAO_LABELS[condicao], conditionTone(condicao))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;max-width:240px;">${display(motivo)}</td>
         </tr>`;
     })
     .join("");
 
+  const tituloRelatorio = options.cdNome
+    ? `Relatório de frotas — ${options.cdNome}`
+    : "Relatório de frotas";
+
   return shell(`
     ${header(
-      "Relatório de frotas",
-      `${formatReportDate(dataRef)} - ${formatNumber(total)} frota(s) em operação`,
+      tituloRelatorio,
+      `${formatReportDate(dataRef)} · ${formatNumber(total)} frota(s) em operação`,
       options
     )}
     <tr>
