@@ -51,7 +51,8 @@ const FILTER_TABS: {
 type Props = { rows: PortariaRow[]; erro?: string | null };
 
 export function PortariaClient({ rows, erro }: Props) {
-  const [query, setQuery] = useState("");
+  const [queryFrota, setQueryFrota] = useState("");
+  const [queryPlaca, setQueryPlaca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("TODAS");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
@@ -59,12 +60,10 @@ export function PortariaClient({ rows, erro }: Props) {
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
 
   const filtered = rows.filter((r) => {
-    const q = query.trim().toLowerCase();
-    if (q) {
-      const match = [r.frota_geral, r.placa, r.modelo, r.motorista_nome]
-        .filter(Boolean).join(" ").toLowerCase().includes(q);
-      if (!match) return false;
-    }
+    const frota = queryFrota.trim().toLowerCase();
+    const placa = queryPlaca.trim().toLowerCase();
+    if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
+    if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
     if (filtroStatus !== "TODAS" && r.status_portaria !== filtroStatus) return false;
     return true;
   });
@@ -100,9 +99,14 @@ export function PortariaClient({ rows, erro }: Props) {
 
       <FilterBar sticky>
         <FilterSearch
-          value={query}
-          onChange={setQuery}
-          placeholder="Buscar frota, placa ou motorista…"
+          value={queryFrota}
+          onChange={setQueryFrota}
+          placeholder="Nº frota…"
+        />
+        <FilterSearch
+          value={queryPlaca}
+          onChange={setQueryPlaca}
+          placeholder="Placa…"
         />
         <div className="flex flex-wrap items-center gap-1.5">
           {FILTER_TABS.map((tab) => {
@@ -129,8 +133,8 @@ export function PortariaClient({ rows, erro }: Props) {
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="rounded-xl border bg-white p-8 text-center text-sm text-muted-foreground">
-            {query
-              ? `Nenhuma frota encontrada para "${query}". Tente pesquisar pela placa ou número da frota.`
+            {queryFrota || queryPlaca
+              ? `Nenhuma frota encontrada para os filtros aplicados.`
               : "Nenhuma frota aguardando ação no momento."}
           </div>
         )}
