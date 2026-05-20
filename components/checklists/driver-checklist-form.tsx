@@ -548,7 +548,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   <img
                     src={fotoKmPreview}
                     alt="Preview do painel"
-                    className="w-full max-h-48 object-cover rounded-md"
+                    className="w-full max-h-72 object-contain rounded-md bg-slate-100"
                   />
                   <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">
                     Trocar foto
