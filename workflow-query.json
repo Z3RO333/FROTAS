@@ -1,6 +1,0 @@
-{
-    "@odata.context":  "https://org3b792dd3.crm.dynamics.com/api/data/v9.2/$metadata#workflows(workflowid,workflowidunique,name,category,statecode,statuscode,clientdata)",
-    "value":  [
-
-              ]
-}
