@@ -89,13 +89,14 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   const sections: NavSection[] = [
     { title: "Cockpit", items: COCKPIT_NAV },
     { title: "Frota", items: FROTA_NAV },
-    { title: "Portaria", items: PORTARIA_OPERACIONAL_NAV },
   ];
 
   if (canAccessManutencao(perfil)) sections.push({ title: "Manutenção", items: MANUTENCAO_NAV });
   if (canAccessManutencao(perfil)) sections.push({ title: "Pneus", items: PNEUS_NAV });
-  if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
+
+  // Ordem final pedida: Administração > Documentos > Motorista > Portaria
   if (canManageUsers(perfil)) sections.push({ title: "Administração", items: ADMINISTRACAO_NAV });
+  if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
 
   // GESTOR e DEV podem acessar as visões do motorista para supervisão
   if (perfil === "GESTOR" || perfil === "DEV") {
@@ -108,6 +109,8 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
       ],
     });
   }
+
+  sections.push({ title: "Portaria", items: PORTARIA_OPERACIONAL_NAV });
 
   return sections;
 }
