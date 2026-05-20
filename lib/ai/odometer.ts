@@ -77,14 +77,14 @@ const client: OpenAI | null = (() => {
       baseURL: `${azureEndpoint.replace(/\/$/, "")}/openai`,
       defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview" },
       defaultHeaders: { "api-key": azureKey },
-      timeout: 20_000, // 20s — evita travas indefinidas
+      timeout: 60_000, // 60s — gpt-5-chat com vision pode levar 10-30s
       maxRetries: 1,
     });
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
-  return new OpenAI({ apiKey, timeout: 20_000, maxRetries: 1 });
+  return new OpenAI({ apiKey, timeout: 60_000, maxRetries: 1 });
 })();
 
 function getOpenAIClient(): OpenAI | null {
@@ -307,7 +307,15 @@ Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:
     setCachedOcr(hash, final);
     return final;
   } catch (error) {
-    console.warn("[ai/odometer] falha ao analisar imagem:", error);
+    // Log detalhado pra debug em prod (App Service logs)
+    const err = error as { status?: number; message?: string; code?: string; name?: string };
+    console.error("[ai/odometer] FALHA na chamada Azure OpenAI:", {
+      name: err.name,
+      message: err.message,
+      status: err.status,
+      code: err.code,
+      model: getVisionModel(),
+    });
     return FALLBACK_READING;
   }
 }
