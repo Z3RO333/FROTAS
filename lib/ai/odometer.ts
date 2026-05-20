@@ -186,19 +186,26 @@ COMO IDENTIFICAR O HODÔMETRO:
 O QUE NÃO É O HODÔMETRO (DESCARTE ESSES VALORES):
 • Velocímetro analógico: mostrador redondo grande com agulha (escala 0-140, 0-160, 0-200 km/h) — ignore a escala numérica
 • Velocidade atual digital: número ≤ 3 dígitos no display (ex: "0", "45", "80") — é km/h momentâneo
-• Trip/Viagem (parcial): distância pequena do turno (ex: "127.4", "0.0", "452.1") — tem casas decimais
 • Rotação RPM: números como "800", "1200", "2500" no tacômetro
 • Hora/Relógio: formato "14:32" ou "8:05" (dois pontos no meio)
 • Temperatura: números seguidos de "°" ou "°C"
 • Pressão de ar/óleo: valores baixos (ex: "8.2", "5.5")
+• Trip/Viagem (parcial): em muitos painéis modernos o trip TAMBÉM tem decimal — diferencie pelo CONTEXTO:
+  - Trip é GERALMENTE menor que 10.000 km e fica ao lado de palavras como "trip", "parcial", "viagem"
+  - Mas em painéis MERCEDES/VOLVO/SCANIA modernos, o hodômetro principal TAMBÉM pode aparecer com decimal e label "km" ao lado
+  - Quando houver DOIS números com decimal: o que tem label "km" explícito é o hodômetro; o que vem isolado/embaixo geralmente é trip ou service interval
 
 ATENÇÃO — ERROS COMUNS A EVITAR:
 • NÃO leia a escala numérica do velocímetro analógico (40, 60, 80, 100, 120...) como hodômetro
 • NÃO confunda o RPM com KM (RPM está no tacômetro, não no odômetro)
-• Se o display central mostrar múltiplos valores, prefira o que está EXPLICITAMENTE rotulado com "ODO"/"KM TOTAL"
-• Trip (parcial) SEMPRE tem casa decimal (ex: "127.4", "0.0") — descarte se vier com ponto decimal
-• Caminhões NOVOS/ZERO podem ter hodômetro com poucos dígitos (5 km, 120 km, 8500 km) — isso é válido se rotulado como ODO/KM total
-• Em caso de dúvida entre dois números inteiros sem decimal, prefira o MAIOR (geralmente é o hodômetro)
+• Caminhões NOVOS/ZERO podem ter hodômetro com poucos dígitos (5 km, 120 km, 8500 km) — válido
+• PRIORIDADE de identificação do hodômetro (do mais confiável ao menos):
+  1. Número com label "km" ou "KM" ao lado (forte sinal)
+  2. Número com label "ODO" ou "Total" ou "Hodômetro"
+  3. Em painéis com múltiplos números: o que está acima/em destaque visual geralmente é o hodômetro
+  4. Entre dois números com decimal, o que tem "km" ao lado vence (ex: "6357.2 km" > "0202883.3")
+  5. Padding de zeros à esquerda (ex: "0202883") geralmente indica trip B ou service interval — NÃO é hodômetro principal
+• Quando houver dúvida real entre 2 candidatos, marque confianca < 0.7 e liste AMBOS em candidatos_descartados
 
 REGRAS DE CONFIANÇA:
 • confianca = 1.0: dígitos claramente visíveis e o número está rotulado como ODO/KM TOTAL (ou é o único inteiro grande no display)
