@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { AzureOpenAI } from "openai";
 import { z } from "zod";
 
 // ------- Schemas -------
@@ -70,14 +70,17 @@ const FALLBACK_READING: OdometerReading = {
 const client: OpenAI | null = (() => {
   const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
   const azureKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+  const azureDeployment =
+    process.env.AZURE_OPENAI_VISION_DEPLOYMENT?.trim() ?? process.env.AZURE_OPENAI_DEPLOYMENT?.trim();
 
-  if (azureEndpoint && azureKey) {
-    return new OpenAI({
+  if (azureEndpoint && azureKey && azureDeployment) {
+    // AzureOpenAI monta a URL correta /openai/deployments/{deployment}/chat/completions
+    return new AzureOpenAI({
       apiKey: azureKey,
-      baseURL: `${azureEndpoint.replace(/\/$/, "")}/openai`,
-      defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview" },
-      defaultHeaders: { "api-key": azureKey },
-      timeout: 60_000, // 60s — gpt-5-chat com vision pode levar 10-30s
+      endpoint: azureEndpoint.replace(/\/$/, ""),
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION ?? "2025-01-01-preview",
+      deployment: azureDeployment,
+      timeout: 60_000,
       maxRetries: 1,
     });
   }
