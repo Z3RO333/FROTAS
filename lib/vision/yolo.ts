@@ -1,7 +1,7 @@
 // Analise de imagens de checklist usando OpenAI Vision (Azure OpenAI ou direto).
 // O nome do arquivo "yolo.ts" e mantido por compat de imports — o YOLO foi removido,
 // agora roda GPT vision via OpenAI/Azure (mesma chave do AZURE_OPENAI_* / OPENAI_API_KEY).
-import OpenAI from "openai";
+import OpenAI, { AzureOpenAI } from "openai";
 import { z } from "zod";
 import type { ChecklistImageInspection } from "@/lib/repos/checklist-images";
 
@@ -32,21 +32,23 @@ export type YoloChecklistResult = z.infer<typeof VisionResponseSchema>;
 const client: OpenAI | null = (() => {
   const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
   const azureKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+  const azureDeployment =
+    process.env.AZURE_OPENAI_VISION_DEPLOYMENT?.trim() ?? process.env.AZURE_OPENAI_DEPLOYMENT?.trim();
 
-  if (azureEndpoint && azureKey) {
-    return new OpenAI({
+  if (azureEndpoint && azureKey && azureDeployment) {
+    return new AzureOpenAI({
       apiKey: azureKey,
-      baseURL: `${azureEndpoint.replace(/\/$/, "")}/openai`,
-      defaultQuery: { "api-version": process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview" },
-      defaultHeaders: { "api-key": azureKey },
-      timeout: 30_000,
+      endpoint: azureEndpoint.replace(/\/$/, ""),
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION ?? "2025-01-01-preview",
+      deployment: azureDeployment,
+      timeout: 60_000,
       maxRetries: 1,
     });
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
-  return new OpenAI({ apiKey, timeout: 30_000, maxRetries: 1 });
+  return new OpenAI({ apiKey, timeout: 60_000, maxRetries: 1 });
 })();
 
 function getVisionModel(): string {
