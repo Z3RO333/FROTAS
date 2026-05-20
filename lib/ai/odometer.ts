@@ -4,12 +4,21 @@ import { z } from "zod";
 // ------- Schemas -------
 
 const CandidatoDescartadoSchema = z.object({
-  valor: z.number().int().nonnegative(),
+  // gpt-5-chat as vezes retorna float (45.0), normaliza pra int
+  valor: z
+    .number()
+    .nonnegative()
+    .transform((v) => Math.round(v)),
   motivo: z.string(),
 });
 
 const OdometerReadingSchema = z.object({
-  km_lido: z.number().int().nonnegative().nullable(),
+  // Aceita float (ex: 347185.0 do gpt-5-chat) e converte pra int via round
+  km_lido: z
+    .number()
+    .nonnegative()
+    .nullable()
+    .transform((v) => (v == null ? null : Math.round(v))),
   confianca: z.number().min(0).max(1),
   leitura_segura: z.boolean(),
   precisa_digitacao_manual: z.boolean(),
