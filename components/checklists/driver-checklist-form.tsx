@@ -436,8 +436,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   <div>
                     <span className="text-sm font-medium leading-tight">
                       {item.nome}
-                      {item.critico ? (
-                        <span className="ml-1 text-xs text-red-500" title="Item crítico">
+                      {item.obrigatorio ? (
+                        <span
+                          className="ml-1 text-xs text-red-500"
+                          title={item.critico ? "Item crítico (obrigatório)" : "Item obrigatório"}
+                        >
                           *
                         </span>
                       ) : null}
