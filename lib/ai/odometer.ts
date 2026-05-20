@@ -206,15 +206,10 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
   const cached = getCachedOcr(hash);
   if (cached) return cached;
 
-  const yoloReading = await analyzeOdometerWithYoloService(file);
-  if (yoloReading?.leitura_segura) {
-    setCachedOcr(hash, yoloReading);
-    return yoloReading;
-  }
-
+  // Primary: OpenAI Vision (gpt-4o/gpt-4.1-mini/gpt-5-mini via Azure ou direto).
   const openai = getOpenAIClient();
   if (!openai) {
-    return yoloReading ?? {
+    return {
       ...FALLBACK_READING,
       motivo: "IA não configurada. Digite o KM manualmente.",
     };
@@ -262,7 +257,7 @@ Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.`,
     });
 
     const parsed = response.output_parsed;
-    if (!parsed) return yoloReading ?? FALLBACK_READING;
+    if (!parsed) return FALLBACK_READING;
 
     // Heurística extra: se leu um número muito baixo (<10k), provavelmente é velocímetro ou trip
     const kmLido = parsed.km_lido;
@@ -283,57 +278,10 @@ Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.`,
     return final;
   } catch (error) {
     console.warn("[ai/odometer] falha ao analisar imagem:", error);
-    return yoloReading ?? FALLBACK_READING;
+    return FALLBACK_READING;
   }
 }
 
-// ------- Serviço YOLO externo -------
-
-async function analyzeOdometerWithYoloService(file: File): Promise<OdometerReading | null> {
-  const endpoint = odometerEndpoint();
-  if (!endpoint) return null;
-
-  const formData = new FormData();
-  formData.append("foto_km", file);
-
-  const headers: Record<string, string> = {};
-  const token = process.env.CHECKLIST_YOLO_TOKEN?.trim();
-  if (token) headers.authorization = `Bearer ${token}`;
-
-  // Timeout de 8s — se YOLO travar, OCR cai pro OpenAI rápido
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: formData,
-      signal: controller.signal,
-    });
-    const json = await response.json().catch(() => null);
-    if (!response.ok) {
-      const msg = json?.detail ?? response.statusText;
-      console.warn(`[yolo/odometer] falha: ${msg}`);
-      return null;
-    }
-    return OdometerReadingSchema.parse(json);
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      console.warn("[yolo/odometer] timeout após 8s — fallback OpenAI");
-    }
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function odometerEndpoint(): string | null {
-  const explicit = process.env.CHECKLIST_ODOMETER_ENDPOINT?.trim();
-  if (explicit) return explicit;
-
-  const base = process.env.CHECKLIST_YOLO_ENDPOINT?.trim();
-  if (!base) return null;
-  if (base.endsWith("/inspect")) return base.replace(/\/inspect$/, "/odometer");
-  return `${base.replace(/\/$/, "")}/odometer`;
-}
+// YOLO/Ollama removidos. OCR roda 100% via OpenAI Vision (Azure ou direto).
+// As envs CHECKLIST_YOLO_ENDPOINT, CHECKLIST_ODOMETER_ENDPOINT, CHECKLIST_YOLO_TOKEN
+// e OLLAMA_VISION_* ficam orfas no App Service (podem ser deletadas).
