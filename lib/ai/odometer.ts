@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
 // ------- Schemas -------
@@ -219,19 +218,19 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
     // Redimensiona a imagem para acelerar a análise (passa o buffer já lido)
     const imageUrl = await resizeBufferForOcr(buffer, file.type);
 
-    const response = await openai.responses.parse({
+    // Usa /chat/completions (compativel com qualquer api-version do Azure OpenAI).
+    // Responses API (responses.parse) exige api-version 2025-03-01-preview+, nao da ainda.
+    const response = await openai.chat.completions.create({
       model: getVisionModel(),
-      input: [
-        {
-          role: "developer",
-          content: SYSTEM_PROMPT,
-        },
+      temperature: 0.1, // OCR deve ser deterministico
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: [
             {
-              type: "input_text",
-              // Few-shot via texto para guiar a resposta
+              type: "text",
               text: `Analise esta foto do painel do caminhão e extraia o hodômetro.
 
 PASSO 1: Liste todos os números visíveis na imagem.
@@ -239,25 +238,56 @@ PASSO 2: Identifique qual é o hodômetro (maior número acumulado, geralmente >
 PASSO 3: Descarte velocímetro, trip, RPM, hora. Liste como candidatos_descartados.
 PASSO 4: Retorne km_lido como inteiro.
 
-Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.`,
+Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.
+
+Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:
+{
+  "km_lido": number | null,
+  "confianca": number (0.0 a 1.0),
+  "leitura_segura": boolean,
+  "precisa_digitacao_manual": boolean,
+  "motivo": string | null,
+  "texto_visivel": string | null,
+  "candidatos_descartados": [{"valor": number, "motivo": string}],
+  "regiao_detectada": "hodometro_digital" | "hodometro_analogico" | "velocimetro" | "display_central" | "desconhecido"
+}`,
             },
             {
-              type: "input_image",
-              image_url: imageUrl,
-              // "high" = múltiplos tiles de 512px = lê dígitos pequenos com precisão
-              // Server já limita a 1024px antes de enviar (4 tiles = ~765 tokens)
-              detail: "high",
+              type: "image_url",
+              image_url: { url: imageUrl, detail: "high" },
             },
           ],
         },
       ],
-      text: {
-        format: zodTextFormat(OdometerReadingSchema, "odometer_reading"),
-      },
     });
 
-    const parsed = response.output_parsed;
-    if (!parsed) return FALLBACK_READING;
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      console.warn("[ai/odometer] resposta vazia");
+      return FALLBACK_READING;
+    }
+
+    // Extrai o JSON (modelo as vezes adiciona texto ao redor)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn("[ai/odometer] JSON nao encontrado", content.slice(0, 200));
+      return FALLBACK_READING;
+    }
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(jsonMatch[0]);
+    } catch (err) {
+      console.warn("[ai/odometer] JSON invalido", err);
+      return FALLBACK_READING;
+    }
+
+    const result = OdometerReadingSchema.safeParse(parsedJson);
+    if (!result.success) {
+      console.warn("[ai/odometer] schema invalido", result.error.issues);
+      return FALLBACK_READING;
+    }
+    const parsed = result.data;
 
     // Heurística extra: se leu um número muito baixo (<10k), provavelmente é velocímetro ou trip
     const kmLido = parsed.km_lido;
