@@ -579,7 +579,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 Lendo quilometragem pela IA...
               </div>
             ) : ocrState ? (
-              <OcrStatusCard ocrState={ocrState} kmAnterior={selected?.km_atual ?? null} />
+              <OcrStatusCard
+                ocrState={ocrState}
+                kmAnterior={selected?.km_atual ?? null}
+                onSelectCandidato={(km) => setKmValue(String(km))}
+              />
             ) : null}
           </div>
 
@@ -707,9 +711,11 @@ function SubmitButton({ blocked }: { blocked?: boolean }) {
 function OcrStatusCard({
   ocrState,
   kmAnterior,
+  onSelectCandidato,
 }: {
   ocrState: OcrState;
   kmAnterior: number | null;
+  onSelectCandidato?: (km: number) => void;
 }) {
   const status = ocrState.status_leitura ?? (ocrState.leitura_segura ? "LEITURA_SEGURA" : "LEITURA_FALHOU");
   const confiancaPct = Math.round(ocrState.confianca * 100);
@@ -777,15 +783,27 @@ function OcrStatusCard({
           <p className="mt-1 text-xs">Não foi possível ler a quilometragem.</p>
         )}
         {ocrState.candidatos_descartados && ocrState.candidatos_descartados.length > 0 && (
-          <p className="mt-1 text-xs opacity-70">
-            Outros valores detectados:{" "}
-            {ocrState.candidatos_descartados
-              .map((c) => `${formatNumber(c.valor)} (${c.motivo.replace(/_/g, " ")})`)
-              .join(", ")}
-          </p>
+          <div className="mt-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
+              Outros valores detectados — clique se for o correto:
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {ocrState.candidatos_descartados.map((c, i) => (
+                <button
+                  key={`${c.valor}-${i}`}
+                  type="button"
+                  onClick={() => onSelectCandidato?.(c.valor)}
+                  title={c.motivo}
+                  className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs font-semibold text-red-800 transition-colors hover:border-red-500 hover:bg-red-100"
+                >
+                  {formatNumber(c.valor)} km
+                </button>
+              ))}
+            </div>
+          </div>
         )}
-        <p className="mt-1.5 text-xs font-medium text-red-800">
-          Digite o KM correto manualmente para prosseguir.
+        <p className="mt-2 text-xs font-medium text-red-800">
+          Selecione um dos valores acima ou digite o KM manualmente.
         </p>
       </div>
     );
