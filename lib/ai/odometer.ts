@@ -174,13 +174,14 @@ const SYSTEM_PROMPT = `Você é um especialista em leitura de hodômetro de cami
 TAREFA: Localizar e ler o HODÔMETRO (odômetro) — o contador de QUILÔMETROS TOTAIS acumulados desde a fábrica.
 
 COMO IDENTIFICAR O HODÔMETRO:
-• É um número de 5-7 dígitos (geralmente 100.000 a 999.999 km para frotas ativas)
+• É um número INTEIRO (sem casas decimais) — caminhão zero pode ter 5-1000 km, caminhão de uso geralmente 50.000-999.999 km
 • Aparece no display digital central, painel LCD/VFD ou cluster de instrumentos
 • Pode estar acompanhado dos labels "ODO", "KM TOTAL", "HODÔMETRO" ou sem label
-• Formatos comuns: "303262" ou "303.262" ou "303 262" ou "303,262"
+• Formatos comuns: "303262" ou "303.262" ou "303 262" ou "303,262" (ou "5", "120", "8500" se for caminhão novo)
 • Displays com iluminação colorida (azul, verde, laranja) são comuns — leia os dígitos independentemente da cor
 • Em caminhões modernos (Volvo, Scania, Mercedes Atego/Actros) costuma ficar no display MID/FMI no centro do painel
 • Em caminhões mais simples, pode estar num odômetro de rolo mecânico (números brancos em fundo preto)
+• ATENÇÃO: o que diferencia hodômetro de "trip" é a AUSÊNCIA de casa decimal e o label "ODO"/"KM" (sem "Trip"/"Parcial")
 
 O QUE NÃO É O HODÔMETRO (DESCARTE ESSES VALORES):
 • Velocímetro analógico: mostrador redondo grande com agulha (escala 0-140, 0-160, 0-200 km/h) — ignore a escala numérica
@@ -194,15 +195,17 @@ O QUE NÃO É O HODÔMETRO (DESCARTE ESSES VALORES):
 ATENÇÃO — ERROS COMUNS A EVITAR:
 • NÃO leia a escala numérica do velocímetro analógico (40, 60, 80, 100, 120...) como hodômetro
 • NÃO confunda o RPM com KM (RPM está no tacômetro, não no odômetro)
-• Se o display central mostrar múltiplos valores, leia APENAS o que tem mais dígitos (>= 5 dígitos sem decimais)
-• Hodômetro de frota raramente tem menos de 50.000 km — desconfie de valores menores
+• Se o display central mostrar múltiplos valores, prefira o que está EXPLICITAMENTE rotulado com "ODO"/"KM TOTAL"
+• Trip (parcial) SEMPRE tem casa decimal (ex: "127.4", "0.0") — descarte se vier com ponto decimal
+• Caminhões NOVOS/ZERO podem ter hodômetro com poucos dígitos (5 km, 120 km, 8500 km) — isso é válido se rotulado como ODO/KM total
+• Em caso de dúvida entre dois números inteiros sem decimal, prefira o MAIOR (geralmente é o hodômetro)
 
 REGRAS DE CONFIANÇA:
-• confianca = 1.0: dígitos claramente visíveis, número típico de frota (50k–800k km), sem ambiguidade
+• confianca = 1.0: dígitos claramente visíveis e o número está rotulado como ODO/KM TOTAL (ou é o único inteiro grande no display)
 • confianca = 0.85: visível com leve dúvida (reflexo, ângulo ligeiramente oblíquo)
 • confianca = 0.7: dúvida moderada (imagem desfocada mas dígitos identificáveis)
 • confianca < 0.7: alta dúvida — marque leitura_segura=false e precisa_digitacao_manual=true
-• Número < 50.000 em caminhão de frota → quase certamente erro, reduza confiança para ≤ 0.4
+• Aceitar valores BAIXOS (< 10.000 km) sem reduzir confiança APENAS se houver label "ODO"/"KM" claro ou se for óbvio que é caminhão novo
 
 Retorne km_lido como INTEGER (sem pontos, vírgulas, espaços ou casas decimais).`.trim();
 
@@ -301,12 +304,11 @@ Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:
     }
     const parsed = result.data;
 
-    // Heurística extra: se leu um número muito baixo (<10k), provavelmente é velocímetro ou trip
+    // Heurística: NÃO penaliza valores baixos (caminhão zero pode ter 5-1000 km).
+    // Confia no que o modelo retornar — penaliza só se confiança ja vier baixa do modelo.
+    // Caminhões novos sem KM cadastrado são caso valido e nao podem virar gargalo no OCR.
     const kmLido = parsed.km_lido;
-    const confiancaFinal =
-      kmLido != null && kmLido < 10_000
-        ? Math.min(parsed.confianca, 0.3)
-        : parsed.confianca;
+    const confiancaFinal = parsed.confianca;
 
     const final: OdometerReading = {
       ...parsed,
