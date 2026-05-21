@@ -44,6 +44,15 @@ import { enviarRelatorioIndividualAction } from "../_actions";
 
 export const dynamic = "force-dynamic";
 
+async function safeDetailBlock<T>(label: string, frotaId: number, fallback: T, loader: () => Promise<T>): Promise<T> {
+  try {
+    return await loader();
+  } catch (error) {
+    console.error(`[frotas/${frotaId}] falha ao carregar ${label}`, error);
+    return fallback;
+  }
+}
+
 export default async function FrotaDetailPage({
   params,
 }: {
@@ -75,16 +84,22 @@ export default async function FrotaDetailPage({
     trocasPneus,
     eventos,
   ] = await Promise.all([
-    listHistoricoCompleto(frotaId),
-    listHistoricoKm(frotaId),
-    findUnidadeForFrota(frota),
-    listDocuments({ ...documentsFilter, pageSize: 5 }).catch(() => ({ rows: [], total: 0 })),
-    listChecklistsByFrota(frotaId, 5),
-    listPendenciasByFrota(frotaId, 8),
-    listAbastecimentosFrota(frotaId, 5).catch(() => []),
-    codigoFrota ? listServicosByVeiculo(codigoFrota, 8).catch(() => []) : [],
-    codigoFrota ? listTrocasByVeiculo(codigoFrota, 5).catch(() => []) : [],
-    listEventosByVeiculo(frotaId, 50).catch(() => []),
+    safeDetailBlock("historico completo", frotaId, [], () => listHistoricoCompleto(frotaId)),
+    safeDetailBlock("historico de km", frotaId, [], () => listHistoricoKm(frotaId)),
+    safeDetailBlock("unidade operacional", frotaId, null, () => findUnidadeForFrota(frota)),
+    safeDetailBlock("documentos", frotaId, { rows: [], total: 0 }, () =>
+      listDocuments({ ...documentsFilter, pageSize: 5 })
+    ),
+    safeDetailBlock("checklists", frotaId, [], () => listChecklistsByFrota(frotaId, 5)),
+    safeDetailBlock("pendencias", frotaId, [], () => listPendenciasByFrota(frotaId, 8)),
+    safeDetailBlock("abastecimentos", frotaId, [], () => listAbastecimentosFrota(frotaId, 5)),
+    codigoFrota
+      ? safeDetailBlock("servicos recentes", frotaId, [], () => listServicosByVeiculo(codigoFrota, 8))
+      : [],
+    codigoFrota
+      ? safeDetailBlock("trocas de pneus", frotaId, [], () => listTrocasByVeiculo(codigoFrota, 5))
+      : [],
+    safeDetailBlock("eventos", frotaId, [], () => listEventosByVeiculo(frotaId, 50)),
   ]);
 
   const kmData = kmHistorico.map((k) => ({

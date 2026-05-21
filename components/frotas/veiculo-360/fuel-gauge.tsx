@@ -8,29 +8,42 @@ type Props = {
   className?: string;
 };
 
-function toneFor(nivel: number): { fill: string; text: string; glow: string; legend: string } {
+function toneFor(nivel: number): { text: string; legend: string } {
   if (nivel === 1) {
     return {
-      fill: "bg-amber-400",
-      text: "text-amber-600",
-      glow: "shadow-amber-200",
+      text: "text-red-600",
       legend: "Baixo",
+    };
+  }
+  if (nivel === 2) {
+    return {
+      text: "text-amber-600",
+      legend: "",
+    };
+  }
+  if (nivel === 3) {
+    return {
+      text: "text-blue-600",
+      legend: "",
     };
   }
   if (nivel === 4) {
     return {
-      fill: "bg-emerald-400",
       text: "text-emerald-600",
-      glow: "shadow-emerald-200",
       legend: "Cheio",
     };
   }
   return {
-    fill: "bg-blue-400",
-    text: "text-blue-600",
-    glow: "shadow-blue-200",
+    text: "text-muted-foreground",
     legend: "",
   };
+}
+
+function levelTone(level: number): string {
+  if (level === 1) return "bg-red-400 shadow-sm shadow-red-200";
+  if (level === 2) return "bg-amber-400 shadow-sm shadow-amber-200";
+  if (level === 3) return "bg-blue-400 shadow-sm shadow-blue-200";
+  return "bg-emerald-400 shadow-sm shadow-emerald-200";
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -69,9 +82,7 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
               key={level}
               className={cn(
                 "h-3 flex-1 rounded-full transition-all duration-300",
-                filled
-                  ? cn(tone.fill, "shadow-sm", tone.glow)
-                  : "bg-slate-100"
+                filled ? levelTone(level) : "bg-slate-100"
               )}
             />
           );

@@ -434,7 +434,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
               return (
                 <div key={item.codigo} className="space-y-2 rounded-md border bg-slate-50 p-3">
                   <div>
-                    <span className="text-sm font-medium leading-tight">
+                    <div className="flex min-h-10 items-start">
+                      <span className="text-sm font-medium leading-tight">
                       {item.nome}
                       {item.obrigatorio ? (
                         <span
@@ -444,7 +445,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           *
                         </span>
                       ) : null}
-                    </span>
+                      </span>
+                    </div>
                     <div className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
                       {item.obrigatorio ? "Obrigatório" : "Opcional"}
                     </div>
@@ -833,31 +835,40 @@ function FuelLevelSelector({
 }) {
   const [hovered, setHovered] = useState(0);
 
-  // Cor baseada no nível máximo selecionado/em hover
   const toneFor = (lvl: number) => {
-    if (lvl === 1) return {
-      fill: "bg-amber-400 shadow-sm shadow-amber-200",
-      preview: "bg-amber-200",
-    };
-    if (lvl === 4) return {
+    if (lvl === 1) {
+      return {
+        fill: "bg-red-400 shadow-sm shadow-red-200",
+        preview: "bg-red-200",
+      };
+    }
+    if (lvl === 2) {
+      return {
+        fill: "bg-amber-400 shadow-sm shadow-amber-200",
+        preview: "bg-amber-200",
+      };
+    }
+    if (lvl === 3) {
+      return {
+        fill: "bg-blue-400 shadow-sm shadow-blue-200",
+        preview: "bg-blue-200",
+      };
+    }
+    return {
       fill: "bg-emerald-400 shadow-sm shadow-emerald-200",
       preview: "bg-emerald-200",
-    };
-    return {
-      fill: "bg-blue-400 shadow-sm shadow-blue-200",
-      preview: "bg-blue-200",
     };
   };
 
   const labelTone = (lvl: number) => {
-    if (lvl === 1) return "text-amber-600 font-semibold";
+    if (lvl === 1) return "text-red-600 font-semibold";
+    if (lvl === 2) return "text-amber-600 font-semibold";
+    if (lvl === 3) return "text-blue-600 font-semibold";
     if (lvl === 4) return "text-emerald-600 font-semibold";
-    if (lvl > 0) return "text-blue-600 font-semibold";
     return "text-muted-foreground";
   };
 
   const activeLevel = value > 0 ? value : hovered;
-  const tone = toneFor(activeLevel);
 
   return (
     <div className="space-y-2">
@@ -868,6 +879,7 @@ function FuelLevelSelector({
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
           const previewed = hovered > 0 && level <= hovered && !filled;
+          const levelTone = toneFor(level);
           return (
             <button
               key={level}
@@ -878,9 +890,9 @@ function FuelLevelSelector({
               className={cn(
                 "h-7 flex-1 rounded-full transition-all duration-150",
                 filled
-                  ? tone.fill
+                  ? levelTone.fill
                   : previewed
-                    ? tone.preview
+                    ? levelTone.preview
                     : "bg-transparent hover:bg-slate-200"
               )}
               aria-label={`${level}/4 do tanque`}
@@ -899,4 +911,3 @@ function FuelLevelSelector({
     </div>
   );
 }
-
