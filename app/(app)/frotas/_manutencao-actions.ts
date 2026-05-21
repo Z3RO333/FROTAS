@@ -41,11 +41,6 @@ export type ManutencaoActionState =
   | { ok: true; mensagem: string }
   | { ok: false; error: string; bloqueios?: string[] };
 
-export const MANUTENCAO_INITIAL_STATE: ManutencaoActionState = {
-  ok: true,
-  mensagem: "",
-};
-
 function pickAtivo(formData: FormData, name: string): boolean {
   return formData.getAll(name).map(String).includes("true");
 }

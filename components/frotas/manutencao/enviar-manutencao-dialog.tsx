@@ -5,8 +5,8 @@ import { useFormStatus } from "react-dom";
 import { Wrench } from "lucide-react";
 import {
   enviarManutencaoAction,
-  MANUTENCAO_INITIAL_STATE,
 } from "@/app/(app)/frotas/_manutencao-actions";
+import type { ManutencaoActionState } from "@/app/(app)/frotas/_manutencao-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,6 +25,11 @@ type Props = {
   frotaLabel: string;
   triggerLabel?: string;
   size?: "sm" | "default";
+};
+
+const MANUTENCAO_INITIAL_STATE: ManutencaoActionState = {
+  ok: true,
+  mensagem: "",
 };
 
 function SubmitButton() {
