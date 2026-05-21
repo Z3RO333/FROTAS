@@ -37,23 +37,27 @@ const STATUS_LABELS: Record<StatusPortaria, string> = {
 
 const FILTER_TABS: {
   label: string;
-  value: StatusPortaria | "TODAS";
+  value: StatusPortaria | "BLOQUEADAS" | "TODAS";
   icon: ComponentType<LucideProps>;
   severity?: SeverityKey;
 }[] = [
   { label: "Todas", value: "TODAS", icon: Layers },
   { label: "Aguardando", value: "LIBERADA_SAIDA", icon: LogOut, severity: "OK" },
   { label: "Pendentes", value: "PENDENTE_CHECKLIST", icon: Clock, severity: "ATENCAO" },
-  { label: "Bloqueadas", value: "BLOQUEADA_CHECKLIST", icon: AlertTriangle, severity: "CRITICO" },
+  { label: "Bloqueadas", value: "BLOQUEADAS", icon: AlertTriangle, severity: "CRITICO" },
   { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
 type Props = { rows: PortariaRow[]; erro?: string | null };
 
+function isBloqueada(status: StatusPortaria): boolean {
+  return status === "BLOQUEADA_CHECKLIST" || status === "BLOQUEADA_MANUTENCAO";
+}
+
 export function PortariaClient({ rows, erro }: Props) {
   const [queryFrota, setQueryFrota] = useState("");
   const [queryPlaca, setQueryPlaca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("LIBERADA_SAIDA");
+  const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "BLOQUEADAS" | "TODAS">("LIBERADA_SAIDA");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
   const [detalhe, setDetalhe] = useState<ChecklistDetalhePortaria | null>(null);
@@ -64,7 +68,8 @@ export function PortariaClient({ rows, erro }: Props) {
     const placa = queryPlaca.trim().toLowerCase();
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
     if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
-    if (filtroStatus !== "TODAS" && r.status_portaria !== filtroStatus) return false;
+    if (filtroStatus === "BLOQUEADAS" && !isBloqueada(r.status_portaria)) return false;
+    if (filtroStatus !== "TODAS" && filtroStatus !== "BLOQUEADAS" && r.status_portaria !== filtroStatus) return false;
     return true;
   });
 
@@ -113,6 +118,8 @@ export function PortariaClient({ rows, erro }: Props) {
             const count =
               tab.value === "TODAS"
                 ? rows.length
+                : tab.value === "BLOQUEADAS"
+                  ? rows.filter((r) => isBloqueada(r.status_portaria)).length
                 : rows.filter((r) => r.status_portaria === tab.value).length;
             return (
               <FilterChip

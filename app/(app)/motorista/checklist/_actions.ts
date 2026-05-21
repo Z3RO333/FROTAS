@@ -250,6 +250,17 @@ export async function enviarChecklistMotoristaAction(
     ).catch((error) => {
       console.warn("[vision] falha ao criar fila de inspeção", error);
     });
+
+    // Dispara análise IA em background — não bloqueia a resposta ao motorista
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const secret = process.env.FROTAS_INTERNAL_SECRET ?? "";
+    if (secret) {
+      fetch(`${appUrl}/api/checklists/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-secret": secret },
+        body: JSON.stringify({ checklist_id: result.checklist_id }),
+      }).catch((err) => console.warn("[analyze] falha ao disparar análise IA", err));
+    }
   } catch (error) {
     await removeChecklistImages(uploadedPaths).catch((cleanupError) => {
       console.warn("[checklists] falha ao limpar imagens após erro", cleanupError);

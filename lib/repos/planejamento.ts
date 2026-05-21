@@ -277,6 +277,7 @@ export async function getEstepes(): Promise<EstepeRow[]> {
 
 export type ParadaRow = {
   id: number | string;
+  veiculo_id?: number | null;
   frota_numero: string | null;
   placa: string | null;
   descricao_original: string;
@@ -319,6 +320,7 @@ function paradaManual(row: VeiculoParadoRow): ParadaRow {
   const destino = row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino;
   return {
     id: `veiculo-${row.id}`,
+    veiculo_id: row.id,
     frota_numero: row.codigo_frota,
     placa: row.placa,
     descricao_original: row.manutencao_motivo ?? "Frota enviada manualmente para manutenção.",
@@ -363,5 +365,35 @@ export async function getParadas(): Promise<ParadaRow[]> {
     .filter((r) => !existentes.has(paradaKey(r.codigo_frota, r.placa)))
     .map(paradaManual);
 
-  return [...manuais, ...importadas];
+  // Lookup veiculo_id for imported rows via frota_numero/placa
+  const frotaNums = importadas.map((r) => r.frota_numero).filter(Boolean) as string[];
+  const placas = importadas.map((r) => r.placa).filter(Boolean) as string[];
+  let veiculoMap = new Map<string, number>();
+  if (frotaNums.length > 0 || placas.length > 0) {
+    const { data: veiculos } = await supabaseManutencao
+      .from("veiculos")
+      .select("id,codigo_frota,placa")
+      .or(
+        [
+          frotaNums.length > 0 ? `codigo_frota.in.(${frotaNums.map((f) => `"${f}"`).join(",")})` : null,
+          placas.length > 0 ? `placa.in.(${placas.map((p) => `"${p}"`).join(",")})` : null,
+        ]
+          .filter(Boolean)
+          .join(",")
+      );
+    for (const v of veiculos ?? []) {
+      if (v.codigo_frota) veiculoMap.set(v.codigo_frota.trim().toUpperCase(), v.id);
+      if (v.placa) veiculoMap.set(v.placa.trim().toUpperCase(), v.id);
+    }
+  }
+
+  const importadasComId = importadas.map((r) => ({
+    ...r,
+    veiculo_id:
+      (r.frota_numero && veiculoMap.get(r.frota_numero.trim().toUpperCase())) ||
+      (r.placa && veiculoMap.get(r.placa.trim().toUpperCase())) ||
+      null,
+  }));
+
+  return [...manuais, ...importadasComId];
 }

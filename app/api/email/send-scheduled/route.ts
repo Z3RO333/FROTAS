@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logEmail } from "@/lib/repos/email-logs";
 import { listEmailSchedules, type EmailSchedule } from "@/lib/repos/email-schedule";
+import { getEmailFrom } from "@/lib/email-from";
 import {
   getDisponibilidadeResumo,
   getPontosAtencao,
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
   const falhas: string[] = [];
 
   const sgMail = await getSgMail();
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL ?? process.env.FROM_EMAIL ?? "noreply@bemol.com.br";
+  const fromEmail = getEmailFrom();
 
   for (const schedule of schedules) {
     if (!shouldSend(schedule, agora)) continue;

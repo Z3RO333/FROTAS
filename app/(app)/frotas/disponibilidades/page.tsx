@@ -6,6 +6,7 @@ import {
   Clock,
   History,
   Mail,
+  ExternalLink,
   Settings,
   Truck,
   Wrench,
@@ -213,14 +214,20 @@ export default async function FrotasDisponibilidadesPage({
                     <TableHead className="text-right">Tempo parado</TableHead>
                     <TableHead>Local atual</TableHead>
                     <TableHead>Responsavel</TableHead>
+                    <TableHead className="text-right">Atalho</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {manutencoes.map((frota) => (
-                    <TableRow key={frota.id}>
+                    <TableRow key={frota.id} className="group transition-colors hover:bg-blue-50/50">
                       <TableCell>
-                        <Link href={`/frotas/${frota.id}`} className="font-mono font-semibold text-blue-700 hover:underline">
+                        <Link
+                          href={`/frotas/${frota.id}`}
+                          className="inline-flex items-center gap-1.5 font-mono font-semibold text-blue-700 hover:underline"
+                          title="Abrir visão 360 da frota"
+                        >
                           {frota.placa ?? frota.frota_geral ?? `#${frota.id}`}
+                          <ExternalLink className="h-3.5 w-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
                         </Link>
                       </TableCell>
                       <TableCell>{frota.modelo ?? "-"}</TableCell>
@@ -234,6 +241,11 @@ export default async function FrotasDisponibilidadesPage({
                       </TableCell>
                       <TableCell>{frota.local_atual ?? "-"}</TableCell>
                       <TableCell>{frota.responsavel ?? "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/frotas/${frota.id}`}>Ver 360</Link>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

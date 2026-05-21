@@ -19,7 +19,7 @@ import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
 import { requireAppUser } from "@/lib/rbac";
 import { formatNumber } from "@/lib/utils";
-import { enviarRelatorioGeralAction } from "./frotas/_actions";
+import { enviarRelatorioPainelExecutivoAction } from "./frotas/_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -49,8 +49,8 @@ export default async function DashboardPage() {
         icon={Gauge}
         actions={
           <EnviarRelatorioDialog
-            title="Enviar relatório geral"
-            action={enviarRelatorioGeralAction}
+            title="Enviar painel executivo"
+            action={enviarRelatorioPainelExecutivoAction}
           />
         }
       >

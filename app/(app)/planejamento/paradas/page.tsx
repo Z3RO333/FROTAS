@@ -1,3 +1,5 @@
+import React from "react";
+import Link from "next/link";
 import { AlertOctagon, Sparkles } from "lucide-react";
 import { getParadas } from "@/lib/repos/planejamento";
 import { SeverityBadge } from "@/components/ui/status-badge";
@@ -62,8 +64,20 @@ export default async function ParadasPage() {
             const sev = r.ia_criticidade
               ? severityFromStatus(r.ia_criticidade)
               : "NEUTRO";
+            const Wrapper = r.veiculo_id
+              ? ({ children }: { children: React.ReactNode }) => (
+                  <Link
+                    href={`/frotas/${r.veiculo_id}`}
+                    className="block p-4 hover:bg-slate-50 transition-colors"
+                  >
+                    {children}
+                  </Link>
+                )
+              : ({ children }: { children: React.ReactNode }) => (
+                  <div className="p-4 hover:bg-slate-50">{children}</div>
+                );
             return (
-              <div key={r.id} className="p-4 hover:bg-slate-50">
+              <Wrapper key={r.id}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -109,7 +123,7 @@ export default async function ParadasPage() {
                     {r.prev_saida && <span>Prev. saída: {r.prev_saida}</span>}
                   </div>
                 )}
-              </div>
+              </Wrapper>
             );
           })}
         </div>
