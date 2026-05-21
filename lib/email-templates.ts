@@ -9,12 +9,25 @@ import {
   type StatusOperacional,
 } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
+import type { Kpis } from "@/lib/repos/frotas";
+import type { PlanejamentoOverview } from "@/lib/repos/planejamento";
 import { formatReportDate } from "@/lib/report-date";
 import { calcularIdade } from "@/lib/rules";
 
 type ReportOptions = {
-  truckImageSrc?: string;
+  logoImageSrc?: string;
   cdNome?: string;
+};
+
+type ChartPoint = { status: string; total: number };
+type YearPoint = { ano: number | null; total: number };
+
+export type DashboardReportInput = {
+  k: Kpis;
+  operational: ChartPoint[];
+  conditions: ChartPoint[];
+  byYear: YearPoint[];
+  plan: PlanejamentoOverview | null;
 };
 
 const BLUE = "#0b3f8e";
@@ -23,6 +36,25 @@ const INK = "#0f172a";
 const MUTED = "#64748b";
 const BORDER = "#dbe7f5";
 const SURFACE = "#f6f9fd";
+const DASHBOARD_CHART_COLORS: Record<string, string> = {
+  disponivel: "#22a879",
+  manutencao: "#f59e0b",
+  indisponivel: "#ef4444",
+  baixado: "#64748b",
+  normal: "#22a879",
+  atencao: "#f97316",
+  critico: "#ef4444",
+};
+
+const DASHBOARD_CHART_LABELS: Record<string, string> = {
+  disponivel: "Disponível",
+  manutencao: "Em manutenção",
+  indisponivel: "Indisponível",
+  baixado: "Baixado",
+  normal: "Normal",
+  atencao: "Atenção",
+  critico: "Crítico",
+};
 
 function escapeHtml(value: string): string {
   return value
@@ -45,6 +77,21 @@ function percent(value: number, total: number): string {
   return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
 }
 
+function dateDisplay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("pt-BR");
+}
+
+function maintenanceType(value: string | null | undefined): string {
+  if (!value) return "Não informado";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function row(label: string, value: string | number | null | undefined): string {
   return `<tr><td style="padding:8px 12px;color:${MUTED};font-size:12px;border-bottom:1px solid #e2e8f0;">${escapeHtml(
     label
@@ -53,7 +100,7 @@ function row(label: string, value: string | number | null | undefined): string {
   )}</td></tr>`;
 }
 
-function truckImage(src: string | undefined, width: number): string {
+function emailLogo(src: string | undefined, width: number): string {
   if (!src) {
     return `
       <div style="width:${width}px;height:${Math.round(
@@ -61,13 +108,69 @@ function truckImage(src: string | undefined, width: number): string {
       )}px;border-radius:10px;background:#eaf3ff;color:${BLUE};font-size:13px;font-weight:700;text-align:center;line-height:${Math.round(
         width * 0.42
       )}px;">
-        BEMOL
+        MANUTENCAO CD
       </div>`;
   }
 
   return `<img src="${escapeHtml(
     src
-  )}" width="${width}" alt="Caminhão Bemol" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
+  )}" width="${width}" alt="Manutencao CD" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
+}
+
+function metricBox(label: string, value: string | number, hint: string | null, color: string): string {
+  return `<td style="width:25%;padding:6px;">
+    <div style="border-top:3px solid ${color};border:1px solid #dbe7f5;border-radius:12px;padding:14px 14px;background:#ffffff;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${escapeHtml(label)}</div>
+      <div style="font-size:26px;line-height:34px;font-weight:800;color:${INK};margin-top:4px;">${escapeHtml(String(value))}</div>
+      ${hint ? `<div style="font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(hint)}</div>` : ""}
+    </div>
+  </td>`;
+}
+
+function horizontalChart(title: string, data: ChartPoint[], colors: Record<string, string>, labels: Record<string, string>): string {
+  const max = Math.max(1, ...data.map((item) => item.total));
+  const rows = data
+    .map((item) => {
+      const width = Math.max(4, Math.round((item.total / max) * 100));
+      const color = colors[item.status] ?? "#64748b";
+      const label = labels[item.status] ?? item.status;
+      return `<tr>
+        <td style="width:150px;padding:7px 8px;font-size:12px;color:${MUTED};">${escapeHtml(label)}</td>
+        <td style="padding:7px 8px;">
+          <div style="height:12px;background:#eef4fb;border-radius:999px;overflow:hidden;">
+            <div style="height:12px;width:${width}%;background:${color};border-radius:999px;"></div>
+          </div>
+        </td>
+        <td style="width:70px;padding:7px 8px;text-align:right;font-size:13px;font-weight:800;color:${INK};">${formatNumber(item.total)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  return `<td style="width:50%;padding:8px;vertical-align:top;">
+    <div style="border:1px solid ${BORDER};border-radius:12px;background:#ffffff;padding:16px;">
+      <div style="font-size:14px;font-weight:800;color:${INK};margin-bottom:8px;">${escapeHtml(title)}</div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">${rows}</table>
+    </div>
+  </td>`;
+}
+
+function yearGrid(data: YearPoint[]): string {
+  const currentYear = new Date().getFullYear();
+  return data
+    .map((item) => {
+      const idade = item.ano == null ? null : currentYear - item.ano;
+      const color = idade == null ? "#64748b" : idade >= 10 ? "#ef4444" : idade >= 7 ? "#f97316" : "#2563eb";
+      const label = item.ano == null ? "Sem ano" : String(item.ano);
+      const hint = idade == null ? "Sem ano" : `${idade} ${idade === 1 ? "ano" : "anos"}`;
+      return `<td style="width:12.5%;padding:6px;">
+        <div style="border:1px solid ${color}33;background:${color}0f;border-radius:10px;padding:10px;">
+          <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;">${escapeHtml(label)}</div>
+          <div style="font-size:10px;color:${MUTED};text-align:right;">${escapeHtml(hint)}</div>
+          <div style="font-size:22px;font-weight:800;color:${INK};margin-top:4px;">${formatNumber(item.total)}</div>
+        </div>
+      </td>`;
+    })
+    .join("");
 }
 
 function statusTone(status: StatusOperacional): { bg: string; color: string; border: string } {
@@ -134,8 +237,8 @@ function header(title: string, subtitle: string, options: ReportOptions): string
               <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
             </td>
             <td align="right" style="width:280px;padding:20px 28px 18px 10px;vertical-align:middle;">
-              <div style="display:inline-block;background:#ffffff;border-radius:16px;padding:10px 16px;">
-                ${truckImage(options.truckImageSrc, 220)}
+              <div style="display:inline-block;background:#1f2937;border-radius:16px;padding:10px 16px;">
+                ${emailLogo(options.logoImageSrc, 220)}
               </div>
             </td>
           </tr>
@@ -157,35 +260,33 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
   }).length;
   const cadastro = frotas.filter(cadastroIncompleto).length;
   const atencaoTotal = atencao + criticos;
+  const frotasEmManutencao = frotas.filter((f) => statusOperacional(f) === "manutencao");
 
-  const linhas = frotas
+  const linhas = frotasEmManutencao
     .map((f, index) => {
-      const idade = calcularIdade(f.ano_fabricacao);
-      const status = statusOperacional(f);
-      const condicao = condicaoFrota(f);
-      const motivo = motivosAtencao(f).join("; ") || "Sem alertas automáticos";
+      const motivo = f.manutencao_motivo?.trim() || "Motivo não informado";
+      const entrada = dateDisplay(f.manutencao_iniciado_em) ?? "Não informado";
+      const saida = dateDisplay(f.manutencao_prev_retorno) ?? "Sem previsão";
       const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
 
       return `
         <tr style="background:${bg};">
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">
-            <div style="font-size:13px;font-weight:800;color:${INK};">${display(f.frota_geral ?? f.id)}</div>
-            <div style="font-size:11px;color:${MUTED};margin-top:1px;">${display(f.placa)}</div>
-          </td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.modelo)}</td>
-          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.ano_fabricacao)}<div style="font-size:11px;color:${MUTED};">${idade != null ? `${idade}a` : "&mdash;"}</div></td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:12px;color:${MUTED};">${display(f.localizacao)}</td>
-          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;font-weight:600;">${display(f.km_atual?.toLocaleString("pt-BR"))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(STATUS_OPERACIONAL_LABELS[status], statusTone(status))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;">${badge(CONDICAO_LABELS[condicao], conditionTone(condicao))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;max-width:240px;">${display(motivo)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;font-weight:800;color:${INK};">${display(f.frota_geral ?? f.id)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.placa)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(maintenanceType(f.manutencao_tipo))}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;max-width:280px;">${display(motivo)}</td>
+          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(entrada)}</td>
+          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(saida)}</td>
         </tr>`;
     })
     .join("");
+  const tabelaFrotasEmManutencao =
+    linhas ||
+    `<tr><td colspan="6" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma frota em manutenção no momento.</td></tr>`;
 
   const tituloRelatorio = options.cdNome
-    ? `Relatório de frotas — ${options.cdNome}`
-    : "Relatório de frotas";
+    ? `Disponibilidade de frotas — ${options.cdNome}`
+    : "Disponibilidade de frotas";
 
   return shell(`
     ${header(
@@ -226,8 +327,6 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
           </tr>
           <tr>
             ${summaryCell("Acima de 7 anos", formatNumber(acima7), "#f97316")}
-            ${summaryCell("Em atenção", formatNumber(atencao), "#f59e0b")}
-            ${summaryCell("Críticas", formatNumber(criticos), "#ef4444")}
             ${summaryCell("Cadastro incompleto", formatNumber(cadastro), "#334155")}
           </tr>
         </table>
@@ -235,21 +334,95 @@ export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: Re
     </tr>
     <tr>
       <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Frotas em manutenção</div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #dbe7f5;border-radius:10px;overflow:hidden;">
           <thead>
             <tr style="background:${BLUE};color:#ffffff;">
               <th style="padding:10px 8px;text-align:left;">Frota</th>
-              <th style="padding:10px 8px;text-align:left;">Modelo</th>
-              <th style="padding:10px 8px;text-align:right;">Ano</th>
-              <th style="padding:10px 8px;text-align:left;">Localização</th>
-              <th style="padding:10px 8px;text-align:right;">KM</th>
-              <th style="padding:10px 8px;text-align:left;">Status</th>
-              <th style="padding:10px 8px;text-align:left;">Condição</th>
-              <th style="padding:10px 8px;text-align:left;">Motivo</th>
+              <th style="padding:10px 8px;text-align:left;">Placa</th>
+              <th style="padding:10px 8px;text-align:left;">Tipo</th>
+              <th style="padding:10px 8px;text-align:left;">Motivo da manutenção</th>
+              <th style="padding:10px 8px;text-align:center;">Entrada</th>
+              <th style="padding:10px 8px;text-align:center;">Prev. saída</th>
             </tr>
           </thead>
-          <tbody>${linhas}</tbody>
+          <tbody>${tabelaFrotasEmManutencao}</tbody>
         </table>
+      </td>
+    </tr>`);
+}
+
+export function renderRelatorioPainelExecutivo(
+  data: DashboardReportInput,
+  dataRef: Date,
+  options: ReportOptions = {}
+): string {
+  const { k, operational, conditions, byYear, plan } = data;
+  const dispPct = plan?.disp_hoje != null ? `${(plan.disp_hoje * 100).toFixed(1)}%` : `${k.disponibilidade_pct}%`;
+  const metaPct = plan?.disp_meta != null ? `${(plan.disp_meta * 100).toFixed(0)}%` : "90%";
+  const atingiuMeta = plan?.disp_hoje != null && plan.disp_meta != null
+    ? plan.disp_hoje >= plan.disp_meta
+    : k.disponibilidade_pct >= Number.parseInt(metaPct, 10);
+  const criticosTotal = k.total_indisponiveis + (k.total_manutencao_atrasada ?? 0);
+  const yearRows = byYear.reduce<string[][]>((rows, item, index) => {
+    const rowIndex = Math.floor(index / 4);
+    rows[rowIndex] ??= [];
+    rows[rowIndex].push(yearGrid([item]));
+    return rows;
+  }, []);
+
+  return shell(`
+    ${header(
+      "Operação Bemol",
+      `${formatReportDate(dataRef)} · visão executiva de disponibilidade, manutenção e indicadores críticos`,
+      options
+    )}
+    <tr>
+      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            ${metricBox("Disponibilidade", dispPct, `Meta ${metaPct}`, atingiuMeta ? "#22a879" : "#f59e0b")}
+            ${metricBox("Frotas ativas", formatNumber(k.total_ativos), `${formatNumber(k.total_disponiveis)} disponíveis`, "#2563eb")}
+            ${metricBox("Em atenção crítica", formatNumber(criticosTotal), k.total_manutencao_atrasada > 0 ? `${formatNumber(k.total_manutencao_atrasada)} manutenções atrasadas` : "Indisponíveis + atrasos", "#ef4444")}
+            ${metricBox("Meta operacional", metaPct, atingiuMeta ? "Meta atingida hoje" : "Abaixo da meta", atingiuMeta ? "#22a879" : "#f59e0b")}
+          </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            ${metricBox("Disponíveis", formatNumber(k.total_disponiveis), null, "#22a879")}
+            ${metricBox("Em manutenção", formatNumber(k.total_manutencao), k.total_manutencao_atrasada > 0 ? `${formatNumber(k.total_manutencao_atrasada)} com retorno atrasado` : null, "#8b5cf6")}
+            ${metricBox("Indisponíveis", formatNumber(k.total_indisponiveis), null, "#ef4444")}
+            ${metricBox("Em atenção", formatNumber(k.total_atencao), null, "#f97316")}
+          </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            ${metricBox("Manutenções atrasadas", formatNumber(plan?.manut_atrasadas ?? k.total_manutencao_atrasada), null, "#f59e0b")}
+            ${metricBox("Lavagem atrasada", formatNumber(plan?.lavagem_atrasada ?? k.lavagem_atrasada), null, "#f59e0b")}
+            ${metricBox("Idade média", k.idade_media != null ? `${k.idade_media.toFixed(1)}a` : "—", `${formatNumber(k.total_acima_7)} acima de 7 anos`, "#94a3b8")}
+            ${metricBox("KM médio", k.km_medio != null ? formatNumber(Math.round(k.km_medio)) : "—", null, "#94a3b8")}
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};padding:0 16px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            ${horizontalChart("Status operacional", operational, DASHBOARD_CHART_COLORS, DASHBOARD_CHART_LABELS)}
+            ${horizontalChart("Condição da frota", conditions, DASHBOARD_CHART_COLORS, DASHBOARD_CHART_LABELS)}
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:8px 24px 24px;">
+        <div style="border:1px solid ${BORDER};border-radius:12px;background:#ffffff;padding:16px;">
+          <div style="font-size:14px;font-weight:800;color:${INK};margin-bottom:8px;">Frotas por ano de fabricação</div>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            ${yearRows.map((row) => `<tr>${row.join("")}</tr>`).join("")}
+          </table>
+        </div>
       </td>
     </tr>`);
 }
@@ -275,7 +448,7 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
       <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;border-radius:0 0 14px 14px;padding:24px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:18px;">
           <tr>
-            <td style="width:130px;vertical-align:middle;">${truckImage(options.truckImageSrc, 118)}</td>
+            <td style="width:130px;vertical-align:middle;">${emailLogo(options.logoImageSrc, 118)}</td>
             <td style="vertical-align:middle;">
               <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:${BLUE};text-transform:uppercase;">Detalhe operacional</div>
               <div style="font-size:24px;line-height:30px;font-weight:800;color:${INK};margin-top:4px;">${display(

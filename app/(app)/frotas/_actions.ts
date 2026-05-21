@@ -3,8 +3,10 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { sendRelatorioGeral, sendRelatorioIndividual } from "@/lib/email";
+import { sendRelatorioGeral, sendRelatorioIndividual, sendRelatorioPainelExecutivo } from "@/lib/email";
 import { createFrota, getFrota, listFrotasForReport, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
+import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
+import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
 import { requireAdminUser } from "@/lib/rbac";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
@@ -135,6 +137,26 @@ export async function enviarRelatorioGeralAction(formData: FormData): Promise<Re
     return result.ok ? { ok: true } : { ok: false, error: result.error };
   } catch (error) {
     console.error("Erro ao enviar relatório geral", error);
+    return { ok: false, error: actionErrorMessage(error) };
+  }
+}
+
+export async function enviarRelatorioPainelExecutivoAction(formData: FormData): Promise<RelatorioActionResult> {
+  try {
+    const email = await requireUser();
+    const destinatarios = parseDestinatarios(formData);
+    const [painel, plan] = await Promise.all([
+      dashboardFrotasCached(),
+      getPlanejamentoOverview().catch(() => null),
+    ]);
+    const result = await sendRelatorioPainelExecutivo({
+      destinatarios,
+      painel: { ...painel, plan },
+      enviadoPor: email,
+    });
+    return result.ok ? { ok: true } : { ok: false, error: result.error };
+  } catch (error) {
+    console.error("Erro ao enviar painel executivo", error);
     return { ok: false, error: actionErrorMessage(error) };
   }
 }

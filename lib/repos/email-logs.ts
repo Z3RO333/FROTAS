@@ -17,7 +17,7 @@ export type EmailLog = {
 };
 
 export async function logEmail(args: {
-  tipo: "geral" | "individual" | "diario_ia" | "disponibilidade_cd";
+  tipo: "geral" | "individual" | "diario_ia" | "disponibilidade_cd" | "painel_executivo";
   frotaId?: number | null;
   cdNome?: string | null;
   destinatarios: string;
