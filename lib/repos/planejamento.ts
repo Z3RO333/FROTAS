@@ -107,7 +107,7 @@ export type EstepeRow = {
 
 export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
   const [docs, manut, lavagem, pneus, estepes, kit, disp] = await Promise.all([
-    supabaseManutencao.from("fact_documentos_frota").select("status"),
+    supabaseManutencao.from("fact_documentos_frota").select("status,tipo_documento").neq("tipo_documento", "TACOGRAFO"),
     supabaseManutencao.from("fact_manutencao_programada").select("status"),
     supabaseManutencao.from("fact_lavagem").select("atraso_dias"),
     supabaseManutencao.from("fact_pneus").select("id", { count: "exact", head: true }),
@@ -116,7 +116,7 @@ export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
     supabaseManutencao.from("fact_disponibilidade_diaria").select("disponibilidade,meta").order("data", { ascending: false }).limit(1),
   ]);
 
-  const docsRows = (docs.data ?? []) as Array<{ status: string | null }>;
+  const docsRows = (docs.data ?? []) as Array<{ status: string | null; tipo_documento: string | null }>;
   const manutRows = (manut.data ?? []) as Array<{ status: string | null }>;
   const lavRows = (lavagem.data ?? []) as Array<{ atraso_dias: number | null }>;
   const estRows = (estepes.data ?? []) as Array<{ tem_estepe: boolean | null }>;
@@ -154,7 +154,11 @@ export async function getDocumentos(tipo?: string): Promise<DocumentoRow[]> {
     .select("equipamento,placa,frota_numero,tipo_documento,data_vencimento,dias_passados,status,link_documento,localizacao")
     .order("status", { nullsFirst: false })
     .order("dias_passados", { ascending: false });
-  if (tipo) query = query.eq("tipo_documento", tipo);
+  if (tipo) {
+    query = query.eq("tipo_documento", tipo);
+  } else {
+    query = query.neq("tipo_documento", "TACOGRAFO");
+  }
   const { data } = await query.limit(500);
   return (data ?? []) as DocumentoRow[];
 }

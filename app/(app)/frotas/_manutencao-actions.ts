@@ -104,7 +104,7 @@ export async function enviarManutencaoAction(
     revalidatePath("/planejamento");
     revalidatePath("/portaria");
 
-    redirect(`/frotas/${parsed.data.frota_id}`);
+    redirect("/planejamento/paradas");
     return { ok: true, mensagem: "" }; // never reached — redirect throws
   } catch (error) {
     if (isRedirectError(error)) throw error;
