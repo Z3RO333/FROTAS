@@ -276,7 +276,7 @@ export async function getEstepes(): Promise<EstepeRow[]> {
 }
 
 export type ParadaRow = {
-  id: number;
+  id: number | string;
   frota_numero: string | null;
   placa: string | null;
   descricao_original: string;
@@ -296,11 +296,72 @@ export type ParadaRow = {
   ia_analisado_em: string | null;
 };
 
+type VeiculoParadoRow = {
+  id: number;
+  codigo_frota: string | null;
+  placa: string | null;
+  local: string | null;
+  status: string | null;
+  manutencao_motivo: string | null;
+  manutencao_tipo: string | null;
+  manutencao_oficina: string | null;
+  manutencao_destino: string | null;
+  manutencao_destino_detalhe: string | null;
+  manutencao_iniciado_em: string | null;
+  manutencao_prev_retorno: string | null;
+};
+
+function paradaKey(frotaNumero: string | null, placa: string | null): string {
+  return (frotaNumero || placa || "").trim().toUpperCase();
+}
+
+function paradaManual(row: VeiculoParadoRow): ParadaRow {
+  const destino = row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino;
+  return {
+    id: `veiculo-${row.id}`,
+    frota_numero: row.codigo_frota,
+    placa: row.placa,
+    descricao_original: row.manutencao_motivo ?? "Frota enviada manualmente para manutenção.",
+    servicos: row.manutencao_tipo,
+    classificacao: row.manutencao_tipo,
+    oficina: destino,
+    proxima_programacao: null,
+    inicio_em: row.manutencao_iniciado_em?.slice(0, 10) ?? null,
+    prev_saida: row.manutencao_prev_retorno,
+    setor: row.local,
+    status: row.status,
+    ia_texto_corrigido: null,
+    ia_classificacao: row.manutencao_tipo ? `Manutenção ${row.manutencao_tipo.toLowerCase()}` : "Manutenção manual",
+    ia_criticidade: "MEDIA",
+    ia_acao_recomendada: "Acompanhar retorno da manutenção.",
+    ia_justificativa: "Registro manual de frota em manutenção.",
+    ia_analisado_em: new Date().toISOString(),
+  };
+}
+
 export async function getParadas(): Promise<ParadaRow[]> {
-  const { data } = await supabaseManutencao
-    .from("fact_frotas_paradas")
-    .select("*")
-    .order("ia_criticidade", { nullsFirst: false })
-    .order("id");
-  return (data ?? []) as ParadaRow[];
+  const [importadasResult, manutencaoResult] = await Promise.all([
+    supabaseManutencao
+      .from("fact_frotas_paradas")
+      .select("*")
+      .order("ia_criticidade", { nullsFirst: false })
+      .order("id"),
+    supabaseManutencao
+      .from("veiculos")
+      .select(
+        "id,codigo_frota,placa,local,status,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_prev_retorno"
+      )
+      .eq("status", "manutencao")
+      .eq("ativo", true)
+      .eq("vendido", false)
+      .order("manutencao_iniciado_em", { ascending: false, nullsFirst: false }),
+  ]);
+
+  const importadas = (importadasResult.data ?? []) as ParadaRow[];
+  const existentes = new Set(importadas.map((r) => paradaKey(r.frota_numero, r.placa)).filter(Boolean));
+  const manuais = ((manutencaoResult.data ?? []) as VeiculoParadoRow[])
+    .filter((r) => !existentes.has(paradaKey(r.codigo_frota, r.placa)))
+    .map(paradaManual);
+
+  return [...manuais, ...importadas];
 }
