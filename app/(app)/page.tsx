@@ -140,7 +140,7 @@ export default async function DashboardPage() {
             <span className="h-1 w-6 rounded-full bg-emerald-500" />
             Indicadores operacionais
           </h2>
-          <MetricGrid cols={3}>
+          <MetricGrid cols={4}>
             <MetricCard
               label="Disponibilidade"
               value={dispPct}
@@ -173,7 +173,7 @@ export default async function DashboardPage() {
           <span className="h-1 w-6 rounded-full bg-amber-500" />
           Cadastro e dados
         </h2>
-        <MetricGrid cols={2}>
+        <MetricGrid cols={4}>
           <MetricCard
             label="Idade média"
             value={k.idade_media != null ? `${k.idade_media.toFixed(1)}a` : "—"}
