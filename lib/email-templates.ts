@@ -118,8 +118,8 @@ function emailLogo(src: string | undefined, width: number): string {
 }
 
 function metricBox(label: string, value: string | number, hint: string | null, color: string): string {
-  return `<td style="width:25%;padding:6px;">
-    <div style="border-top:3px solid ${color};border:1px solid #dbe7f5;border-radius:12px;padding:14px 14px;background:#ffffff;">
+  return `<td style="width:25%;padding:6px;vertical-align:top;">
+    <div style="height:96px;box-sizing:border-box;border-top:3px solid ${color};border:1px solid #dbe7f5;border-radius:12px;padding:14px 14px;background:#ffffff;">
       <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${MUTED};">${escapeHtml(label)}</div>
       <div style="font-size:26px;line-height:34px;font-weight:800;color:${INK};margin-top:4px;">${escapeHtml(String(value))}</div>
       ${hint ? `<div style="font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(hint)}</div>` : ""}
@@ -379,7 +379,7 @@ export function renderRelatorioPainelExecutivo(
     )}
     <tr>
       <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;margin-bottom:12px;">
           <tr>
             ${metricBox("Disponibilidade", dispPct, `Meta ${metaPct}`, atingiuMeta ? "#22a879" : "#f59e0b")}
             ${metricBox("Frotas ativas", formatNumber(k.total_ativos), `${formatNumber(k.total_disponiveis)} disponíveis`, "#2563eb")}
@@ -387,7 +387,7 @@ export function renderRelatorioPainelExecutivo(
             ${metricBox("Meta operacional", metaPct, atingiuMeta ? "Meta atingida hoje" : "Abaixo da meta", atingiuMeta ? "#22a879" : "#f59e0b")}
           </tr>
         </table>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;margin-bottom:12px;">
           <tr>
             ${metricBox("Disponíveis", formatNumber(k.total_disponiveis), null, "#22a879")}
             ${metricBox("Em manutenção", formatNumber(k.total_manutencao), k.total_manutencao_atrasada > 0 ? `${formatNumber(k.total_manutencao_atrasada)} com retorno atrasado` : null, "#8b5cf6")}
@@ -395,7 +395,7 @@ export function renderRelatorioPainelExecutivo(
             ${metricBox("Em atenção", formatNumber(k.total_atencao), null, "#f97316")}
           </tr>
         </table>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;margin-bottom:12px;">
           <tr>
             ${metricBox("Manutenções atrasadas", formatNumber(plan?.manut_atrasadas ?? k.total_manutencao_atrasada), null, "#f59e0b")}
             ${metricBox("Lavagem atrasada", formatNumber(plan?.lavagem_atrasada ?? k.lavagem_atrasada), null, "#f59e0b")}
