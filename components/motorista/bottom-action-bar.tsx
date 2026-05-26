@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, History, Home, List } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Home, List, ShieldAlert } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
@@ -17,8 +17,9 @@ type Item = {
 const ITEMS: Item[] = [
   { href: "/motorista", label: "Início", icon: Home },
   { href: "/motorista/checklist", label: "Checklist", icon: ClipboardCheck, primary: true },
+  { href: "/motorista/sinistro", label: "Sinistro", icon: AlertTriangle, primary: true },
   { href: "/motorista/checklists", label: "Histórico", icon: List },
-  { href: "/motorista/historico", label: "Resumo", icon: History },
+  { href: "/motorista/sinistros", label: "Sinistros", icon: ShieldAlert },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -41,7 +42,7 @@ export function MotoristaBottomBar() {
         )}
         aria-label="Navegação do motorista"
       >
-        <ul className="grid grid-cols-4 gap-1 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
+        <ul className="grid grid-cols-5 gap-1 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
           {ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;

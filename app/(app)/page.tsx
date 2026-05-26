@@ -3,6 +3,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
+  DollarSign,
+  FileText,
   Gauge,
   Timer,
   TrendingUp,
@@ -163,33 +165,25 @@ export default async function DashboardPage() {
               severity="ATENCAO"
               href="/planejamento/lavagem"
             />
+            <MetricCard
+              label="Custo de ordens"
+              value="R$ 0,00"
+              icon={DollarSign}
+              severity="NEUTRO"
+              hint="Aguardando ordens"
+              href="/manutencao/ordens"
+            />
+            <MetricCard
+              label="Total de ordens"
+              value={0}
+              icon={FileText}
+              severity="NEUTRO"
+              hint="Aguardando ordens"
+              href="/manutencao/ordens"
+            />
           </MetricGrid>
         </section>
       )}
-
-      {/* Cadastro e Operação */}
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-          <span className="h-1 w-6 rounded-full bg-amber-500" />
-          Cadastro e dados
-        </h2>
-        <MetricGrid cols={4}>
-          <MetricCard
-            label="Idade média"
-            value={k.idade_media != null ? `${k.idade_media.toFixed(1)}a` : "—"}
-            icon={Timer}
-            severity="NEUTRO"
-            hint={`${formatNumber(k.total_acima_7)} acima de 7 anos`}
-            href="/frotas?idadeMin=7"
-          />
-          <MetricCard
-            label="KM médio"
-            value={k.km_medio != null ? formatNumber(Math.round(k.km_medio)) : "—"}
-            icon={Gauge}
-            severity="NEUTRO"
-          />
-        </MetricGrid>
-      </section>
 
       {/* Charts */}
       <div className="grid gap-4 xl:grid-cols-2">

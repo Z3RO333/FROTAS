@@ -5,7 +5,6 @@ import {
   ClipboardX,
   Gauge,
   Settings2,
-  Timer,
   Truck,
   Wrench,
   XCircle,
@@ -51,12 +50,6 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
       icon: Gauge,
       href: "/frotas?semKm=1",
       tone: "text-sky-700",
-    },
-    {
-      label: "Idade média",
-      value: kpis.idade_media != null ? `${kpis.idade_media.toFixed(1)} anos` : "-",
-      icon: Timer,
-      href: "/frotas?idadeMin=7",
     },
     {
       label: "Cadastro incompleto",

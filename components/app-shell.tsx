@@ -22,6 +22,7 @@ const COCKPIT_NAV: NavItem[] = [
 ];
 
 const FROTA_NAV: NavItem[] = [
+  { href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" },
   { href: "/frotas", label: "Veículos", icon: "List" },
   { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
   { href: "/frotas/disponibilidades", label: "Disponibilidade", icon: "Gauge" },
@@ -68,6 +69,8 @@ const ADMINISTRACAO_NAV: NavItem[] = [
 const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista", label: "Início", icon: "Home" },
   { href: "/motorista/checklist", label: "Fazer Checklist", icon: "ClipboardCheck" },
+  { href: "/motorista/sinistro", label: "Reportar Sinistro", icon: "AlertTriangle" },
+  { href: "/motorista/sinistros", label: "Meus Sinistros", icon: "ShieldAlert" },
   { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
   { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
   { href: "/documentos", label: "Documentos", icon: "FileText" },
@@ -105,6 +108,8 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
       items: [
         { href: "/motorista", label: "Início motorista", icon: "Home" },
         { href: "/motorista/checklist", label: "Fazer checklist", icon: "ClipboardCheck" },
+        { href: "/motorista/sinistro", label: "Reportar sinistro", icon: "AlertTriangle" },
+        { href: "/motorista/sinistros", label: "Sinistros motorista", icon: "ShieldAlert" },
         { href: "/motorista/checklists", label: "Histórico motorista", icon: "List" },
       ],
     });

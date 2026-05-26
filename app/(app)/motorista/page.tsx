@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, Fuel, History, Home, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Fuel, History, Home, ShieldAlert, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +73,12 @@ export default async function MotoristaHomePage() {
                   <Link href="/motorista/checklists">
                     <History className="h-4 w-4" aria-hidden="true" />
                     Meus últimos checklists
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/motorista/sinistro">
+                    <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                    Reportar sinistro
                   </Link>
                 </Button>
                 <span title="Abastecimento registrado diretamente no checklist" className="cursor-not-allowed">

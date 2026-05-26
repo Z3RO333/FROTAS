@@ -399,8 +399,8 @@ export function renderRelatorioPainelExecutivo(
           <tr>
             ${metricBox("Manutenções atrasadas", formatNumber(plan?.manut_atrasadas ?? k.total_manutencao_atrasada), null, "#f59e0b")}
             ${metricBox("Lavagem atrasada", formatNumber(plan?.lavagem_atrasada ?? k.lavagem_atrasada), null, "#f59e0b")}
-            ${metricBox("Idade média", k.idade_media != null ? `${k.idade_media.toFixed(1)}a` : "—", `${formatNumber(k.total_acima_7)} acima de 7 anos`, "#94a3b8")}
-            ${metricBox("KM médio", k.km_medio != null ? formatNumber(Math.round(k.km_medio)) : "—", null, "#94a3b8")}
+            ${metricBox("Custo de ordens", "R$ 0,00", "Aguardando ordens", "#94a3b8")}
+            ${metricBox("Total de ordens", "0", "Aguardando ordens", "#94a3b8")}
           </tr>
         </table>
       </td>
