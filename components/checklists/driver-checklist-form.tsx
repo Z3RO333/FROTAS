@@ -869,6 +869,7 @@ function FuelLevelSelector({
   };
 
   const activeLevel = value > 0 ? value : hovered;
+  const activeTone = activeLevel > 0 ? toneFor(activeLevel) : null;
 
   return (
     <div className="space-y-2">
@@ -879,7 +880,6 @@ function FuelLevelSelector({
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
           const previewed = hovered > 0 && level <= hovered && !filled;
-          const levelTone = toneFor(level);
           return (
             <button
               key={level}
@@ -889,10 +889,10 @@ function FuelLevelSelector({
               onMouseLeave={() => setHovered(0)}
               className={cn(
                 "h-7 flex-1 rounded-full transition-all duration-150",
-                filled
-                  ? levelTone.fill
+                filled && activeTone
+                  ? activeTone.fill
                   : previewed
-                    ? levelTone.preview
+                    ? toneFor(hovered).preview
                     : "bg-transparent hover:bg-slate-200"
               )}
               aria-label={`${level}/4 do tanque`}

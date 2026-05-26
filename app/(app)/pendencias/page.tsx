@@ -1,6 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  abrirManutencaoPendenciaAction,
+  liberarFrotaPendenciaAction,
+  resolverPendenciaAction,
+} from "./_actions";
 import { listOpenPendencias } from "@/lib/repos/checklists";
 import { requireAdminUser } from "@/lib/rbac";
 import { formatDate } from "@/lib/utils";
@@ -36,13 +41,22 @@ export default async function PendenciasPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" disabled>
-                    Liberar frota
-                  </Button>
-                  <Button variant="outline" disabled>
-                    Abrir manutenção
-                  </Button>
-                  <Button disabled>Resolver</Button>
+                  <form action={liberarFrotaPendenciaAction}>
+                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
+                    <Button type="submit" variant="outline">
+                      Liberar frota
+                    </Button>
+                  </form>
+                  <form action={abrirManutencaoPendenciaAction}>
+                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
+                    <Button type="submit" variant="outline">
+                      Abrir manutenção
+                    </Button>
+                  </form>
+                  <form action={resolverPendenciaAction}>
+                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
+                    <Button type="submit">Resolver</Button>
+                  </form>
                 </div>
               </div>
             </article>
