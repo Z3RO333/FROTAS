@@ -113,7 +113,8 @@ export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
   const localizacaoRaw = formData.get("localizacao");
   const localizacao = typeof localizacaoRaw === "string" && localizacaoRaw.trim() ? localizacaoRaw.trim() : null;
 
-  if (!Number.isFinite(id)) throw new Error("Frota inválida");
+  // Number("") e Number(null) retornam 0 (finito), por isso valida >0
+  if (!Number.isInteger(id) || id <= 0) throw new Error("Frota inválida");
 
   await updateFrota(id, { localizacao }, email);
   revalidatePath(`/frotas/${id}`);

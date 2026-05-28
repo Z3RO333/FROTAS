@@ -119,7 +119,7 @@ export async function toggleDisponibilidadeScheduleAction(formData: FormData) {
 
   const id = Number(formData.get("id"));
   const ativo = formData.get("ativo") === "true";
-  if (!Number.isFinite(id)) redirect(targetUrl({ erro: "Programação inválida." }));
+  if (!Number.isInteger(id) || id <= 0) redirect(targetUrl({ erro: "Programação inválida." }));
 
   await toggleEmailSchedule(id, !ativo);
   revalidatePath(PATH);
@@ -129,7 +129,7 @@ export async function deleteDisponibilidadeScheduleAction(formData: FormData) {
   await requireScheduleManager();
 
   const id = Number(formData.get("id"));
-  if (!Number.isFinite(id)) redirect(targetUrl({ erro: "Programação inválida." }));
+  if (!Number.isInteger(id) || id <= 0) redirect(targetUrl({ erro: "Programação inválida." }));
 
   await deleteEmailSchedule(id);
   revalidatePath(PATH);

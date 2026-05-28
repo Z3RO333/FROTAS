@@ -23,9 +23,18 @@ export async function criarDemandaAction(formData: FormData) {
   revalidatePath("/operacao");
 }
 
+const StatusDemandaSchema = z.enum([
+  "disponivel",
+  "em_andamento",
+  "concluido",
+  "cancelado",
+]) satisfies z.ZodType<StatusDemanda>;
+
 export async function atualizarStatusAction(id: string, status: string) {
   const user = await requireAppUser();
   if (!canAccessOperacao(user.perfil)) redirect("/");
-  await atualizarStatusDemanda(id, status as StatusDemanda);
+  // Valida o status antes de chamar o repo — evita string arbitrária chegar ao banco
+  const parsedStatus = StatusDemandaSchema.parse(status);
+  await atualizarStatusDemanda(id, parsedStatus);
   revalidatePath("/operacao");
 }

@@ -56,27 +56,53 @@ function normalizePlate(value: string | null | undefined): string {
   return String(value ?? "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
 }
 
-async function getUltimaContagemNumeroFogo(veiculo: Veiculo, digitoAno: string): Promise<number> {
-  const placa = normalizePlate(veiculo.placa);
-  let query = supabaseManutencao
-    .from("numero_fogo")
-    .select("contagem, numero_fogo")
-    .eq("ultimo_digito_ano", digitoAno)
-    .order("contagem", { ascending: false })
-    .order("numero_fogo", { ascending: false })
-    .limit(1);
-
-  if (veiculo.codigo_frota) {
-    query = query.eq("frota", veiculo.codigo_frota);
-  } else if (placa) {
-    query = query.eq("placa", placa);
+/**
+ * Reserva atomicamente um intervalo de contagens para uma frota+ano usando a RPC
+ * `reservar_contagens_numero_fogo` (migration 021). Retorna a primeira contagem do
+ * intervalo. Concorrência: serializado por row-lock em numero_fogo_sequencia.
+ *
+ * Fallback: se a RPC não existir (ex.: dev sem migrations aplicadas), volta para o
+ * SELECT MAX legado — sem garantia de unicidade sob concorrência.
+ */
+async function reservarContagemNumeroFogo(
+  veiculo: Veiculo,
+  digitoAno: string,
+  quantidade: number
+): Promise<number> {
+  const chaveFrota = veiculo.codigo_frota?.trim() || normalizePlate(veiculo.placa);
+  if (!chaveFrota) {
+    throw new Error("Veículo sem código de frota nem placa para gerar número de fogo.");
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(`getUltimaContagemNumeroFogo: ${error.message}`);
+  const { data, error } = await supabaseManutencao.rpc("reservar_contagens_numero_fogo", {
+    p_chave_frota: chaveFrota,
+    p_digito_ano: digitoAno,
+    p_quantidade: quantidade,
+  });
 
-  const contagem = Number(data?.[0]?.contagem ?? 0);
-  return Number.isFinite(contagem) && contagem > 0 ? Math.floor(contagem) : 0;
+  if (!error && typeof data === "number" && Number.isFinite(data) && data > 0) {
+    return Math.floor(data);
+  }
+
+  // Fallback legado (somente quando a RPC não existe). NÃO é seguro sob concorrência.
+  if (error && /function .* does not exist/i.test(error.message)) {
+    console.warn("[pneus] RPC reservar_contagens_numero_fogo ausente — usando fallback inseguro");
+    const placa = normalizePlate(veiculo.placa);
+    let query = supabaseManutencao
+      .from("numero_fogo")
+      .select("contagem")
+      .eq("ultimo_digito_ano", digitoAno)
+      .order("contagem", { ascending: false })
+      .limit(1);
+    if (veiculo.codigo_frota) query = query.eq("frota", veiculo.codigo_frota);
+    else if (placa) query = query.eq("placa", placa);
+    const { data: rows, error: fbErr } = await query;
+    if (fbErr) throw new Error(`reservarContagemNumeroFogo fallback: ${fbErr.message}`);
+    const ultima = Number(rows?.[0]?.contagem ?? 0);
+    return Number.isFinite(ultima) && ultima > 0 ? Math.floor(ultima) + 1 : 1;
+  }
+
+  throw new Error(`reservarContagemNumeroFogo: ${error?.message ?? "sem retorno"}`);
 }
 
 export async function listUltimaContagemNumeroFogoPorFrota(
@@ -117,10 +143,21 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
   const veiculo = await getVeiculoByIdOrCodigo(input.id_veiculo);
   if (!veiculo) throw new Error("Veiculo nao encontrado para registrar troca de pneu.");
 
+  if (input.posicoes.length === 0) {
+    throw new Error("Selecione ao menos uma posição.");
+  }
+
   const dataServico = new Date();
   const ano = dataServico.getFullYear();
   const digitoAno = String(ano).slice(-1);
-  const contagemBase = await getUltimaContagemNumeroFogo(veiculo, digitoAno);
+  // Reserva atomicamente N contagens consecutivas via RPC (migration 021).
+  // Antes: SELECT MAX + INSERT separados → race condition gerava numero_fogo duplicado
+  // entre trocas concorrentes do mesmo veículo.
+  const contagemInicial = await reservarContagemNumeroFogo(
+    veiculo,
+    digitoAno,
+    input.posicoes.length
+  );
   const placaNormalizada = normalizePlate(veiculo.placa);
 
   const posicoes = input.posicoes.map((p, index) => {
@@ -128,7 +165,7 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
       frota: veiculo.codigo_frota,
       placa: veiculo.placa,
       ano,
-      contagem: contagemBase + index + 1,
+      contagem: contagemInicial + index,
     });
     return {
       posicao: p.posicao,

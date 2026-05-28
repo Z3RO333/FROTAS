@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getFrota } from "@/lib/repos/frotas";
@@ -34,7 +35,8 @@ function optionalNumber(formData: FormData, key: string): number | null {
 
 function generateTicketNumber() {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const suffix = Math.random().toString(36).slice(2, 7).toUpperCase();
+  // crypto.randomUUID é criptograficamente forte — sem risco de colisão como Math.random
+  const suffix = randomUUID().split("-")[0].toUpperCase();
   return `SIN-${date}-${suffix}`;
 }
 
