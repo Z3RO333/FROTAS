@@ -392,13 +392,19 @@ async function fetchChecklistsByIds(ids: number[]): Promise<Map<number, Checklis
   const uniqueIds = [...new Set(ids.filter(Boolean))];
   if (uniqueIds.length === 0) return new Map();
 
+  // Apenas colunas usadas downstream (motorista_id, motorista_nome) — evita transferir
+  // observacao_original/observacao_corrigida_ia que podem ser longas.
   const { data, error } = await supabaseManutencao
     .from("checklists_frota")
-    .select("*")
+    .select("id,motorista_id,motorista_nome")
     .in("id", uniqueIds);
 
   if (error) throw error;
-  return new Map(((data ?? []) as ChecklistDbRow[]).map((item) => [Number(item.id), item]));
+  return new Map(
+    ((data ?? []) as Array<Pick<ChecklistDbRow, "id" | "motorista_id" | "motorista_nome">>).map(
+      (item) => [Number(item.id), item as ChecklistDbRow]
+    )
+  );
 }
 
 export async function checklistDashboardKpis(): Promise<{
@@ -470,14 +476,14 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
         .order("codigo_frota", { ascending: true }),
       supabaseManutencao
         .from("checklists_frota")
-        .select("*")
+        .select("id,frota_id,motorista_id,motorista_nome,data_checklist,km_informado,status_geral")
         .gte("data_checklist", start)
         .lt("data_checklist", end)
         .order("data_checklist", { ascending: false })
         .order("id", { ascending: false }),
       supabaseManutencao
         .from("movimentacoes_frota")
-        .select("*")
+        .select("id,frota_id,checklist_id,tipo_movimentacao,data_hora")
         .gte("data_hora", start)
         .lt("data_hora", end)
         .order("data_hora", { ascending: false })

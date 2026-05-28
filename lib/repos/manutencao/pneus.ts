@@ -3,8 +3,12 @@ import type { Veiculo, ServicoApp, TrocaPneuApp } from "./types";
 import { randomUUID } from "crypto";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 
+// Colunas usadas pelo PneusWorkspace — evita transferir os 8 campos de intervalo
+// que não são consumidos por essa tela.
+const VEICULO_PNEUS_COLS = "id,codigo_frota,placa,modelo,qtd_pneus,local";
+
 export async function listVeiculos(search?: string): Promise<Veiculo[]> {
-  let q = supabaseManutencao.from("veiculos").select("*").order("codigo_frota");
+  let q = supabaseManutencao.from("veiculos").select(VEICULO_PNEUS_COLS).order("codigo_frota");
   if (search) {
     const s = `%${search.toLowerCase()}%`;
     q = q.or(`codigo_frota.ilike.${s},placa.ilike.${s},modelo.ilike.${s}`);
