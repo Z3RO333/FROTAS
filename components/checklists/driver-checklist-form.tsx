@@ -118,6 +118,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     if (actionState.ok) router.push(actionState.redirectTo);
   }, [actionState, router]);
 
+  // Revoga blob URL quando trocar de foto ou desmontar o componente — evita memory leak
+  useEffect(() => {
+    return () => {
+      if (fotoKmPreview) URL.revokeObjectURL(fotoKmPreview);
+    };
+  }, [fotoKmPreview]);
+
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
     const p = placaQuery.trim().toLowerCase();
@@ -133,6 +140,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     setOcrState(null);
+    // Revoga blob URL anterior antes de criar uma nova
+    if (fotoKmPreview) URL.revokeObjectURL(fotoKmPreview);
     setFotoKmPreview(null);
     fotoKmFileRef.current = null;
     if (!file || file.size === 0) return;
@@ -214,8 +223,30 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   function handlePreSubmit(e: { preventDefault(): void }) {
     if (!fotoKmFileRef.current) {
       e.preventDefault();
-      setStepErro("Selecione a foto do hodômetro antes de enviar.");
+      setStepErro("Anexe a foto do hodômetro antes de enviar.");
+      return;
     }
+    const km = parseInt(kmValue, 10);
+    if (!Number.isFinite(km) || km <= 0) {
+      e.preventDefault();
+      setStepErro("Informe a quilometragem atual do veículo antes de enviar.");
+      return;
+    }
+    // KM divergente sem justificativa também é bloqueado pelo servidor, mas avisar antes evita
+    // o motorista perder o upload de todas as fotos.
+    if (selected?.km_atual != null && km < selected.km_atual) {
+      const justificativa = (
+        document.getElementById("justificativa_km") as HTMLTextAreaElement | null
+      )?.value?.trim();
+      if (!justificativa) {
+        e.preventDefault();
+        setStepErro(
+          `KM informado (${km}) é menor que o último registrado (${selected.km_atual}). Descreva a justificativa no campo ao lado.`
+        );
+        return;
+      }
+    }
+    setStepErro(null);
   }
 
   return (
@@ -277,9 +308,15 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       </div>
 
       <section hidden={step !== 0} className="space-y-4">
-        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-          <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Para começar, selecione um veículo para realizar o checklist.
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-medium">Selecione o veículo que você vai utilizar.</p>
+            <p className="mt-0.5 text-xs opacity-80">
+              Veículos em manutenção ou indisponíveis ficam em cinza e não podem receber checklist.
+              Use os filtros por número de frota ou placa para encontrar o seu rapidamente.
+            </p>
+          </div>
         </div>
 
         {selected && (
@@ -413,7 +450,19 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       <section hidden={step !== 1} className="space-y-4">
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          Todos os itens começam desmarcados. Marque OK ou Problema nos itens obrigatórios.
+          <div className="space-y-1.5">
+            <p className="font-medium">Inspecione o veículo e marque cada item.</p>
+            <ul className="ml-1 list-disc space-y-0.5 pl-3 text-xs opacity-90">
+              <li>
+                Itens com <span className="font-semibold text-red-600">*</span> são obrigatórios — você precisa marcar OK ou Problema.
+              </li>
+              <li>
+                Itens <span className="font-semibold text-red-700">críticos</span> (iluminação, freios, pneus) bloqueiam a saída se marcados como Problema.
+              </li>
+              <li>Itens não obrigatórios podem ficar sem marcação se não se aplicam.</li>
+              <li>Ao marcar <span className="font-semibold">Problema</span>, descreva o que aconteceu na observação ao lado.</li>
+            </ul>
+          </div>
         </div>
 
         <div className="space-y-6 rounded-md border bg-white p-5 shadow-sm">
@@ -432,7 +481,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
               const isApto = status === "APTO";
               const isProblem = status === "NAO_APTO";
               return (
-                <div key={item.codigo} className="space-y-2 rounded-md border bg-slate-50 p-3">
+                <div
+                  key={item.codigo}
+                  className={cn(
+                    "space-y-2 rounded-md border bg-slate-50 p-3",
+                    item.critico && "border-red-200 bg-red-50/40"
+                  )}
+                >
                   <div>
                     <div className="flex min-h-10 items-start">
                       <span className="text-sm font-medium leading-tight">
@@ -447,8 +502,25 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                       ) : null}
                       </span>
                     </div>
-                    <div className="mt-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      {item.obrigatorio ? "Obrigatório" : "Opcional"}
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide">
+                      {item.critico ? (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-700 ring-1 ring-inset ring-red-200">
+                          Crítico
+                        </span>
+                      ) : item.obrigatorio ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 ring-1 ring-inset ring-amber-200">
+                          Obrigatório
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600 ring-1 ring-inset ring-slate-200">
+                          Opcional
+                        </span>
+                      )}
+                      {item.critico && (
+                        <span className="text-[10px] font-normal normal-case text-red-700/80">
+                          Bloqueia saída se Problema
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -533,6 +605,17 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       </section>
 
       <section hidden={step !== 2} className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="space-y-1">
+            <p className="font-medium">Registre o hodômetro e (se aplicável) o abastecimento.</p>
+            <p className="text-xs opacity-90">
+              Tire a foto do painel com o hodômetro nítido — a IA lê automaticamente, mas você pode
+              ajustar o valor se necessário. Os campos de abastecimento são opcionais; só preencha
+              se houve abastecimento neste turno.
+            </p>
+          </div>
+        </div>
         <div className="space-y-5 rounded-md border bg-white p-5 shadow-sm">
           {selected && selected.km_atual == null && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
@@ -684,8 +767,14 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
           </div>
         </div>
 
+        {stepErro && step === 2 && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
+            {stepErro}
+          </div>
+        )}
+
         <div className="flex justify-between">
-          <Button type="button" variant="outline" onClick={() => setStep(1)}>
+          <Button type="button" variant="outline" onClick={() => { setStep(1); setStepErro(null); }}>
             Voltar
           </Button>
           <SubmitButton blocked={ocrDivergente && !kmManualPreenchido} />

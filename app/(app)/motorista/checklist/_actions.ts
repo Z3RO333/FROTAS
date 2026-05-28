@@ -27,6 +27,10 @@ import type { ChecklistMotoristaActionState } from "./types";
 
 const StatusSchema = z.enum(["APTO", "NAO_APTO", "NAO_SE_APLICA"]);
 
+// Threshold mínimo de confiança do OCR para aceitar leitura automática.
+// Mantido em sincronia com o limiar do cliente em /api/checklists/ocr-km.
+const OCR_MIN_CONFIDENCE = 0.85;
+
 const TipoCombustivelSchema = z
   .enum(["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"])
   .optional()
@@ -83,38 +87,28 @@ export async function enviarChecklistMotoristaAction(
       throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
     }
 
-    // Usa resultado do OCR já feito no cliente (evita re-analisar e dobrar o tempo)
+    // Reutiliza resultado do OCR feito no cliente, mas REAVALIA a confiança no servidor.
+    // O cliente envia km_lido e confiança; o servidor decide se a leitura é segura.
+    // Não confiar no flag "ocr_leitura_segura" do cliente — vetor de bypass conhecido.
     const ocrKmLidoRaw = optionalInteger(formData.get("ocr_km_lido"));
     const ocrConfiancaRaw = optionalDecimal(formData.get("ocr_confianca"));
-    const ocrLeituraSegura = formData.get("ocr_leitura_segura") === "true";
+    const confianca =
+      ocrConfiancaRaw != null && ocrConfiancaRaw >= 0 && ocrConfiancaRaw <= 1
+        ? ocrConfiancaRaw
+        : 0;
+    const leituraSeguraServidor =
+      ocrKmLidoRaw != null && confianca >= OCR_MIN_CONFIDENCE;
 
-    let leituraKm: OdometerReading;
-
-    if (ocrKmLidoRaw != null && ocrConfiancaRaw != null && ocrLeituraSegura) {
-      // OCR já feito no cliente e aprovado — reutiliza sem nova chamada à IA
-      leituraKm = {
-        km_lido: ocrKmLidoRaw,
-        confianca: ocrConfiancaRaw,
-        leitura_segura: true,
-        precisa_digitacao_manual: false,
-        motivo: null,
-        texto_visivel: null,
-        candidatos_descartados: [],
-        regiao_detectada: "desconhecido",
-      };
-    } else {
-      // Sem resultado cacheado ou KM digitado manualmente — só sobe a foto, sem re-analisar
-      leituraKm = {
-        km_lido: ocrKmLidoRaw,
-        confianca: ocrConfiancaRaw ?? 0,
-        leitura_segura: false,
-        precisa_digitacao_manual: true,
-        motivo: null,
-        texto_visivel: null,
-        candidatos_descartados: [],
-        regiao_detectada: "desconhecido",
-      };
-    }
+    const leituraKm: OdometerReading = {
+      km_lido: ocrKmLidoRaw,
+      confianca,
+      leitura_segura: leituraSeguraServidor,
+      precisa_digitacao_manual: !leituraSeguraServidor,
+      motivo: null,
+      texto_visivel: null,
+      candidatos_descartados: [],
+      regiao_detectada: "desconhecido",
+    };
 
     const kmInformado =
       kmDigitado ??
@@ -128,6 +122,15 @@ export async function enviarChecklistMotoristaAction(
     const tipoCombustivel = TipoCombustivelSchema.parse(tipoCombustivelRaw ?? undefined) ?? null;
     const litrosCombustivel = optionalDecimal(formData.get("litros_combustivel"));
     const litrosArla = optionalDecimal(formData.get("litros_arla"));
+
+    // Abastecimento é opcional, mas se houver litros precisa do tipo de combustível.
+    // Arla é tratado como combustível à parte (tipo "ARLA").
+    if ((litrosCombustivel ?? 0) > 0 && !tipoCombustivel) {
+      throw new Error("Informe o tipo de combustível para registrar o abastecimento.");
+    }
+    if ((litrosArla ?? 0) > 0 && tipoCombustivel === "ARLA" && (litrosCombustivel ?? 0) > 0) {
+      throw new Error("Para registrar Arla, deixe os litros de combustível em branco ou escolha outro tipo.");
+    }
     const nivelCombustivelRaw = optionalInteger(formData.get("nivel_combustivel"));
     const nivelArlaRaw = optionalInteger(formData.get("nivel_arla"));
     const nivelCombustivel =
@@ -242,25 +245,20 @@ export async function enviarChecklistMotoristaAction(
       foto_comprovante_abastecimento_url: fotoComprovanteUrl,
     });
 
+    // A fila de inspeção alimenta a análise de IA. Falha aqui não bloqueia o motorista,
+    // mas é logada com o checklist_id para reprocessamento manual posterior.
+    // (createChecklist já dispara /api/checklists/analyze — não disparar de novo aqui.)
     await createChecklistImageInspections(
       inspections.map((inspection) => ({
         ...inspection,
         checklist_id: result.checklist_id,
       }))
     ).catch((error) => {
-      console.warn("[vision] falha ao criar fila de inspeção", error);
+      console.warn(
+        `[vision] falha ao criar fila de inspeção checklist_id=${result.checklist_id}`,
+        error
+      );
     });
-
-    // Dispara análise IA em background — não bloqueia a resposta ao motorista
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const secret = process.env.FROTAS_INTERNAL_SECRET ?? "";
-    if (secret) {
-      fetch(`${appUrl}/api/checklists/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-internal-secret": secret },
-        body: JSON.stringify({ checklist_id: result.checklist_id }),
-      }).catch((err) => console.warn("[analyze] falha ao disparar análise IA", err));
-    }
   } catch (error) {
     await removeChecklistImages(uploadedPaths).catch((cleanupError) => {
       console.warn("[checklists] falha ao limpar imagens após erro", cleanupError);
