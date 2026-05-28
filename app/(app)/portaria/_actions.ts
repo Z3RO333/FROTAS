@@ -79,6 +79,10 @@ export async function bloquearSaidaAction(formData: FormData) {
     const checklistId = Number(formData.get("checklist_id"));
     const motivo = String(formData.get("motivo") ?? "").trim();
 
+    if (!Number.isInteger(frotaId) || frotaId <= 0 || !Number.isInteger(checklistId) || checklistId <= 0) {
+      redirect(`/portaria?erro=${encodeURIComponent("IDs inválidos.")}`);
+    }
+
     const rows = await listPortariaToday();
     const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);
     if (!row || !row.motorista_id) {
@@ -109,6 +113,10 @@ export async function solicitarCorrecaoAction(formData: FormData) {
     const frotaId = Number(formData.get("frota_id"));
     const checklistId = Number(formData.get("checklist_id"));
     const motivo = String(formData.get("motivo") ?? "").trim();
+
+    if (!Number.isInteger(frotaId) || frotaId <= 0 || !Number.isInteger(checklistId) || checklistId <= 0) {
+      redirect(`/portaria?erro=${encodeURIComponent("IDs inválidos.")}`);
+    }
 
     const rows = await listPortariaToday();
     const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);

@@ -9,7 +9,10 @@ import { registrarPreventiva } from "@/lib/repos/manutencao/equipamentos";
 const PreventivaSchema = z.object({
   equipamento_id: z.string().uuid(),
   tipo_preventiva: z.enum(["300h", "1500h"]),
-  data_servico: z.string().min(1),
+  // ISO date YYYY-MM-DD ou ISO completo
+  data_servico: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}(T.*)?$/, "Data inválida (use AAAA-MM-DD)"),
   horimetro_servico: z.coerce.number().positive(),
   observacoes: z.string().optional(),
 });
