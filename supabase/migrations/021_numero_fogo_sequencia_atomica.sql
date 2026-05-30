@@ -29,6 +29,7 @@ CREATE OR REPLACE FUNCTION reservar_contagens_numero_fogo(
   p_quantidade integer
 ) RETURNS integer
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 DECLARE
   v_baseline integer;
