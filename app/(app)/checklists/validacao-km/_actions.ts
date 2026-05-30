@@ -30,15 +30,21 @@ export async function aprovarKmAction(formData: FormData) {
 
   await approveKmEntry(id, user.email, observacao);
 
-  // Garante que km_atual da frota reflete o KM aprovado e marca km_validado.
-  await aplicarResumoChecklist(
-    entry.frota_id,
-    {
-      km_atual: entry.km_novo,
-      km_origem: entry.origem,
-    },
-    user.email
-  );
+  // Só atualiza km_atual da frota se este registro ainda for o KM vigente.
+  // Sem esse check, aprovar um registro antigo pendente regrediria o km_atual
+  // para um valor menor quando já existe checklist mais recente.
+  const frota = await getFrota(entry.frota_id);
+  if (frota && frota.km_atual === entry.km_novo) {
+    await aplicarResumoChecklist(
+      entry.frota_id,
+      {
+        km_atual: entry.km_novo,
+        km_origem: entry.origem,
+        km_validado: true,
+      },
+      user.email
+    );
+  }
 
   revalidate();
 }

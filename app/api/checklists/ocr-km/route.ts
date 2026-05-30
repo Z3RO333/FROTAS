@@ -10,6 +10,15 @@ const RATE_WINDOW_MS = 60_000;
 
 function checkRateLimit(email: string): boolean {
   const now = Date.now();
+
+  // Limpeza preguiçosa de entradas expiradas — sem isso o Map cresce
+  // indefinidamente com o número de e-mails únicos (leak lento em produção).
+  if (rateLimitMap.size > 500) {
+    for (const [key, value] of rateLimitMap) {
+      if (now > value.resetAt) rateLimitMap.delete(key);
+    }
+  }
+
   const entry = rateLimitMap.get(email);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(email, { count: 1, resetAt: now + RATE_WINDOW_MS });

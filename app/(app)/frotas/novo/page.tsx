@@ -1,7 +1,13 @@
 import { FrotaForm } from "@/components/frotas/frota-form";
+import { requireGestorUser } from "@/lib/rbac";
 import { criarFrotaAction } from "../_actions";
 
-export default function NovaFrotaPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NovaFrotaPage() {
+  // Mesmo guard da página de edição — sem isso qualquer perfil logado via o form.
+  await requireGestorUser();
+
   return (
     <div className="space-y-6">
       <div>
