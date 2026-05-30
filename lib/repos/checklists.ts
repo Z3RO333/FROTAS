@@ -12,7 +12,6 @@ const COLS_PENDENCIA_LIST =
 import { createAbastecimento } from "@/lib/repos/abastecimentos";
 import { aplicarResumoAbastecimento, aplicarResumoChecklist, getFrota } from "@/lib/repos/frotas";
 import {
-  appendKmHistory,
   countPendingKmValidations,
   type KmOrigem,
 } from "@/lib/repos/historico-km";
@@ -579,7 +578,28 @@ async function fetchPendenciasCriticasByChecklistIds(ids: number[]): Promise<Map
 }
 
 export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInput): Promise<void> {
-  const { error } = await supabaseManutencao
+  // RPC idempotente (migration 023): serializa por frota e descarta duplicata
+  // dentro de ~10s, matando movimentação dupla por duplo-clique/double-submit.
+  const { error } = await supabaseManutencao.rpc("registrar_movimentacao_idempotente", {
+    p_frota_id: input.frota_id,
+    p_motorista_id: input.motorista_id,
+    p_checklist_id: input.checklist_id,
+    p_tipo_movimentacao: input.tipo_movimentacao,
+    p_usuario_portaria_id: input.usuario_portaria_id,
+    p_observacao: input.observacao ?? null,
+    p_tipo_acao: input.tipo_acao ?? input.tipo_movimentacao,
+    p_motivo_bloqueio: input.motivo_bloqueio ?? null,
+  });
+
+  if (!error) return;
+
+  // Fallback inseguro (sem dedupe) apenas quando a RPC não existe — dev sem
+  // migrations aplicadas. Em produção a RPC sempre existe.
+  if (!/function .* does not exist/i.test(error.message)) {
+    throw error;
+  }
+  console.warn("[portaria] RPC registrar_movimentacao_idempotente ausente — usando insert direto");
+  const { error: fbError } = await supabaseManutencao
     .from("movimentacoes_frota")
     .insert({
       frota_id: input.frota_id,
@@ -593,8 +613,7 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
       tipo_acao: input.tipo_acao ?? input.tipo_movimentacao,
       motivo_bloqueio: input.motivo_bloqueio ?? null,
     });
-
-  if (error) throw error;
+  if (fbError) throw fbError;
 }
 
 function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): StatusPortaria {
@@ -653,45 +672,14 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   const kmOrigem: KmOrigem = isPrimeiroKm ? "CHECKLIST_INICIAL" : "CHECKLIST_MOTORISTA";
   const kmAutoValidado = !isPrimeiroKm && !variacaoIncomum && !kmMenor;
 
-  const { data: created, error: checklistError } = await supabaseManutencao
-    .from("checklists_frota")
-    .insert({
-      frota_id: input.frota_id,
-      motorista_id: input.motorista_id,
-      motorista_nome: input.motorista_nome,
-      data_checklist: new Date().toISOString(),
-      km_informado: input.km_informado,
-      km_lido_ocr: input.km_lido_ocr ?? null,
-      ocr_confianca: input.ocr_confianca ?? null,
-      km_confirmado: input.km_confirmado,
-      foto_km_url: input.foto_km_url ?? null,
-      status_geral: input.status_geral,
-      observacao_original: input.observacao_original ?? null,
-      observacao_corrigida_ia: input.observacao_corrigida_ia ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (checklistError) throw checklistError;
-  const checklistId = Number(created?.id);
-  if (!checklistId) throw new Error("Checklist nao foi criado");
-
-  // Wrapper que rola back o checklist criado se qualquer passo subsequente falhar
-  // (Supabase JS não suporta transações; melhor que deixar checklist órfão sem itens)
-  async function rollbackChecklist(reason: unknown) {
-    try {
-      await supabaseManutencao.from("checklists_frota").delete().eq("id", checklistId);
-    } catch (delErr) {
-      console.warn("[createChecklist] falha ao limpar checklist órfão", delErr);
-    }
-    throw reason;
-  }
-
+  // Monta os payloads (lógica de negócio em JS); a persistência de
+  // checklist + itens + pendências + histórico de KM é atômica via RPC
+  // criar_checklist_atomico (migration 022). Antes, INSERTs sequenciais sem
+  // transação podiam deixar estado parcial (ex.: checklist sem pendência).
   const itensPayload = input.itens.flatMap((itemInput) => {
     const catalogItem = CHECKLIST_ITEMS.find((item) => item.codigo === itemInput.item_codigo);
     if (!catalogItem) return [];
     return [{
-      checklist_id: checklistId,
       item_codigo: catalogItem.codigo,
       item_nome: catalogItem.nome,
       grupo: catalogItem.grupo,
@@ -703,16 +691,10 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     }];
   });
 
-  if (itensPayload.length > 0) {
-    const { error } = await supabaseManutencao.from("checklist_itens").insert(itensPayload);
-    if (error) await rollbackChecklist(error);
-  }
-
   const pendenciasPayload = itensPayload
     .filter((item) => item.status === "NAO_APTO")
     .map((item) => ({
       frota_id: input.frota_id,
-      checklist_id: checklistId,
       item_nome: item.item_nome,
       gravidade: gravidadePendencia({
         codigo: item.item_codigo,
@@ -726,22 +708,46 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
       resolvido_em: null,
     }));
 
-  if (pendenciasPayload.length > 0) {
-    const { error } = await supabaseManutencao.from("pendencias_frota").insert(pendenciasPayload);
-    if (error) throw error;
-  }
-
-  await appendKmHistory({
+  const kmHistoryPayload = {
     frota_id: input.frota_id,
-    checklist_id: checklistId,
     motorista_id: input.motorista_id,
     motorista_nome: input.motorista_nome,
     km_anterior: kmAnterior,
     km_novo: input.km_informado,
+    diferenca_km: kmAnterior != null ? input.km_informado - kmAnterior : null,
     origem: kmOrigem,
     foto_km_url: input.foto_km_url ?? null,
     validado: kmAutoValidado,
-  });
+    validado_por: null,
+    validado_em: kmAutoValidado ? new Date().toISOString() : null,
+  };
+
+  const { data: novoChecklistId, error: rpcError } = await supabaseManutencao.rpc(
+    "criar_checklist_atomico",
+    {
+      p_checklist: {
+        frota_id: input.frota_id,
+        motorista_id: input.motorista_id,
+        motorista_nome: input.motorista_nome,
+        data_checklist: new Date().toISOString(),
+        km_informado: input.km_informado,
+        km_lido_ocr: input.km_lido_ocr ?? null,
+        ocr_confianca: input.ocr_confianca ?? null,
+        km_confirmado: input.km_confirmado,
+        foto_km_url: input.foto_km_url ?? null,
+        status_geral: input.status_geral,
+        observacao_original: input.observacao_original ?? null,
+        observacao_corrigida_ia: input.observacao_corrigida_ia ?? null,
+      },
+      p_itens: itensPayload,
+      p_pendencias: pendenciasPayload,
+      p_km_history: kmHistoryPayload,
+    }
+  );
+
+  if (rpcError) throw new Error(`createChecklist: ${rpcError.message}`);
+  const checklistId = Number(novoChecklistId);
+  if (!checklistId) throw new Error("Checklist nao foi criado");
 
   let abastecimentoId: number | null = null;
   if ((input.litros_combustivel ?? 0) > 0 || (input.litros_arla ?? 0) > 0) {
