@@ -7,7 +7,7 @@ import { sendRelatorioGeral, sendRelatorioIndividual, sendRelatorioPainelExecuti
 import { createFrota, getFrota, listFrotasForReport, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
-import { requireAdminUser } from "@/lib/rbac";
+import { requireAdminUser, requireGestorUser } from "@/lib/rbac";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
 
@@ -48,8 +48,18 @@ const EmailListSchema = z
 
 type RelatorioActionResult = { ok: true } | { ok: false; error: string };
 
+// Relatórios: qualquer perfil administrativo (ADMIN/GESTOR/MANUTENCAO/DEV)
 async function requireUser(): Promise<string> {
   const user = await requireAdminUser();
+  return user.email;
+}
+
+// Mutação de cadastro de frota: apenas GESTOR/DEV — mesma regra (canEditFrota)
+// aplicada nas páginas /frotas/novo e /frotas/[id]/editar. Antes estes actions
+// usavam requireAdminUser, permitindo ADMIN/MANUTENCAO mutarem via endpoint
+// apesar da UI esconder a ação.
+async function requireFrotaEditor(): Promise<string> {
+  const user = await requireGestorUser();
   return user.email;
 }
 
@@ -91,7 +101,7 @@ function actionErrorMessage(error: unknown): string {
 }
 
 export async function criarFrotaAction(formData: FormData) {
-  const email = await requireUser();
+  const email = await requireFrotaEditor();
   const parsed = FrotaSchema.parse(formObject(formData));
   const id = await createFrota(parsed, email);
   revalidateFrotasCache();
@@ -99,7 +109,7 @@ export async function criarFrotaAction(formData: FormData) {
 }
 
 export async function editarFrotaAction(id: number, formData: FormData) {
-  const email = await requireUser();
+  const email = await requireFrotaEditor();
   const parsed = FrotaSchema.partial().parse(formObject(formData));
   await updateFrota(id, parsed, email);
   revalidatePath(`/frotas/${id}`);
@@ -108,7 +118,7 @@ export async function editarFrotaAction(id: number, formData: FormData) {
 }
 
 export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
-  const email = await requireUser();
+  const email = await requireFrotaEditor();
   const id = Number(formData.get("id"));
   const localizacaoRaw = formData.get("localizacao");
   const localizacao = typeof localizacaoRaw === "string" && localizacaoRaw.trim() ? localizacaoRaw.trim() : null;
@@ -123,7 +133,7 @@ export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
 }
 
 export async function excluirFrotaAction(id: number) {
-  const email = await requireUser();
+  const email = await requireFrotaEditor();
   await softDeleteFrota(id, email);
   revalidateFrotasCache();
   redirect("/frotas");

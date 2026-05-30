@@ -28,8 +28,10 @@ import type { ChecklistMotoristaActionState } from "./types";
 const StatusSchema = z.enum(["APTO", "NAO_APTO", "NAO_SE_APLICA"]);
 
 // Threshold mínimo de confiança do OCR para aceitar leitura automática.
-// Mantido em sincronia com o limiar do cliente em /api/checklists/ocr-km.
-const OCR_MIN_CONFIDENCE = 0.85;
+// DEVE bater com o limiar usado em lib/ai/odometer.ts (analyzeOdometerImage e
+// calcStatusLeitura usam 0.7). Se divergir, o cliente mostra "leitura segura"
+// (verde) mas o servidor marca leitura_segura=false — inconsistência.
+const OCR_MIN_CONFIDENCE = 0.7;
 
 const TipoCombustivelSchema = z
   .enum(["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"])
