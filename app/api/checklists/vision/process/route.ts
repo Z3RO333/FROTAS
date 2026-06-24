@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import {
   createSignedChecklistImageUrl,
@@ -16,8 +17,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CHECKLIST_VISION_SECRET nao configurado." }, { status: 503 });
   }
 
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (token !== secret) {
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const a = Buffer.from(secret);
+  const b = Buffer.from(token);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 

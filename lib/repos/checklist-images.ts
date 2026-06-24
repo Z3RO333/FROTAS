@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
-import { imageExtensionFromMime, validateImageFile } from "@/lib/upload-validation";
+import { imageExtensionFromMime, safeContentTypeFromExtension, validateImageFile } from "@/lib/upload-validation";
 
 export const CHECKLIST_IMAGES_BUCKET = "checklist-images";
 
@@ -59,7 +59,7 @@ export async function uploadChecklistImage(
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error } = await supabaseManutencao.storage.from(CHECKLIST_IMAGES_BUCKET).upload(path, buffer, {
     cacheControl: "3600",
-    contentType: file.type || "image/jpeg",
+    contentType: safeContentTypeFromExtension(extension),
     upsert: false,
   });
 

@@ -12,20 +12,19 @@ import { Label } from "@/components/ui/label";
 import type { Frota } from "@/lib/repos/frotas";
 import { cn } from "@/lib/utils";
 
-export type SinistroTipo = "veiculo" | "casa";
+export type SinistroTipo = "veiculo" | "casa" | "socorro";
 type TerceiroDraft = { nome: string; telefone: string; cpf: string };
 
-const SETORES = [
-  "Expedicao E-Commerce",
-  "Expedicao Lojas",
-  "Expedicao Baus",
-  "MarketPlace",
-  "Ship From Store",
-  "Manutencao",
-  "Administrativo",
+export const SETORES = [
+  "Exposicao",
+  "Market",
+  "E-commerce",
+  "Farma",
+  "Operacao",
+  "Outros",
 ];
 
-const TIPO_COPY: Record<SinistroTipo, { title: string; description: string; frotaTitle: string }> = {
+const TIPO_COPY: Record<"veiculo" | "casa", { title: string; description: string; frotaTitle: string }> = {
   veiculo: {
     title: "Acidente com Veiculo",
     description: "Registre o sinistro envolvendo carro, moto ou caminhao.",
@@ -38,7 +37,7 @@ const TIPO_COPY: Record<SinistroTipo, { title: string; description: string; frot
   },
 };
 
-export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: SinistroTipo }) {
+export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "veiculo" | "casa" }) {
   const router = useRouter();
   const [actionState, formAction] = useActionState(
     enviarSinistroMotoristaAction,

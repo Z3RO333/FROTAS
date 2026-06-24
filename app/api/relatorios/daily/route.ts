@@ -6,20 +6,16 @@ import { listAnalisesDia } from "@/lib/repos/analises-ia";
 import { sendRelatorioDiarioIa } from "@/lib/email";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
-const INTERNAL_SECRET = process.env.FROTAS_INTERNAL_SECRET ?? "";
-const APP_URL = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
+import { isInternalAuthorized } from "@/lib/internal-auth";
 
-function isAuthorized(req: NextRequest): boolean {
-  const header = req.headers.get("x-internal-secret");
-  return Boolean(INTERNAL_SECRET && header === INTERNAL_SECRET);
-}
+const APP_URL = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
 
 function esc(s: string | null | undefined): string {
   return (s ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const hoje = new Date().toISOString().slice(0, 10);
 

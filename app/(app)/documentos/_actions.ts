@@ -13,6 +13,7 @@ import {
   updateDocument,
   uploadDocumentFile,
 } from "@/lib/repos/manutencao/documents";
+import { validatePdfFile } from "@/lib/upload-validation";
 
 const DocumentSchema = z.object({
   frota: z.string().trim().min(1, "Frota obrigatória"),
@@ -34,6 +35,9 @@ export async function createDocumentAction(formData: FormData): Promise<Document
     if (!dutFile && !crlvFile) {
       return { ok: false, error: "Envie ao menos um PDF de DUT ou CRLV." };
     }
+
+    await validatePdfFile(dutFile, "DUT");
+    await validatePdfFile(crlvFile, "CRLV");
 
     const uploadedPaths: string[] = [];
     try {
@@ -75,6 +79,10 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
     const input = DocumentSchema.partial().parse(readDocumentFields(formData));
     const dutFile = readOptionalFile(formData, "dut_file");
     const crlvFile = readOptionalFile(formData, "crlv_file");
+
+    await validatePdfFile(dutFile, "DUT");
+    await validatePdfFile(crlvFile, "CRLV");
+
     const placa = input.placa ?? current.placa;
 
     const replacement = await replaceDocumentFiles(current, { dut: dutFile, crlv: crlvFile }, placa);
