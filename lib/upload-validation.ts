@@ -21,6 +21,18 @@ export function imageExtensionFromMime(mime: string): string {
   return IMAGE_MIME_TO_EXTENSION[mime] ?? "jpg";
 }
 
+const EXTENSION_TO_SAFE_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+};
+
+export function safeContentTypeFromExtension(ext: string): string {
+  return EXTENSION_TO_SAFE_MIME[ext] ?? "image/jpeg";
+}
+
 export function fileFromForm(value: FormDataEntryValue | null): File | null {
   if (!(value instanceof File) || value.size === 0) return null;
   return value;

@@ -6,7 +6,9 @@ import {
   renderRelatorioGeral,
   renderRelatorioIndividual,
   renderRelatorioPainelExecutivo,
+  renderSocorroNotification,
   type DashboardReportInput,
+  type SocorroNotificationInput,
 } from "@/lib/email-templates";
 import type { Frota } from "@/lib/repos/frotas";
 import { logEmail } from "@/lib/repos/email-logs";
@@ -256,5 +258,69 @@ export async function sendRelatorioIndividual(args: {
       erroMsg: msg,
     });
     return { ok: false, error: publicEmailErrorMessage(msg) };
+  }
+}
+
+function parseEmailList(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+const SOCORRO_AREA_EMAIL_MAP: Record<string, string> = {
+  Exposicao: "SOCORRO_AREA_EMAIL_EXPOSICAO",
+  Market: "SOCORRO_AREA_EMAIL_MARKET",
+  "E-commerce": "SOCORRO_AREA_EMAIL_ECOMMERCE",
+  Farma: "SOCORRO_AREA_EMAIL_FARMA",
+  Operacao: "SOCORRO_AREA_EMAIL_OPERACAO",
+  Outros: "SOCORRO_AREA_EMAIL_OUTROS",
+};
+
+export async function sendSocorroNotification(input: SocorroNotificationInput): Promise<void> {
+  const manutencaoEmails = parseEmailList(process.env.FROTAS_MANUTENCAO_EMAILS);
+  const monitoramento = "monitoramentofrotas@bemol.com.br";
+
+  const areaEnvVar = SOCORRO_AREA_EMAIL_MAP[input.setor];
+  const areaEmails = areaEnvVar ? parseEmailList(process.env[areaEnvVar]) : [];
+
+  const destinatarios = [...new Set([...manutencaoEmails, monitoramento, ...areaEmails])].filter(Boolean);
+  if (destinatarios.length === 0) {
+    console.warn("[socorro] nenhum destinatario configurado para notificacao");
+    return;
+  }
+
+  const urgente = input.precisaGuincho ? "[URGENTE] " : "";
+  const guincho = input.precisaGuincho ? "Sim" : "Nao";
+  const assunto = `${urgente}[SOCORRO FROTA] Nova solicitacao - Area: ${input.setor} - Guincho: ${guincho}`;
+
+  const html = renderSocorroNotification(input);
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: destinatarios,
+      subject: assunto,
+      html,
+    });
+    await safeLogEmail({
+      tipo: "socorro",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.solicitanteEmail,
+      status: "enviado",
+    });
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("[socorro] erro ao enviar notificacao", msg);
+    await safeLogEmail({
+      tipo: "socorro",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.solicitanteEmail,
+      status: "erro",
+      erroMsg: msg,
+    });
+    throw new Error(msg);
   }
 }

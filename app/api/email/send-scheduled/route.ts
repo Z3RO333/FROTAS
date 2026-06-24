@@ -12,11 +12,7 @@ import {
 } from "@/lib/repos/disponibilidade";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
-const INTERNAL_SECRET = process.env.FROTAS_INTERNAL_SECRET ?? "";
-
-function isAuthorized(req: NextRequest): boolean {
-  return Boolean(INTERNAL_SECRET && req.headers.get("x-internal-secret") === INTERNAL_SECRET);
-}
+import { isInternalAuthorized } from "@/lib/internal-auth";
 
 async function getSgMail() {
   const sgMail = await import("@sendgrid/mail");
@@ -194,7 +190,7 @@ async function buildDisponibilidadeEmail(cdNome: string, generatedAt: Date): Pro
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isInternalAuthorized(req)) {
     return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   }
 

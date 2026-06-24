@@ -29,7 +29,7 @@ function parseList(value: string | undefined): Set<string> {
 }
 
 function hasEmail(set: Set<string>, email: string): boolean {
-  return set.has("*") || set.has(email.toLowerCase());
+  return set.has(email.toLowerCase());
 }
 
 export function resolvePerfilFromEnv(email: string): PerfilUsuario {

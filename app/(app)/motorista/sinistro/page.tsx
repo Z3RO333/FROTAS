@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Car, ChevronRight, Home } from "lucide-react";
+import { Car, ChevronRight, Home, LifeBuoy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { requireAppUser } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
@@ -13,10 +13,17 @@ export default async function ReportarSinistroPage() {
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-2xl flex-col justify-center space-y-6">
       <div className="text-center">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Sinistros</p>
-        <h1 className="text-2xl font-bold tracking-tight">Selecione o tipo de acidente</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Selecione o tipo</h1>
       </div>
 
       <div className="space-y-4">
+        <SinistroTypeCard
+          href="/motorista/sinistro/socorro"
+          icon={LifeBuoy}
+          title="Socorro / Help Motora"
+          description="Solicitar ajuda rapida: pane, guincho ou ocorrencia operacional"
+          tone="amber"
+        />
         <SinistroTypeCard
           href="/motorista/sinistro/veiculo"
           icon={Car}
@@ -47,15 +54,16 @@ function SinistroTypeCard({
   icon: typeof Car;
   title: string;
   description: string;
-  tone: "blue" | "sky";
+  tone: "blue" | "sky" | "amber";
 }) {
+  const toneBg = { blue: "bg-blue-600", sky: "bg-sky-500", amber: "bg-amber-500" }[tone];
   return (
     <Link href={href} className="block">
       <Card className="grid grid-cols-[64px_1fr_auto] items-center gap-4 rounded-md border-0 bg-white p-5 shadow-sm transition-colors hover:bg-blue-50">
         <span
           className={cn(
             "flex h-16 w-16 items-center justify-center rounded-full text-white",
-            tone === "blue" ? "bg-blue-600" : "bg-sky-500"
+            toneBg
           )}
         >
           <Icon className="h-8 w-8" aria-hidden="true" />

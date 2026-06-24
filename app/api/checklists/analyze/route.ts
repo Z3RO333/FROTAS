@@ -13,16 +13,11 @@ import {
 import { createAlerta } from "@/lib/repos/alertas";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
-const INTERNAL_SECRET = process.env.FROTAS_INTERNAL_SECRET ?? "";
-
-function isAuthorized(req: NextRequest): boolean {
-  const header = req.headers.get("x-internal-secret");
-  return Boolean(INTERNAL_SECRET && header === INTERNAL_SECRET);
-}
+import { isInternalAuthorized } from "@/lib/internal-auth";
 
 // GET /api/checklists/analyze — processa batch de pendentes
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const pendentes = await listChecklistsPendentesAnalise(20);
   const results: Array<{ checklist_id: number; status: string }> = [];
@@ -37,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/checklists/analyze — analisa um checklist específico
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const parsed = z.object({ checklist_id: z.number().int().positive() }).safeParse(body);

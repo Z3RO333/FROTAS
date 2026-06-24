@@ -11,3 +11,8 @@ next-env.d.ts
 .vercel
 deploy.zip
 *.zip
+
+# Screenshots e documentação gerada
+screenshot-*.png
+*.docx
+scripts/gerar-documentacao.py

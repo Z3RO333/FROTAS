@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { imageExtensionFromMime, validateImageFile } from "@/lib/upload-validation";
+import { imageExtensionFromMime, safeContentTypeFromExtension, validateImageFile } from "@/lib/upload-validation";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 export const SINISTRO_MEDIA_BUCKET = "sinistro-media";
@@ -18,7 +18,7 @@ export async function uploadSinistroImage(file: File, args: { ticketNumber: stri
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error } = await supabaseManutencao.storage.from(SINISTRO_MEDIA_BUCKET).upload(path, buffer, {
     cacheControl: "3600",
-    contentType: file.type || "image/jpeg",
+    contentType: safeContentTypeFromExtension(extension),
     upsert: false,
   });
 
