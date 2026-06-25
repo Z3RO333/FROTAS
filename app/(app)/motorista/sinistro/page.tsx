@@ -21,21 +21,21 @@ export default async function ReportarSinistroPage() {
           href="/motorista/sinistro/socorro"
           icon={LifeBuoy}
           title="Socorro / Help Motora"
-          description="Solicitar ajuda rapida: pane, guincho ou ocorrencia operacional"
+          description="Solicitar ajuda rápida: pane, guincho ou ocorrência operacional"
           tone="amber"
         />
         <SinistroTypeCard
           href="/motorista/sinistro/veiculo"
           icon={Car}
-          title="Acidente com Veiculo"
-          description="Registrar acidentes envolvendo carros, motos ou caminhoes"
+          title="Acidente com Veículo"
+          description="Registrar acidentes envolvendo carros, motos ou caminhões"
           tone="blue"
         />
         <SinistroTypeCard
           href="/motorista/sinistro/casa"
           icon={Home}
           title="Acidente com Casas"
-          description="Reportar acidentes em residencias"
+          description="Reportar acidentes em residências"
           tone="sky"
         />
       </div>
