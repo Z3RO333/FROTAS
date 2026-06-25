@@ -3,6 +3,7 @@ import { AppSidebar, type NavIconName } from "@/components/app-sidebar";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { UserMenu } from "@/components/user-menu";
 import { MobileNav } from "@/components/mobile-nav";
+import { cn } from "@/lib/utils";
 import {
   canAccessDocumentos,
   canAccessManutencao,
@@ -132,10 +133,13 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const sections = buildSections(perfil);
+  const hideMobileSidebar = perfil === "MOTORISTA";
 
   return (
     <div className="min-h-screen text-foreground lg:flex bg-[radial-gradient(ellipse_at_top_left,_rgba(59,130,246,0.06),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(15,23,42,0.05),_transparent_50%)] bg-slate-50">
-      <AppSidebar sections={sections} perfil={perfil} />
+      <div className={cn(hideMobileSidebar && "hidden lg:block")}>
+        <AppSidebar sections={sections} perfil={perfil} />
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex min-h-12 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/85 px-3 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-md lg:min-h-14 lg:px-6">
