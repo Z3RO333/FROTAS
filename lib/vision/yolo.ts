@@ -78,7 +78,7 @@ const SOURCE_PROMPTS: Record<string, { instrucao: string; foco: string }> = {
 
 function buildPrompt(sourceType: string, itemCodigo: string | null): string {
   const cfg = SOURCE_PROMPTS[sourceType] ?? SOURCE_PROMPTS.item;
-  return `Voce e um especialista em inspecao visual de caminhoes pesados da frota Bemol.
+  return `Você é um especialista em inspeção visual de caminhões pesados da frota Bemol.
 
 ${cfg.instrucao}${itemCodigo ? ` Item especifico: ${itemCodigo}.` : ""}
 
