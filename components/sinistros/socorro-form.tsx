@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useActionState, useEffect, useState } from "react";
+import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { AlertTriangle, Camera, ChevronRight, Loader2, MapPin, Send } from "lucide-react";
@@ -10,14 +10,18 @@ import { SETORES } from "@/components/sinistros/driver-sinistro-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { Frota } from "@/lib/repos/frotas";
 import { cn } from "@/lib/utils";
 
-export function SocorroForm({ user }: { user: { name: string; email: string } }) {
+export function SocorroForm({ user, frotas }: { user: { name: string; email: string }; frotas: Frota[] }) {
   const router = useRouter();
   const [actionState, formAction] = useActionState(
     enviarSinistroMotoristaAction,
     SINISTRO_MOTORISTA_INITIAL_STATE
   );
+  const [frotaId, setFrotaId] = useState("");
+  const [frotaQuery, setFrotaQuery] = useState("");
+  const [placaQuery, setPlacaQuery] = useState("");
   const [locationLoading, setLocationLoading] = useState(false);
   const [endereco, setEndereco] = useState("");
   const [latitude, setLatitude] = useState("");
@@ -26,6 +30,20 @@ export function SocorroForm({ user }: { user: { name: string; email: string } })
   const [precisaGuincho, setPrecisaGuincho] = useState("");
   const [mediaCount, setMediaCount] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const filteredFrotas = useMemo(() => {
+    const q = frotaQuery.trim().toLowerCase();
+    const p = placaQuery.trim().toLowerCase();
+    return frotas
+      .filter((frota) => {
+        if (q && !String(frota.frota_geral ?? "").toLowerCase().includes(q)) return false;
+        if (p && !String(frota.placa ?? "").toLowerCase().includes(p)) return false;
+        return true;
+      })
+      .slice(0, 50);
+  }, [frotaQuery, placaQuery, frotas]);
+
+  const selectedFrota = frotas.find((frota) => String(frota.id) === frotaId) ?? null;
 
   useEffect(() => {
     if (actionState.ok) router.push(actionState.redirectTo);
@@ -85,6 +103,7 @@ export function SocorroForm({ user }: { user: { name: string; email: string } })
   return (
     <form action={formAction} onSubmit={handlePreSubmit} className="mx-auto max-w-3xl space-y-5">
       <input type="hidden" name="tipo_sinistro" value="socorro" />
+      <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="latitude" value={latitude} />
       <input type="hidden" name="longitude" value={longitude} />
 
@@ -139,9 +158,45 @@ export function SocorroForm({ user }: { user: { name: string; email: string } })
           ) : null}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="numero_frota">Numero da frota</Label>
-          <Input id="numero_frota" name="numero_frota" placeholder="Ex: 4021" />
+        <div className="space-y-3">
+          <div>
+            <Label>Frota envolvida</Label>
+            {selectedFrota ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Selecionada: <strong>{selectedFrota.frota_geral ?? selectedFrota.id}</strong>
+                {" - "}Placa: <strong>{selectedFrota.placa ?? "-"}</strong>
+              </p>
+            ) : null}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Input placeholder="Buscar por frota" value={frotaQuery} onChange={(e) => setFrotaQuery(e.target.value)} />
+            <Input placeholder="Buscar por placa" value={placaQuery} onChange={(e) => setPlacaQuery(e.target.value)} />
+          </div>
+          <div className="max-h-48 overflow-y-auto rounded-md border">
+            {filteredFrotas.map((frota) => {
+              const isSelected = String(frota.id) === frotaId;
+              const indisponivel = frota.vendido || !frota.ativo;
+              return (
+                <button
+                  key={frota.id}
+                  type="button"
+                  disabled={Boolean(indisponivel)}
+                  onClick={() => setFrotaId(String(frota.id))}
+                  className={cn(
+                    "grid w-full grid-cols-[1fr_auto] gap-3 border-b p-3 text-left text-sm transition-colors last:border-0",
+                    isSelected ? "bg-blue-50 text-blue-800" : "bg-white hover:bg-slate-50",
+                    indisponivel && "cursor-not-allowed bg-slate-50 text-slate-400"
+                  )}
+                >
+                  <span>
+                    <span className="block font-semibold">{frota.frota_geral ?? frota.id}</span>
+                    <span className="text-muted-foreground">{frota.modelo ?? "Modelo nao informado"}</span>
+                  </span>
+                  <span className="font-medium">{frota.placa ?? "-"}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-2">

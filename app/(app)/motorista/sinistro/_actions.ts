@@ -68,14 +68,27 @@ export async function enviarSinistroMotoristaAction(
       const setor = requiredText(formData, "setor", "Selecione o setor.");
       const telefone = requiredText(formData, "telefone_solicitante", "Informe o telefone para contato.").replace(/\D/g, "");
       const precisaGuincho = BoolStringSchema.parse(formData.get("precisa_guincho")) === "sim";
-      const numeroFrota = optionalText(formData, "numero_frota");
+
+      const rawFrotaId = optionalNumber(formData, "frota_id");
+      let socorroFrotaId: number | null = null;
+      let numeroFrota: string | null = null;
+      let placa: string | null = null;
+
+      if (rawFrotaId && rawFrotaId > 0) {
+        const frota = await getFrota(rawFrotaId);
+        if (frota && frota.ativo && !frota.vendido) {
+          socorroFrotaId = frota.id;
+          numeroFrota = frota.frota_geral ?? null;
+          placa = frota.placa ?? null;
+        }
+      }
 
       await createSinistro({
         ticket_number: ticketNumber,
         tipo_sinistro: "socorro",
-        frota_id: null,
+        frota_id: socorroFrotaId,
         numero_frota: numeroFrota,
-        placa: null,
+        placa,
         motorista_id: user.email,
         motorista_nome: user.name,
         endereco,

@@ -17,10 +17,11 @@ export default async function ReportarSinistroTipoPage({
   const { tipo } = await params;
   if (!TIPOS_VALIDOS.has(tipo as SinistroTipo)) notFound();
 
+  const { rows } = await listFrotas({ pageSize: 200 });
+
   if (tipo === "socorro") {
-    return <SocorroForm user={{ name: user.name, email: user.email }} />;
+    return <SocorroForm user={{ name: user.name, email: user.email }} frotas={rows} />;
   }
 
-  const { rows } = await listFrotas({ pageSize: 200 });
   return <DriverSinistroForm frotas={rows} tipo={tipo as "veiculo" | "casa"} />;
 }
