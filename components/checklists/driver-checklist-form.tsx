@@ -40,6 +40,7 @@ type OcrState = {
 
 const STEPS = ["Selecionar veículo", "Realizar checklist", "Registrar hodômetro"] as const;
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
 // Redimensiona e comprime a imagem no browser antes de enviar para OCR.
 // De ~4 MB (foto de câmera) para ~40-60 KB — reduz upload de 4s para <0.5s em rede móvel.
@@ -107,6 +108,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const [itemObservacoes, setItemObservacoes] = useState<Record<string, string>>(
     () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, ""]))
   );
+  const [itemFotoNomes, setItemFotoNomes] = useState<Record<string, string>>({});
   const [fotoKmPreview, setFotoKmPreview] = useState<string | null>(null);
 
   const selected = useMemo(
@@ -191,6 +193,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     // Limpa observação se saiu de NAO_APTO
     if (next !== "NAO_APTO") {
       setItemObservacoes((prev) => ({ ...prev, [codigo]: "" }));
+      setItemFotoNomes((prev) => {
+        const { [codigo]: _removed, ...rest } = prev;
+        return rest;
+      });
     }
     setStepErro(null);
   }
@@ -568,6 +574,31 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           setStepErro(null);
                         }}
                       />
+                      <label className="flex min-h-16 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-white p-3 text-center text-xs text-muted-foreground transition-colors hover:bg-slate-50">
+                        <Camera className="mb-1 h-4 w-4 text-blue-600" aria-hidden="true" />
+                        {itemFotoNomes[item.codigo] ? (
+                          <span className="line-clamp-2 font-medium text-slate-700">
+                            {itemFotoNomes[item.codigo]}
+                          </span>
+                        ) : (
+                          "Anexar foto do problema"
+                        )}
+                        <input
+                          name={`item_foto_${item.codigo}`}
+                          type="file"
+                          accept={IMAGE_ACCEPT}
+                          capture="environment"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setItemFotoNomes((prev) => ({
+                              ...prev,
+                              [item.codigo]: file?.name ?? "",
+                            }));
+                            setStepErro(null);
+                          }}
+                        />
+                      </label>
                     </>
                   ) : null}
                 </div>
@@ -652,7 +683,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 id="foto_km"
                 name="foto_km"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept={IMAGE_ACCEPT}
                 capture="environment"
                 className="sr-only"
                 onChange={handleFotoKmChange}
@@ -758,7 +789,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   id="foto_comprovante"
                   name="foto_comprovante"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept={IMAGE_ACCEPT}
                   capture="environment"
                   className="sr-only"
                 />
