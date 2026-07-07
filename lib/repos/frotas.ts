@@ -14,6 +14,7 @@ export type Frota = {
   ano_fabricacao: number | null;
   localizacao: string | null;
   km_atual: number | null;
+  qtd_pneus: number | null;
   status: StatusFrota | null;
   observacoes: string | null;
   vendido: boolean;
@@ -58,6 +59,7 @@ type VeiculoRow = {
   ano_fabricacao: number | null;
   local: string | null;
   km_atual: number | null;
+  qtd_pneus: number | null;
   status: StatusFrota | null;
   observacoes: string | null;
   vendido: boolean | null;
@@ -134,6 +136,7 @@ export type FrotaInput = {
   ano_fabricacao?: number | null;
   localizacao?: string | null;
   km_atual?: number | null;
+  qtd_pneus?: number | null;
   status?: StatusFrota | null;
   observacoes?: string | null;
 };
@@ -148,6 +151,7 @@ const WRITABLE_FIELDS = [
   "ano_fabricacao",
   "localizacao",
   "km_atual",
+  "qtd_pneus",
   "status",
   "observacoes",
 ] as const satisfies readonly (keyof FrotaInput)[];
@@ -163,6 +167,7 @@ function fromVeiculo(row: VeiculoRow): Frota {
     ano_fabricacao: row.ano_fabricacao != null ? Number(row.ano_fabricacao) : null,
     localizacao: row.local,
     km_atual: row.km_atual != null ? Number(row.km_atual) : null,
+    qtd_pneus: row.qtd_pneus != null ? Number(row.qtd_pneus) : null,
     status: row.status,
     observacoes: row.observacoes,
     vendido: Boolean(row.vendido),
@@ -222,6 +227,7 @@ function toVeiculoInput(input: Partial<FrotaInput>, userEmail?: string): Record<
   if (input.ano_fabricacao !== undefined) out.ano_fabricacao = input.ano_fabricacao;
   if (input.localizacao !== undefined) out.local = input.localizacao;
   if (input.km_atual !== undefined) out.km_atual = input.km_atual;
+  if (input.qtd_pneus !== undefined) out.qtd_pneus = input.qtd_pneus;
   if (input.status !== undefined) out.status = input.status;
   if (input.observacoes !== undefined) out.observacoes = input.observacoes;
   if (userEmail) out.atualizado_por = userEmail;

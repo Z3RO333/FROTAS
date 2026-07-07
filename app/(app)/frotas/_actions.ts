@@ -20,6 +20,7 @@ const FrotaSchema = z.object({
   ano_fabricacao: z.coerce.number().int().min(1900).max(2100).optional().nullable(),
   localizacao: z.string().trim().optional().nullable(),
   km_atual: z.coerce.number().int().min(0).optional().nullable(),
+  qtd_pneus: z.coerce.number().int().min(0).optional().nullable(),
   status: StatusEnum.optional().nullable(),
   observacoes: z.string().trim().optional().nullable(),
 });
@@ -54,10 +55,8 @@ async function requireUser(): Promise<string> {
   return user.email;
 }
 
-// Mutação de cadastro de frota: apenas GESTOR/DEV — mesma regra (canEditFrota)
-// aplicada nas páginas /frotas/novo e /frotas/[id]/editar. Antes estes actions
-// usavam requireAdminUser, permitindo ADMIN/MANUTENCAO mutarem via endpoint
-// apesar da UI esconder a ação.
+// Mutação de cadastro de frota: ADMIN/GESTOR/DEV — mesma regra (canEditFrota)
+// aplicada nas páginas /frotas/novo e /frotas/[id]/editar.
 async function requireFrotaEditor(): Promise<string> {
   const user = await requireGestorUser();
   return user.email;

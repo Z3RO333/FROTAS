@@ -133,7 +133,7 @@ export function canManageEmailSchedules(perfil: PerfilUsuario): boolean {
 }
 
 export function canEditFrota(perfil: PerfilUsuario): boolean {
-  return perfil === "GESTOR" || perfil === "DEV";
+  return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
 }
 
 export async function requireGestorUser(): Promise<AppUser> {
