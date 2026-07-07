@@ -5,7 +5,12 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NOME_LAYOUT_PNEUS, TIPO_POR_QTD_PNEUS } from "@/lib/pneus-layout";
 import type { Frota } from "@/lib/repos/frotas";
+
+const OPCOES_QTD_PNEUS = Object.entries(TIPO_POR_QTD_PNEUS)
+  .map(([qtd, tipo]) => ({ qtd: Number(qtd), label: NOME_LAYOUT_PNEUS[tipo] }))
+  .sort((a, b) => a.qtd - b.qtd);
 
 type Props = {
   initial?: Partial<Frota>;
@@ -35,6 +40,24 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       />
       <Field label="Localização" name="localizacao" defaultValue={initial?.localizacao ?? ""} />
       <Field label="Km atual" name="km_atual" type="number" defaultValue={initial?.km_atual ?? ""} />
+
+      <div className="space-y-1.5">
+        <Label htmlFor="qtd_pneus">Quantidade de pneus</Label>
+        <select
+          id="qtd_pneus"
+          name="qtd_pneus"
+          aria-label="Quantidade de pneus"
+          defaultValue={initial?.qtd_pneus ?? ""}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <option value="">Selecione...</option>
+          {OPCOES_QTD_PNEUS.map((opcao) => (
+            <option key={opcao.qtd} value={opcao.qtd}>
+              {opcao.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="space-y-1.5 md:col-span-2">
         <Label htmlFor="observacoes">Observações</Label>
