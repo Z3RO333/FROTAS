@@ -3,10 +3,14 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { sendSocorroNotification } from "@/lib/email";
+import { sendSinistroNotification, sendSocorroNotification } from "@/lib/email";
 import { getFrota } from "@/lib/repos/frotas";
 import { createSinistro } from "@/lib/repos/sinistros";
-import { removeSinistroImages, uploadSinistroImage } from "@/lib/repos/sinistro-images";
+import {
+  createSignedSinistroImageUrl,
+  removeSinistroImages,
+  uploadSinistroImage,
+} from "@/lib/repos/sinistro-images";
 import { requireAppUser } from "@/lib/rbac";
 import { fileFromForm } from "@/lib/upload-validation";
 import type { SinistroMotoristaActionState } from "./types";
@@ -155,6 +159,38 @@ export async function enviarSinistroMotoristaAction(
         terceiros,
         media_paths: uploadedPaths,
       });
+
+      // 7 dias de validade — tempo suficiente para o e-mail ser aberto bem depois do envio.
+      const SINISTRO_ANEXO_URL_EXPIRES_IN = 60 * 60 * 24 * 7;
+      const anexos = await Promise.all(
+        uploadedPaths.map(async (path, index) => {
+          try {
+            const url = await createSignedSinistroImageUrl(path, SINISTRO_ANEXO_URL_EXPIRES_IN);
+            return { label: `Anexo/Evidência ${index + 1}`, url };
+          } catch (err) {
+            console.warn("[sinistro] falha ao gerar link assinado do anexo", err);
+            return null;
+          }
+        })
+      );
+
+      sendSinistroNotification({
+        ticketNumber,
+        tipoSinistro,
+        motoristaNome: user.name,
+        motoristaEmail: user.email,
+        numeroFrota: frota.frota_geral ?? null,
+        placa: frota.placa ?? null,
+        endereco,
+        latitude: optionalNumber(formData, "latitude"),
+        longitude: optionalNumber(formData, "longitude"),
+        descricao,
+        houveFeridos,
+        samuBombeirosPresente,
+        terceiros,
+        anexos: anexos.filter((item): item is { label: string; url: string } => item !== null),
+        criadoEm: new Date(),
+      }).catch((err) => console.warn("[sinistro] falha ao enviar notificacao por e-mail", err));
     }
 
     revalidatePath("/motorista");
