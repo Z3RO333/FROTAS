@@ -112,9 +112,14 @@ function emailLogo(src: string | undefined, width: number): string {
       </div>`;
   }
 
+  // Outlook (motor Word) as vezes nao renderiza imagens embutidas (cid) quando so a largura
+  // e informada — precisa da altura explicita no atributo HTML, nao so via CSS.
+  // O arquivo em si ja tem o fundo escuro "assado" (sem canal alpha, que o Outlook nao decodifica
+  // direito), entao o cantos arredondados vao direto na imagem — sem card extra por cima.
+  const height = Math.round(width * 0.3979);
   return `<img src="${escapeHtml(
     src
-  )}" width="${width}" alt="Manutencao CD" style="display:block;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;">`;
+  )}" width="${width}" height="${height}" alt="Manutencao CD" style="display:block;width:${width}px;height:${height}px;max-width:${width}px;border:0;border-radius:12px;outline:none;text-decoration:none;">`;
 }
 
 function metricBox(label: string, value: string | number, hint: string | null, color: string): string {
@@ -237,9 +242,7 @@ function header(title: string, subtitle: string, options: ReportOptions): string
               <div style="font-size:13px;line-height:20px;color:#dbeafe;margin-top:6px;">${escapeHtml(subtitle)}</div>
             </td>
             <td align="right" style="width:280px;padding:20px 28px 18px 10px;vertical-align:middle;">
-              <div style="display:inline-block;background:#1f2937;border-radius:16px;padding:10px 16px;">
-                ${emailLogo(options.logoImageSrc, 220)}
-              </div>
+              ${emailLogo(options.logoImageSrc, 220)}
             </td>
           </tr>
         </table>
@@ -494,6 +497,145 @@ export type SocorroNotificationInput = {
   numeroFrota: string | null;
   precisaGuincho: boolean;
 };
+
+export type SinistroTerceiroInfo = {
+  nome: string;
+  telefone: string;
+  cpf: string;
+};
+
+export type SinistroNotificationInput = {
+  ticketNumber: string;
+  tipoSinistro: "veiculo" | "casa";
+  motoristaNome: string;
+  motoristaEmail: string;
+  numeroFrota: string | null;
+  placa: string | null;
+  endereco: string;
+  latitude: number | null;
+  longitude: number | null;
+  descricao: string;
+  houveFeridos: boolean;
+  samuBombeirosPresente: boolean | null;
+  terceiros: SinistroTerceiroInfo[];
+  anexos: { label: string; url: string }[];
+  criadoEm: Date;
+  logoImageSrc?: string;
+};
+
+export function renderSinistroNotification(input: SinistroNotificationInput): string {
+  const RED = "#dc2626";
+  const GREEN = "#22c55e";
+  const dataHora = input.criadoEm.toLocaleString("pt-BR", { timeZone: "America/Manaus" });
+  const tipoLabel = input.tipoSinistro === "veiculo" ? "Veiculo" : "Casa";
+
+  const mapsLink =
+    input.latitude != null && input.longitude != null
+      ? `<a href="https://www.google.com/maps?q=${input.latitude},${input.longitude}" style="color:${BLUE_2};font-weight:600;">Ver no Google Maps</a>`
+      : "";
+
+  function infoRow(label: string, value: string, highlight?: string): string {
+    const style = highlight ? `font-weight:700;color:${highlight};` : "";
+    return `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid ${BORDER};font-size:13px;color:${MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid ${BORDER};font-size:14px;${style}">${value}</td>
+      </tr>`;
+  }
+
+  const terceirosBlock =
+    input.terceiros.length > 0
+      ? input.terceiros
+          .map(
+            (terceiro, index) => `
+        <div style="margin-top:${index === 0 ? "8" : "12"}px;padding:12px 14px;background:${SURFACE};border-left:3px solid ${BLUE_2};border-radius:6px;">
+          <div style="font-size:12px;font-weight:700;color:${BLUE};margin-bottom:6px;">Terceiro ${index + 1}</div>
+          <div style="font-size:13px;line-height:1.6;">
+            <strong>Nome:</strong> ${escapeHtml(terceiro.nome)}<br>
+            <strong>CPF:</strong> ${escapeHtml(terceiro.cpf)}<br>
+            <strong>Telefone:</strong> ${escapeHtml(terceiro.telefone)}
+          </div>
+        </div>`
+          )
+          .join("")
+      : `<div style="font-size:13px;color:${MUTED};">Nenhum terceiro informado.</div>`;
+
+  function anexoCell(anexo: { label: string; url: string }): string {
+    // object-fit nao e suportado no Outlook (motor Word) — so largura fixa com altura
+    // automatica preserva a proporcao real da foto em qualquer cliente, sem cortar nem distorcer.
+    return `
+      <td style="vertical-align:top;padding:0 8px 8px 0;width:160px;">
+        <a href="${anexo.url}" style="display:block;text-decoration:none;">
+          <img src="${anexo.url}" width="160" alt="${escapeHtml(anexo.label)}" style="display:block;width:160px;max-width:160px;height:auto;border-radius:8px;border:1px solid ${BORDER};">
+          <div style="margin-top:4px;font-size:11px;color:${BLUE_2};font-weight:600;text-align:center;">${escapeHtml(anexo.label)}</div>
+        </a>
+      </td>`;
+  }
+
+  const ANEXOS_POR_LINHA = 4;
+  const anexosBlock =
+    input.anexos.length > 0
+      ? `<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:4px;">
+          ${Array.from({ length: Math.ceil(input.anexos.length / ANEXOS_POR_LINHA) }, (_, row) => {
+            const linha = input.anexos.slice(row * ANEXOS_POR_LINHA, row * ANEXOS_POR_LINHA + ANEXOS_POR_LINHA);
+            return `<tr>${linha.map(anexoCell).join("")}</tr>`;
+          }).join("")}
+        </table>`
+      : `<div style="font-size:13px;color:${MUTED};">Nenhum anexo enviado.</div>`;
+
+  const body = `
+    <tr>
+      <td style="background:${RED};border-radius:14px 14px 0 0;padding:0;overflow:hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:24px 28px;color:#ffffff;vertical-align:middle;">
+              <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">Sinistro Frota</div>
+              <div style="font-size:26px;font-weight:800;margin-top:4px;">Novo sinistro registrado - ${escapeHtml(tipoLabel)}</div>
+              <div style="font-size:13px;margin-top:6px;opacity:.9;">Ticket: ${escapeHtml(input.ticketNumber)}</div>
+            </td>
+            <td align="right" style="width:240px;padding:20px 28px 18px 10px;vertical-align:middle;">
+              ${emailLogo(input.logoImageSrc, 180)}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;padding:20px 24px;border-radius:0 0 14px 14px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tbody>
+            ${infoRow("Motorista", `${escapeHtml(input.motoristaNome)} (${escapeHtml(input.motoristaEmail)})`)}
+            ${input.numeroFrota ? infoRow("Frota", escapeHtml(input.numeroFrota) + (input.placa ? ` - ${escapeHtml(input.placa)}` : "")) : ""}
+            ${infoRow("Endereco", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
+            ${infoRow("Houve feridos?", input.houveFeridos ? "SIM" : "Nao", input.houveFeridos ? RED : GREEN)}
+            ${input.houveFeridos ? infoRow("SAMU/Bombeiros presente?", input.samuBombeirosPresente ? "SIM" : "Nao") : ""}
+            ${infoRow("Data/Hora", dataHora)}
+          </tbody>
+        </table>
+
+        <div style="margin-top:16px;padding:14px;background:${SURFACE};border:1px solid ${BORDER};border-radius:8px;">
+          <div style="font-size:11px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;margin-bottom:6px;">Relato do motorista</div>
+          <div style="font-size:14px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(input.descricao)}</div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:11px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;margin-bottom:6px;">Dados de terceiros</div>
+          ${terceirosBlock}
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-size:11px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;margin-bottom:6px;">Anexos e fotos</div>
+          ${anexosBlock}
+        </div>
+
+        <div style="margin-top:20px;text-align:center;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sinistros" style="display:inline-block;background:${BLUE};color:#ffffff;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;">Abrir painel de sinistros</a>
+        </div>
+      </td>
+    </tr>`;
+
+  return shell(body);
+}
 
 export function renderSocorroNotification(input: SocorroNotificationInput): string {
   const RED = "#dc2626";

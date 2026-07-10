@@ -1,13 +1,12 @@
 import sg from "@sendgrid/mail";
-import { readFile } from "fs/promises";
-import { join } from "path";
-import type { AttachmentData } from "@sendgrid/helpers/classes/attachment";
 import {
   renderRelatorioGeral,
   renderRelatorioIndividual,
   renderRelatorioPainelExecutivo,
+  renderSinistroNotification,
   renderSocorroNotification,
   type DashboardReportInput,
+  type SinistroNotificationInput,
   type SocorroNotificationInput,
 } from "@/lib/email-templates";
 import type { Frota } from "@/lib/repos/frotas";
@@ -16,12 +15,12 @@ import { formatReportDate } from "@/lib/report-date";
 import { getEmailFrom } from "@/lib/email-from";
 
 const FROM = getEmailFrom();
-const EMAIL_LOGO_CID = "bemol-manutencao-logo";
+// Outlook (motor Word) renderiza mal imagens embutidas via cid/attachment — usamos URL publica hospedada.
+const EMAIL_LOGO_URL = `${(process.env.NEXT_PUBLIC_APP_URL || "https://gestaofrotas.azurewebsites.net").replace(/\/$/, "")}/assets/bemol-manutencao-logo-email.png`;
 
 type SendResult = { ok: true } | { ok: false; error: string };
 
 let configured = false;
-let emailLogoAttachmentPromise: Promise<AttachmentData | null> | null = null;
 
 function mailClient() {
   if (!configured) {
@@ -66,26 +65,6 @@ function publicEmailErrorMessage(message: string): string {
   return "Não foi possível enviar o relatório agora. Verifique a configuração de e-mail.";
 }
 
-function getEmailLogoAttachment(): Promise<AttachmentData | null> {
-  if (!emailLogoAttachmentPromise) {
-    emailLogoAttachmentPromise = (async () => {
-      const png = await readFile(join(process.cwd(), "public", "assets", "bemol-manutencao-logo.png"));
-      return {
-        content: Buffer.from(png).toString("base64"),
-        filename: "bemol-manutencao-logo.png",
-        type: "image/png",
-        disposition: "inline",
-        content_id: EMAIL_LOGO_CID,
-      } as unknown as AttachmentData;
-    })().catch((error) => {
-      console.error("Falha ao preparar logo de manutencao para o e-mail", error);
-      return null;
-    });
-  }
-
-  return emailLogoAttachmentPromise;
-}
-
 export async function sendRelatorioGeral(args: {
   destinatarios: string[];
   frotas: Frota[];
@@ -95,9 +74,8 @@ export async function sendRelatorioGeral(args: {
   const sentAt = new Date();
   const cdLabel = args.cdNome ? ` — ${args.cdNome}` : "";
   const assunto = `Disponibilidade de frotas${cdLabel} - ${formatReportDate(sentAt)}`;
-  const emailLogoAttachment = await getEmailLogoAttachment();
   const html = renderRelatorioGeral(args.frotas, sentAt, {
-    logoImageSrc: emailLogoAttachment ? `cid:${EMAIL_LOGO_CID}` : undefined,
+    logoImageSrc: EMAIL_LOGO_URL,
     cdNome: args.cdNome,
   });
   const destinatarios = args.destinatarios.join(",");
@@ -108,7 +86,6 @@ export async function sendRelatorioGeral(args: {
       to: args.destinatarios,
       subject: assunto,
       html,
-      attachments: emailLogoAttachment ? [emailLogoAttachment] : undefined,
     });
     await safeLogEmail({
       tipo: "geral",
@@ -140,9 +117,8 @@ export async function sendRelatorioPainelExecutivo(args: {
 }): Promise<SendResult> {
   const sentAt = new Date();
   const assunto = `Resumo de Frotas - ${formatReportDate(sentAt)}`;
-  const emailLogoAttachment = await getEmailLogoAttachment();
   const html = renderRelatorioPainelExecutivo(args.painel, sentAt, {
-    logoImageSrc: emailLogoAttachment ? `cid:${EMAIL_LOGO_CID}` : undefined,
+    logoImageSrc: EMAIL_LOGO_URL,
   });
   const destinatarios = args.destinatarios.join(",");
 
@@ -152,7 +128,6 @@ export async function sendRelatorioPainelExecutivo(args: {
       to: args.destinatarios,
       subject: assunto,
       html,
-      attachments: emailLogoAttachment ? [emailLogoAttachment] : undefined,
     });
     await safeLogEmail({
       tipo: "painel_executivo",
@@ -222,9 +197,8 @@ export async function sendRelatorioIndividual(args: {
   enviadoPor: string;
 }): Promise<SendResult> {
   const assunto = `Frota ${args.frota.placa ?? args.frota.id} - relatório`;
-  const emailLogoAttachment = await getEmailLogoAttachment();
   const html = renderRelatorioIndividual(args.frota, {
-    logoImageSrc: emailLogoAttachment ? `cid:${EMAIL_LOGO_CID}` : undefined,
+    logoImageSrc: EMAIL_LOGO_URL,
   });
   const destinatarios = args.destinatarios.join(",");
 
@@ -234,7 +208,6 @@ export async function sendRelatorioIndividual(args: {
       to: args.destinatarios,
       subject: assunto,
       html,
-      attachments: emailLogoAttachment ? [emailLogoAttachment] : undefined,
     });
     await safeLogEmail({
       tipo: "individual",
@@ -318,6 +291,54 @@ export async function sendSocorroNotification(input: SocorroNotificationInput): 
       destinatarios: destinatarios.join(","),
       assunto,
       enviadoPor: input.solicitanteEmail,
+      status: "erro",
+      erroMsg: msg,
+    });
+    throw new Error(msg);
+  }
+}
+
+export async function sendSinistroNotification(input: SinistroNotificationInput): Promise<void> {
+  const manutencaoEmails = parseEmailList(process.env.FROTAS_MANUTENCAO_EMAILS);
+  const monitoramento = "monitoramentofrotas@bemol.com.br";
+  const destinatarios = [...new Set([...manutencaoEmails, monitoramento])].filter(Boolean);
+
+  if (destinatarios.length === 0) {
+    console.warn("[sinistro] nenhum destinatario configurado para notificacao");
+    return;
+  }
+
+  const tipoLabel = input.tipoSinistro === "veiculo" ? "Veiculo" : "Casa";
+  const feridos = input.houveFeridos ? "[COM FERIDOS] " : "";
+  const assunto = `${feridos}[SINISTRO FROTA] Novo registro - ${tipoLabel}${input.numeroFrota ? ` - Frota ${input.numeroFrota}` : ""}`;
+
+  const html = renderSinistroNotification({
+    ...input,
+    logoImageSrc: EMAIL_LOGO_URL,
+  });
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: destinatarios,
+      subject: assunto,
+      html,
+    });
+    await safeLogEmail({
+      tipo: "sinistro",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.motoristaEmail,
+      status: "enviado",
+    });
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("[sinistro] erro ao enviar notificacao", msg);
+    await safeLogEmail({
+      tipo: "sinistro",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.motoristaEmail,
       status: "erro",
       erroMsg: msg,
     });
