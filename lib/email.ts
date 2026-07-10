@@ -16,7 +16,11 @@ import { getEmailFrom } from "@/lib/email-from";
 
 const FROM = getEmailFrom();
 // Outlook (motor Word) renderiza mal imagens embutidas via cid/attachment — usamos URL publica hospedada.
-const EMAIL_LOGO_URL = `${(process.env.NEXT_PUBLIC_APP_URL || "https://gestaofrotas.azurewebsites.net").replace(/\/$/, "")}/assets/bemol-manutencao-logo-email.png`;
+// Hospedada no Supabase Storage (bucket "email-assets", publico) em vez do dominio *.azurewebsites.net:
+// o filtro anti-phishing do Microsoft 365 (Defender/Safe Links) bloqueia silenciosamente imagens
+// vindas de dominios genericos de PaaS (azurewebsites.net, herokuapp.com, etc.).
+const EMAIL_LOGO_URL =
+  "https://nwoqastjgkgsifmxdqwp.supabase.co/storage/v1/object/public/email-assets/bemol-manutencao-logo-email.png";
 
 type SendResult = { ok: true } | { ok: false; error: string };
 
