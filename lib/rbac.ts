@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { PERFIS_USUARIO, isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
@@ -68,7 +69,7 @@ export function canAccessMotorista(perfil: PerfilUsuario): boolean {
   return perfil === "MOTORISTA" || perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
 }
 
-export async function requireAppUser(): Promise<AppUser> {
+export const requireAppUser = cache(async (): Promise<AppUser> => {
   const session = await auth();
   if (!session?.user?.email) redirect("/login");
 
@@ -88,7 +89,7 @@ export async function requireAppUser(): Promise<AppUser> {
     name: usuario.nome || name,
     perfil: usuario.perfil,
   };
-}
+});
 
 export async function requireAdminUser(): Promise<AppUser> {
   const user = await requireAppUser();
