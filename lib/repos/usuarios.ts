@@ -118,7 +118,14 @@ export async function ensureUsuarioForAccess(input: UsuarioInput): Promise<Usuar
     .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
     .single();
 
-  if (error) throw new Error(`ensureUsuarioForAccess: ${error.message}`);
+  if (error) {
+    // Corrida entre requisições concorrentes no primeiro acesso: outra já inseriu o mesmo email.
+    if (error.code === "23505") {
+      const existing = await getUsuarioByEmail(email);
+      if (existing) return existing;
+    }
+    throw new Error(`ensureUsuarioForAccess: ${error.message}`);
+  }
   return mapUsuario(data as UsuarioRow);
 }
 
