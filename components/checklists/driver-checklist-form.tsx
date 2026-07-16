@@ -73,9 +73,12 @@ async function comprimirImagemParaOcr(file: File, maxPx = 1280, qualidade = 0.88
 export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const router = useRouter();
   const fotoKmFileRef = useRef<File | null>(null);
+  const submissionIdRef = useRef<string | null>(null);
 
   const actionWithPhotoInjection = useCallback(
     async (prevState: Parameters<typeof enviarChecklistMotoristaAction>[0], formData: FormData) => {
+      if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+      formData.set("submission_id", submissionIdRef.current);
       const file = fotoKmFileRef.current;
       if (file) {
         const existing = formData.get("foto_km");
@@ -99,6 +102,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   const [kmValue, setKmValue] = useState("");
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrState, setOcrState] = useState<OcrState | null>(null);
+  const ocrAbortRef = useRef<AbortController | null>(null);
   const [itemStatuses, setItemStatuses] = useState<Record<string, ChecklistItemStatus>>(
     () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, "NAO_SE_APLICA" as ChecklistItemStatus]))
   );
@@ -140,13 +144,19 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   }, [frotaQuery, placaQuery, frotas]);
 
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
+    ocrAbortRef.current?.abort();
+    const controller = new AbortController();
+    ocrAbortRef.current = controller;
     const file = event.target.files?.[0];
     setOcrState(null);
     // Revoga blob URL anterior antes de criar uma nova
     if (fotoKmPreview) URL.revokeObjectURL(fotoKmPreview);
     setFotoKmPreview(null);
     fotoKmFileRef.current = null;
-    if (!file || file.size === 0) return;
+    if (!file || file.size === 0) {
+      setOcrLoading(false);
+      return;
+    }
     fotoKmFileRef.current = file;
     // Preview imediato com a imagem original (qualidade total)
     setFotoKmPreview(URL.createObjectURL(file));
@@ -155,6 +165,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     // Comprime a imagem no browser antes de enviar — reduz de 3-5 MB para ~50 KB
     // Isso corta o tempo de upload de ~4s para <0.5s em rede móvel
     const fileParaOcr = await comprimirImagemParaOcr(file);
+    if (controller.signal.aborted || fotoKmFileRef.current !== file) return;
 
     const body = new FormData();
     body.append("foto_km", fileParaOcr);
@@ -162,15 +173,21 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       body.append("km_anterior", String(selected.km_atual));
     }
     try {
-      const response = await fetch("/api/checklists/ocr-km", { method: "POST", body });
+      const response = await fetch("/api/checklists/ocr-km", {
+        method: "POST",
+        body,
+        signal: controller.signal,
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error ?? "Falha ao analisar imagem.");
+      if (controller.signal.aborted || fotoKmFileRef.current !== file) return;
       setOcrState(data);
       // Only auto-fill KM if reading is safe (green)
       if (data.status_leitura === "LEITURA_SEGURA" && data.km_lido != null) {
         setKmValue(String(data.km_lido));
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       const msg = error instanceof Error ? error.message : "Não conseguimos ler a imagem.";
       setOcrState({
         km_lido: null,
@@ -183,7 +200,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         error: msg,
       });
     } finally {
-      setOcrLoading(false);
+      if (ocrAbortRef.current === controller) setOcrLoading(false);
     }
   }
 
@@ -194,8 +211,9 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
     if (next !== "NAO_APTO") {
       setItemObservacoes((prev) => ({ ...prev, [codigo]: "" }));
       setItemFotoNomes((prev) => {
-        const { [codigo]: _removed, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[codigo];
+        return next;
       });
     }
     setStepErro(null);
@@ -257,6 +275,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
 
   return (
     <form action={formAction} onSubmit={handlePreSubmit} className="mx-auto max-w-3xl space-y-5">
+      <input type="hidden" name="submission_id" value="" />
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />

@@ -1,5 +1,22 @@
 import "dotenv/config";
-import { supabaseManutencao } from "../lib/supabase-manutencao";
+import { createClient } from "@supabase/supabase-js";
+
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Variável de ambiente obrigatória ausente: ${name}`);
+  return value;
+}
+
+const supabaseUrl = new URL(requiredEnv("SUPABASE_MANUTENCAO_URL"));
+if (!["https:", "http:"].includes(supabaseUrl.protocol)) {
+  throw new Error("SUPABASE_MANUTENCAO_URL deve usar HTTP(S).");
+}
+
+const supabaseManutencao = createClient(
+  supabaseUrl.toString().replace(/\/$/, ""),
+  requiredEnv("SUPABASE_MANUTENCAO_SERVICE_ROLE_KEY"),
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
 
 async function main() {
   console.log("1) Conectando no Supabase...");

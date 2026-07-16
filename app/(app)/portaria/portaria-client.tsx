@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, ChevronRight,
-  ClipboardCheck, Layers,
+  Layers,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,7 @@ export function PortariaClient({ rows, erro }: Props) {
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
   const [detalhe, setDetalhe] = useState<ChecklistDetalhePortaria | null>(null);
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
+  const detailRequestRef = useRef(0);
 
   const filtered = rows.filter((r) => {
     const frota = queryFrota.trim().toLowerCase();
@@ -74,22 +75,23 @@ export function PortariaClient({ rows, erro }: Props) {
   });
 
   async function handleRowClick(row: PortariaRow) {
+    const requestId = ++detailRequestRef.current;
     setSelectedRow(row);
     setSheetOpen(true);
     setDetalhe(null);
+    setLoadingDetalhe(Boolean(row.checklist_id));
     if (row.checklist_id) {
-      setLoadingDetalhe(true);
       try {
         const res = await fetch(
           `/api/portaria/detalhe?checklist_id=${row.checklist_id}&frota_id=${row.frota_id}`,
           { cache: "no-store" }
         );
         const data: ChecklistDetalhePortaria | null = res.ok ? await res.json() : null;
-        setDetalhe(data);
+        if (detailRequestRef.current === requestId) setDetalhe(data);
       } catch {
-        setDetalhe(null);
+        if (detailRequestRef.current === requestId) setDetalhe(null);
       } finally {
-        setLoadingDetalhe(false);
+        if (detailRequestRef.current === requestId) setLoadingDetalhe(false);
       }
     }
   }

@@ -11,7 +11,7 @@ import {
 } from "@/lib/repos/email-schedule";
 
 const ScheduleSchema = z.object({
-  nome: z.string().trim().min(1, "Nome obrigatório"),
+  nome: z.string().trim().min(1, "Nome obrigatório").max(120),
   tipo: z.enum([
     "DISPONIBILIDADE",
     "PREVENTIVAS_ATRASO",
@@ -24,12 +24,25 @@ const ScheduleSchema = z.object({
   ]),
   destinatarios: z
     .string()
-    .transform((s) => s.split(",").map((e) => e.trim()).filter(Boolean)),
-  frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL", "PERSONALIZADO"]),
+    .transform((s) => [...new Set(s.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean))])
+    .pipe(
+      z
+        .array(z.string().email("Destinatário inválido."))
+        .min(1, "Informe pelo menos um destinatário.")
+        .max(20, "Informe no máximo 20 destinatários.")
+        .refine(
+          (emails) => emails.every((email) => email.endsWith(`@${(process.env.ALLOWED_EMAIL_DOMAIN ?? "bemol.com.br").toLowerCase()}`)),
+          "Use apenas destinatários do domínio corporativo."
+        )
+    ),
+  frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL"]),
+  dia_semana: z.coerce.number().int().min(0).max(6).nullable(),
+  dia_mes: z.coerce.number().int().min(1).max(31).nullable(),
   hora_envio: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
   cds_incluidos: z
     .string()
-    .transform((s) => s.split(",").map((e) => e.trim()).filter(Boolean)),
+    .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
+    .pipe(z.array(z.string().max(120)).max(100)),
 });
 
 function isRedirectError(error: unknown): boolean {
@@ -51,6 +64,8 @@ export async function createScheduleAction(formData: FormData) {
       tipo: formData.get("tipo"),
       destinatarios: formData.get("destinatarios"),
       frequencia: formData.get("frequencia"),
+      dia_semana: formData.get("dia_semana") || null,
+      dia_mes: formData.get("dia_mes") || null,
       hora_envio: formData.get("hora_envio"),
       cds_incluidos: formData.get("cds_incluidos") ?? "",
     };
@@ -59,7 +74,6 @@ export async function createScheduleAction(formData: FormData) {
       ...parsed,
       ativo: true,
       criado_por: user.email,
-      dia_semana: null,
     });
     revalidatePath("/administracao/emails");
     redirect("/administracao/emails?sucesso=Programação+criada");

@@ -1,12 +1,12 @@
 import { BarChart2 } from "lucide-react";
-import { requireAppUser } from "@/lib/rbac";
+import { requireManutencaoUser } from "@/lib/rbac";
 import { getCustosPorPeriodo, getCustosTotais } from "@/lib/repos/custos";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustosPage() {
-  await requireAppUser();
+  await requireManutencaoUser();
   const [periodos, totais] = await Promise.all([
     getCustosPorPeriodo(12),
     getCustosTotais(),

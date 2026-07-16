@@ -1,12 +1,12 @@
 import { FileText } from "lucide-react";
-import { requireAppUser } from "@/lib/rbac";
+import { requireManutencaoUser } from "@/lib/rbac";
 import { getCustosPorPeriodo, getCustosTotais } from "@/lib/repos/custos";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrdensPage() {
-  await requireAppUser();
+  await requireManutencaoUser();
   const [periodos, totais] = await Promise.all([
     getCustosPorPeriodo(12),
     getCustosTotais(),
@@ -35,7 +35,7 @@ export default async function OrdensPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr className="border-b">

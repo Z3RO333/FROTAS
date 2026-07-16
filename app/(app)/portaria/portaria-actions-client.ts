@@ -1,2 +1,7 @@
 "use server";
-export { registrarMovimentacaoPortariaAction, bloquearSaidaAction, solicitarCorrecaoAction } from "./_actions";
+export {
+  registrarMovimentacaoPortariaAction,
+  bloquearSaidaAction,
+  solicitarCorrecaoAction,
+  liberarSaidaForcadaAction,
+} from "./_actions";

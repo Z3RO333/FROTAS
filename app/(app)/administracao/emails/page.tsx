@@ -98,12 +98,22 @@ export default async function EmailsPage({
               <option value="SEMANAL">Semanal</option>
               <option value="QUINZENAL">Quinzenal</option>
               <option value="MENSAL">Mensal</option>
-              <option value="PERSONALIZADO">Personalizado</option>
             </select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="hora_envio">Horário</Label>
             <Input id="hora_envio" name="hora_envio" type="time" defaultValue="07:00" required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="dia_semana">Dia da semana (agenda semanal)</Label>
+            <select id="dia_semana" name="dia_semana" defaultValue="1" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
+              <option value="0">Domingo</option><option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
+              <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option><option value="5">Sexta-feira</option><option value="6">Sábado</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="dia_mes">Dia do mês (agenda mensal)</Label>
+            <Input id="dia_mes" name="dia_mes" type="number" min={1} max={31} defaultValue={1} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cds_incluidos">CDs incluídos (vazio = todos)</Label>

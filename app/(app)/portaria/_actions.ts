@@ -82,11 +82,15 @@ export async function bloquearSaidaAction(formData: FormData) {
     if (!Number.isInteger(frotaId) || frotaId <= 0 || !Number.isInteger(checklistId) || checklistId <= 0) {
       redirect(`/portaria?erro=${encodeURIComponent("IDs inválidos.")}`);
     }
+    if (!motivo) redirect(`/portaria?erro=${encodeURIComponent("Informe o motivo do bloqueio.")}`);
 
     const rows = await listPortariaToday();
     const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);
     if (!row || !row.motorista_id) {
       redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
+    }
+    if (row.status_portaria !== "LIBERADA_SAIDA") {
+      redirect(`/portaria?erro=${encodeURIComponent("O bloqueio só pode ser registrado para uma frota liberada para saída.")}`);
     }
 
     await registrarMovimentacaoFrota({
@@ -95,9 +99,9 @@ export async function bloquearSaidaAction(formData: FormData) {
       motorista_id: row!.motorista_id!,
       tipo_movimentacao: "SAIDA",
       usuario_portaria_id: user.email,
-      observacao: motivo || null,
+      observacao: motivo,
       tipo_acao: "BLOQUEIO",
-      motivo_bloqueio: motivo || null,
+      motivo_bloqueio: motivo,
     });
   } catch (error) {
     if (isRedirectError(error)) throw error;
@@ -117,11 +121,15 @@ export async function solicitarCorrecaoAction(formData: FormData) {
     if (!Number.isInteger(frotaId) || frotaId <= 0 || !Number.isInteger(checklistId) || checklistId <= 0) {
       redirect(`/portaria?erro=${encodeURIComponent("IDs inválidos.")}`);
     }
+    if (!motivo) redirect(`/portaria?erro=${encodeURIComponent("Informe o que precisa ser corrigido.")}`);
 
     const rows = await listPortariaToday();
     const row = rows.find((r) => r.frota_id === frotaId && r.checklist_id === checklistId);
     if (!row || !row.motorista_id) {
       redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
+    }
+    if (!["BLOQUEADA_CHECKLIST", "CHECKLIST_REALIZADO"].includes(row.status_portaria)) {
+      redirect(`/portaria?erro=${encodeURIComponent("O checklist não está em um estado que permita solicitar correção.")}`);
     }
 
     await registrarMovimentacaoFrota({
@@ -130,13 +138,54 @@ export async function solicitarCorrecaoAction(formData: FormData) {
       motorista_id: row!.motorista_id!,
       tipo_movimentacao: "SAIDA",
       usuario_portaria_id: user.email,
-      observacao: motivo || null,
+      observacao: motivo,
       tipo_acao: "SOLICITACAO_CORRECAO",
-      motivo_bloqueio: motivo || null,
+      motivo_bloqueio: motivo,
     });
   } catch (error) {
     if (isRedirectError(error)) throw error;
     const msg = error instanceof Error ? error.message : "Erro ao solicitar correção.";
+    redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/portaria");
+}
+
+export async function liberarSaidaForcadaAction(formData: FormData) {
+  try {
+    const user = await requirePortariaUser();
+    const frotaId = Number(formData.get("frota_id"));
+    const checklistId = Number(formData.get("checklist_id"));
+    const justificativa = String(formData.get("observacao") ?? "").trim();
+
+    if (!Number.isInteger(frotaId) || frotaId <= 0 || !Number.isInteger(checklistId) || checklistId <= 0) {
+      redirect(`/portaria?erro=${encodeURIComponent("IDs inválidos.")}`);
+    }
+    if (justificativa.length < 10) {
+      redirect(`/portaria?erro=${encodeURIComponent("A justificativa deve ter pelo menos 10 caracteres.")}`);
+    }
+
+    const rows = await listPortariaToday();
+    const row = rows.find((item) => item.frota_id === frotaId && item.checklist_id === checklistId);
+    if (!row?.motorista_id) {
+      redirect(`/portaria?erro=${encodeURIComponent("Checklist válido de hoje não encontrado para esta frota.")}`);
+    }
+    if (row.status_portaria !== "BLOQUEADA_CHECKLIST") {
+      redirect(`/portaria?erro=${encodeURIComponent("A liberação forçada só é permitida para bloqueio de checklist.")}`);
+    }
+
+    await registrarMovimentacaoFrota({
+      frota_id: frotaId,
+      checklist_id: checklistId,
+      motorista_id: row.motorista_id,
+      tipo_movimentacao: "SAIDA",
+      usuario_portaria_id: user.email,
+      observacao: justificativa,
+      tipo_acao: "LIBERACAO_FORCADA",
+      motivo_bloqueio: justificativa,
+    });
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    const msg = error instanceof Error ? error.message : "Erro ao registrar liberação forçada.";
     redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
   }
   revalidatePath("/portaria");

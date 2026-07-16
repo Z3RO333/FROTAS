@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +37,7 @@ export default function AppError({
             Tentar novamente
           </Button>
           <Button type="button" asChild>
-            <a href="/">Voltar ao início</a>
+            <Link href="/">Voltar ao início</Link>
           </Button>
         </div>
       </div>

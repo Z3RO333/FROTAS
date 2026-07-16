@@ -11,6 +11,7 @@ next-env.d.ts
 .vercel
 deploy.zip
 *.zip
+backups/
 
 # Screenshots e documentação gerada
 screenshot-*.png

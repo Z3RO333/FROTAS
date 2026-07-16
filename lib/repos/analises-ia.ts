@@ -1,5 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { ChecklistAnalysisResult } from "@/lib/ai/checklist-analyzer";
+import { reportDayUtcRange } from "@/lib/report-date";
 
 export type AnaliseIaRow = {
   id: number;
@@ -75,17 +76,12 @@ export async function getAnaliseByChecklist(checklistId: number): Promise<Analis
 }
 
 export async function listAnalisesDia(date: string): Promise<AnaliseIaRow[]> {
-  // Use a UTC-4 buffer to cover all Brazilian timezones (UTC-3 to UTC-5).
-  // Midnight BRT (UTC-3) = 03:00 UTC; to be safe we go back 4 h before midnight
-  // and extend 28 h forward, capturing the full calendar day for any BR timezone.
-  const base = new Date(`${date}T00:00:00.000Z`);
-  const start = new Date(base.getTime() - 4 * 60 * 60 * 1000).toISOString();
-  const end = new Date(base.getTime() + 28 * 60 * 60 * 1000).toISOString();
+  const { start, end } = reportDayUtcRange(date);
   const { data, error } = await supabaseManutencao
     .from("analises_checklist_ia")
     .select("*")
     .gte("data_checklist", start)
-    .lte("data_checklist", end)
+    .lt("data_checklist", end)
     .order("analisado_em", { ascending: false });
   if (error) throw error;
   return (data ?? []) as AnaliseIaRow[];
@@ -102,6 +98,18 @@ export async function listChecklistsPendentesAnalise(limit = 50): Promise<
     .limit(limit);
   if (error) throw error;
   return data ?? [];
+}
+
+export async function claimChecklistsPendentesAnalise(
+  limit = 20,
+  checklistId?: number
+): Promise<Array<{ id: number }>> {
+  const { data, error } = await supabaseManutencao.rpc("claim_checklists_analise", {
+    p_limit: limit,
+    p_checklist_id: checklistId ?? null,
+  });
+  if (error) throw new Error(`claimChecklistsPendentesAnalise: ${error.message}`);
+  return (data ?? []).map((row: { id: number }) => ({ id: Number(row.id) }));
 }
 
 export async function setAnaliseStatus(

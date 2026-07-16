@@ -24,8 +24,8 @@ async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T)
   try {
     return await cb();
   } catch (error) {
-    console.warn(`[unidades] ${label} indisponivel`, error);
-    return fallback;
+    void fallback;
+    throw new Error(`[unidades] ${label} indisponível`, { cause: error });
   }
 }
 

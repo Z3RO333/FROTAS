@@ -57,7 +57,9 @@ export async function createDocumentAction(formData: FormData): Promise<Document
         user.email
       );
     } catch (error) {
-      await removeDocumentFiles(uploadedPaths);
+      await removeDocumentFiles(uploadedPaths).catch((cleanupError) => {
+        console.error("[documents] falha ao limpar arquivos após erro de criação", cleanupError);
+      });
       throw error;
     }
 
@@ -94,11 +96,16 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
         dut_url: replacement.dut_url,
         crlv_url: replacement.crlv_url,
       });
-      await removeDocumentFiles(replacement.oldPaths);
     } catch (error) {
-      await removeDocumentFiles(replacement.uploadedPaths);
+      await removeDocumentFiles(replacement.uploadedPaths).catch((cleanupError) => {
+        console.error("[documents] falha ao limpar arquivos após erro de atualização", cleanupError);
+      });
       throw error;
     }
+
+    await removeDocumentFiles(replacement.oldPaths).catch((cleanupError) => {
+      console.error("[documents] documento atualizado, mas arquivo antigo ficou órfão", cleanupError);
+    });
 
     revalidatePath("/documentos");
     return { ok: true };

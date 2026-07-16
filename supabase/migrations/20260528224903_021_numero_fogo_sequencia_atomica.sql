@@ -1,13 +1,3 @@
--- Migration 021: corrige race condition em registro de troca de pneus.
---
--- Bug original (lib/repos/manutencao/pneus.ts:59-79):
---   registrarTrocaPneu faz "SELECT MAX(contagem) → calcula → INSERT" sem lock.
---   Duas trocas concorrentes para a mesma (frota, ano) leem o mesmo MAX e
---   geram numero_fogo duplicado.
---
--- Fix: tabela de "high-water mark" por (frota, dígito_ano) + função RPC que
--- reserva um intervalo de contagens atomicamente via UPSERT (single-row lock).
-
 CREATE TABLE IF NOT EXISTS numero_fogo_sequencia (
   chave_frota text NOT NULL,
   digito_ano text NOT NULL,
@@ -16,20 +6,12 @@ CREATE TABLE IF NOT EXISTS numero_fogo_sequencia (
   PRIMARY KEY (chave_frota, digito_ano)
 );
 
--- Reserva atomicamente p_quantidade contagens consecutivas para a chave/ano.
--- Retorna a primeira contagem do intervalo reservado.
---
--- Concorrência: o UPSERT serializa no row-lock da PK. A coluna proxima_contagem
--- avança monotonamente. O GREATEST(...) com o baseline lido de numero_fogo
--- garante que, se houver dados legados sem registro nesta tabela, a sequência
--- pula para depois do último número emitido.
 CREATE OR REPLACE FUNCTION reservar_contagens_numero_fogo(
   p_chave_frota text,
   p_digito_ano text,
   p_quantidade integer
 ) RETURNS integer
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 DECLARE
   v_baseline integer;
@@ -45,7 +27,6 @@ BEGIN
     RAISE EXCEPTION 'p_digito_ano é obrigatório' USING ERRCODE = '22023';
   END IF;
 
-  -- Baseline considera dados legados na numero_fogo
   SELECT COALESCE(MAX(contagem), 0) + 1 INTO v_baseline
   FROM numero_fogo
   WHERE ultimo_digito_ano = p_digito_ano
@@ -63,12 +44,10 @@ BEGIN
 END;
 $$;
 
--- Backfill: popula a tabela com a contagem atual conhecida para cada (frota, ano).
--- Idempotente — se rodar duas vezes não duplica.
 INSERT INTO numero_fogo_sequencia (chave_frota, digito_ano, proxima_contagem)
 SELECT frota, ultimo_digito_ano, MAX(contagem) + 1
 FROM numero_fogo
 WHERE frota IS NOT NULL AND ultimo_digito_ano IS NOT NULL
 GROUP BY frota, ultimo_digito_ano
 ON CONFLICT (chave_frota, digito_ano) DO UPDATE
-SET proxima_contagem = GREATEST(numero_fogo_sequencia.proxima_contagem, EXCLUDED.proxima_contagem);
+SET proxima_contagem = GREATEST(numero_fogo_sequencia.proxima_contagem, EXCLUDED.proxima_contagem);;

@@ -23,4 +23,4 @@ CREATE TABLE IF NOT EXISTS public.email_schedules (
 ALTER TABLE public.email_schedules ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "service_role_only" ON public.email_schedules
-  USING (auth.role() = 'service_role');
+  USING (auth.role() = 'service_role');;

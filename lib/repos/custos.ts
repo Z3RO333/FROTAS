@@ -12,10 +12,7 @@ export async function getCustosPorPeriodo(meses = 12): Promise<CustosPeriodo[]> 
     .select("data_periodo, qtd_ordens, valor_total")
     .order("data_periodo", { ascending: false })
     .limit(meses);
-  if (error) {
-    console.warn("[custos] falha ao buscar ordens", error.message);
-    return [];
-  }
+  if (error) throw new Error(`getCustosPorPeriodo: ${error.message}`);
   return (data ?? []).map((r) => ({
     data_periodo: String(r.data_periodo ?? ""),
     qtd_ordens: Number(r.qtd_ordens ?? 0),

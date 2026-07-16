@@ -1,4 +1,4 @@
-import { requireAppUser } from "@/lib/rbac";
+import { requireOperacaoUser } from "@/lib/rbac";
 import {
   getDisponibilidadePorCD,
   getDisponibilidadeGeral,
@@ -13,7 +13,7 @@ import { AtencaoSection } from "@/components/dashboard/atencao-card";
 export const dynamic = "force-dynamic";
 
 export default async function DisponibilidadePage() {
-  await requireAppUser();
+  await requireOperacaoUser();
 
   const [cds, geral, pontos] = await Promise.all([
     getDisponibilidadePorCD(),

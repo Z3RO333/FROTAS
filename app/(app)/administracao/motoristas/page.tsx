@@ -1,5 +1,5 @@
 import { Users } from "lucide-react";
-import { requireAppUser } from "@/lib/rbac";
+import { requireUserManager } from "@/lib/rbac";
 import { listMotoristasStats } from "@/lib/repos/motoristas";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function MotoristasAdminPage() {
-  await requireAppUser();
+  await requireUserManager();
   const motoristas = await listMotoristasStats();
 
   return (
@@ -20,7 +20,7 @@ export default async function MotoristasAdminPage() {
         severity="INFO"
       />
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr className="border-b">

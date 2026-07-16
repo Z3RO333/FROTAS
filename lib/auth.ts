@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { normalizeUserDisplayName } from "@/lib/user";
+import { requiredEnv } from "@/lib/env";
 
 const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 
@@ -18,9 +19,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     MicrosoftEntraID({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      issuer: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT}/v2.0`,
+      clientId: requiredEnv("AZURE_AD_CLIENT_ID"),
+      clientSecret: requiredEnv("AZURE_AD_CLIENT_SECRET"),
+      issuer: `https://login.microsoftonline.com/${requiredEnv("AZURE_AD_TENANT")}/v2.0`,
     }),
   ],
   pages: { signIn: "/login" },
@@ -44,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas (jornada de trabalho)
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: requiredEnv("NEXTAUTH_SECRET"),
   // Edge Enhanced Tracking Prevention bloqueia cookies SameSite=Lax em redirecionamentos OAuth.
   // Usando SameSite=None (com Secure) resolve o problema no Edge sem afetar outros browsers.
   cookies: {

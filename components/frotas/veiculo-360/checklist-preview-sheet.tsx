@@ -6,7 +6,6 @@ import {
   Gauge, MessageSquare, User, XCircle, ClipboardCheck,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
 import type { ChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
@@ -23,12 +22,6 @@ type ChecklistRow = {
 type Props = {
   rows: ChecklistRow[];
   frotaId: number;
-};
-
-const STATUS_ITEM_ICON = {
-  APTO: <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />,
-  NAO_APTO: <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />,
-  NAO_SE_APLICA: <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-300 inline-block" />,
 };
 
 export function ChecklistsListClient({ rows, frotaId }: Props) {

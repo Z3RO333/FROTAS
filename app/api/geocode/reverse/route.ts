@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { apiError } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 
@@ -39,7 +40,7 @@ type BigDataCloudResponse = {
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Nao autenticado." }, { status: 401 });
+    return apiError("Nao autenticado.", 401, "AUTH_REQUIRED");
   }
 
   const { searchParams } = new URL(request.url);
@@ -47,8 +48,8 @@ export async function GET(request: Request) {
   const lon = Number(searchParams.get("lon"));
   const accuracy = Number(searchParams.get("accuracy"));
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return NextResponse.json({ error: "Coordenadas invalidas." }, { status: 400 });
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return apiError("Coordenadas invalidas.", 400, "INVALID_COORDINATES");
   }
 
   try {
@@ -99,6 +100,7 @@ async function reverseWithNominatim(lat: number, lon: number): Promise<string | 
       Accept: "application/json",
     },
     next: { revalidate: 60 * 60 * 24 },
+    signal: AbortSignal.timeout(5_000),
   });
 
   if (!response.ok) return null;
@@ -115,6 +117,7 @@ async function reverseWithBigDataCloud(lat: number, lon: number): Promise<string
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
     next: { revalidate: 60 * 60 * 24 },
+    signal: AbortSignal.timeout(5_000),
   });
 
   if (!response.ok) return null;

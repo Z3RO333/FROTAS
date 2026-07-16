@@ -4,20 +4,31 @@ import { getRelatorioKpis, getRankingFrotas } from "@/lib/repos/relatorios";
 import { listAlertasAbertos } from "@/lib/repos/alertas";
 import { listAnalisesDia } from "@/lib/repos/analises-ia";
 import { sendRelatorioDiarioIa } from "@/lib/email";
-import { supabaseManutencao } from "@/lib/supabase-manutencao";
+import {
+  claimDueEmailSchedules,
+  completeEmailSchedule,
+  releaseEmailScheduleClaim,
+} from "@/lib/repos/email-schedule";
 
 import { isInternalAuthorized } from "@/lib/internal-auth";
-
-const APP_URL = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
+import { reportCalendarDate } from "@/lib/report-date";
+import { getAppUrl } from "@/lib/app-url";
+import { apiError } from "@/lib/api-error";
 
 function esc(s: string | null | undefined): string {
   return (s ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function GET(req: NextRequest) {
-  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET() {
+  const response = apiError("Use POST para executar o envio.", 405, "METHOD_NOT_ALLOWED");
+  response.headers.set("Allow", "POST");
+  return response;
+}
 
-  const hoje = new Date().toISOString().slice(0, 10);
+export async function POST(req: NextRequest) {
+  if (!isInternalAuthorized(req)) return apiError("Unauthorized", 401, "INVALID_INTERNAL_TOKEN");
+
+  const hoje = reportCalendarDate();
 
   const [kpis, alertas, rankingFrotas, analises] = await Promise.all([
     getRelatorioKpis(hoje),
@@ -30,30 +41,21 @@ export async function GET(req: NextRequest) {
     ["CRITICO", "BLOQUEIO_SUGERIDO"].includes(a.criticidade_revisada ?? a.criticidade)
   );
 
-  const html = buildEmailHtml({ hoje, kpis, alertas, rankingFrotas, criticos });
+  const html = buildEmailHtml({ hoje, kpis, alertas, rankingFrotas, criticos, appUrl: getAppUrl() });
 
-  // Le destinatarios das agendas ativas do tipo RELATORIO_DIARIO_IA
-  const { data: schedules, error: schedulesError } = await supabaseManutencao
-    .from("email_schedules")
-    .select("id, destinatarios")
-    .eq("tipo", "RELATORIO_DIARIO_IA")
-    .eq("ativo", true);
-
-  if (schedulesError) {
-    console.error("[relatorios/daily] falha ao buscar email_schedules", schedulesError);
-    return NextResponse.json({ erro: "Falha ao buscar destinatarios", detalhe: schedulesError.message }, { status: 500 });
-  }
+  const schedules = await claimDueEmailSchedules({ limit: 25, tipo: "RELATORIO_DIARIO_IA" });
 
   const destinatarios = Array.from(
     new Set(
-      (schedules ?? [])
-        .flatMap((s) => (s.destinatarios as string[] | null) ?? [])
+      schedules
+        .flatMap((s) => s.destinatarios ?? [])
         .map((e) => e.trim().toLowerCase())
         .filter(Boolean)
     )
   );
 
   if (destinatarios.length === 0) {
+    await Promise.all(schedules.map((schedule) => releaseEmailScheduleClaim(schedule)));
     return NextResponse.json({
       aviso: "Nenhuma agenda ativa do tipo RELATORIO_DIARIO_IA. Cadastre em /administracao/emails.",
       html_preview: html.slice(0, 500),
@@ -64,15 +66,10 @@ export async function GET(req: NextRequest) {
   const sendResult = await sendRelatorioDiarioIa({ destinatarios, html, assunto });
 
   // Marca ultimo_envio nas schedules usadas
-  if (sendResult.ok && schedules && schedules.length > 0) {
-    const scheduleIds = schedules.map((s) => s.id);
-    await supabaseManutencao
-      .from("email_schedules")
-      .update({ ultimo_envio: new Date().toISOString() })
-      .in("id", scheduleIds)
-      .then((res) => {
-        if (res.error) console.warn("[relatorios/daily] falha ao atualizar ultimo_envio", res.error);
-      });
+  if (sendResult.ok) {
+    await Promise.all(schedules.map((schedule) => completeEmailSchedule(schedule, new Date())));
+  } else {
+    await Promise.all(schedules.map((schedule) => releaseEmailScheduleClaim(schedule)));
   }
 
   return NextResponse.json({
@@ -84,7 +81,7 @@ export async function GET(req: NextRequest) {
     enviado: sendResult.ok,
     erro_envio: sendResult.ok ? null : sendResult.error,
     html_preview: html.slice(0, 500),
-  });
+  }, { status: sendResult.ok ? 200 : 502 });
 }
 
 type BuildEmailParams = {
@@ -93,9 +90,10 @@ type BuildEmailParams = {
   alertas: Awaited<ReturnType<typeof listAlertasAbertos>>;
   rankingFrotas: Awaited<ReturnType<typeof getRankingFrotas>>;
   criticos: Awaited<ReturnType<typeof listAnalisesDia>>;
+  appUrl: string;
 };
 
-function buildEmailHtml({ hoje, kpis, alertas, rankingFrotas, criticos }: BuildEmailParams): string {
+function buildEmailHtml({ hoje, kpis, alertas, rankingFrotas, criticos, appUrl }: BuildEmailParams): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><style>
@@ -151,7 +149,7 @@ td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
   ${alertas.map((a) => `<tr><td>${esc(a.tipo)}</td><td>${esc(a.frota_geral) !== "—" ? esc(a.frota_geral) : a.frota_id}</td><td>${esc(a.descricao)}</td></tr>`).join("")}
   </table>` : ""}
 
-  <p><a href="${APP_URL}/relatorios/checklists">Ver painel completo →</a></p>
+  <p><a href="${appUrl}/relatorios/checklists">Ver painel completo →</a></p>
 
   <div class="footer">Frotas Bemol · Plataforma Operacional · ${hoje}</div>
 </div></body></html>`;

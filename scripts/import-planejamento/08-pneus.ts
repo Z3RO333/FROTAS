@@ -3,12 +3,10 @@ import fs from "node:fs";
 import * as XLSX from "xlsx";
 import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "../../lib/supabase-manutencao";
-import { excelDateToIso, nullify, asInt, normFrota, normEquip } from "./utils";
+import { excelDateToIso, nullify, asInt, normFrota } from "./utils";
 
 const XLSX_PATH = process.env.XLSX_PATH || "C:\\Users\\21664\\Downloads\\PLANEJAMENTO DE MANUTENÇÃO- ATUAL.xlsx";
 
-const KNOWN_HEADERS = new Set(["EQUIPAMENTO", "FROTA", "BOA VISTA", "MANAUS", "PORTO VELHO",
-  "ARIQUEMES", "JI-PARANÁ", "RIO BRANCO", "NÚMEROS DE FOGOS DAS FROTAS"]);
 const POSITION_PATTERN = /^(DD|DE|TDE|TDI|TEE|TEI|STEP|ESTEPE|TRASEIRO|DIANTEIRO)/i;
 
 export async function runPneus(batchId: string): Promise<void> {

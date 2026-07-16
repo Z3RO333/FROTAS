@@ -1,16 +1,3 @@
--- Migration 023: previne movimentação de portaria duplicada por duplo-clique.
---
--- Bug original (lib/repos/checklists.ts registrarMovimentacaoFrota + actions):
---   As actions liam o estado via listPortariaToday() e inseriam sem lock. Dois
---   cliques (ou dois requests concorrentes) liam o mesmo estado liberado e
---   inseriam DUAS movimentações idênticas (ex.: duas SAÍDAS no mesmo instante).
---
--- Fix: RPC que serializa por frota via advisory lock de transação e descarta
--- duplicata idêntica dentro de uma janela curta (default 10s). Não usa unique
--- constraint rígida — SAÍDA real, BLOQUEIO e SOLICITAÇÃO_CORREÇÃO compartilham
--- tipo_movimentacao='SAIDA' e são distinguidos por tipo_acao; uma constraint
--- estática poderia bloquear sequências legítimas.
-
 CREATE OR REPLACE FUNCTION registrar_movimentacao_idempotente(
   p_frota_id bigint,
   p_motorista_id text,
@@ -23,7 +10,6 @@ CREATE OR REPLACE FUNCTION registrar_movimentacao_idempotente(
   p_janela_segundos integer DEFAULT 10
 ) RETURNS bigint
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 DECLARE
   v_id bigint;
@@ -31,13 +17,10 @@ DECLARE
 BEGIN
   v_tipo_acao := COALESCE(p_tipo_acao, p_tipo_movimentacao);
 
-  -- Serializa requests concorrentes para a mesma frota+checklist. O lock de
-  -- transação é liberado automaticamente no fim da chamada (commit/rollback).
   PERFORM pg_advisory_xact_lock(
     hashtextextended(p_frota_id::text || ':' || COALESCE(p_checklist_id::text, ''), 0)
   );
 
-  -- Já existe movimentação idêntica há poucos segundos? Trata como duplo-submit.
   SELECT id INTO v_id
   FROM movimentacoes_frota
   WHERE frota_id = p_frota_id
@@ -49,7 +32,7 @@ BEGIN
   LIMIT 1;
 
   IF v_id IS NOT NULL THEN
-    RETURN v_id;  -- no-op idempotente
+    RETURN v_id;
   END IF;
 
   INSERT INTO movimentacoes_frota (
@@ -65,4 +48,4 @@ BEGIN
 
   RETURN v_id;
 END;
-$$;
+$$;;

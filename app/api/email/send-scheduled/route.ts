@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logEmail } from "@/lib/repos/email-logs";
-import { listEmailSchedules, type EmailSchedule } from "@/lib/repos/email-schedule";
+import {
+  claimDueEmailSchedules,
+  completeEmailSchedule,
+  releaseEmailScheduleClaim,
+} from "@/lib/repos/email-schedule";
 import { getEmailFrom } from "@/lib/email-from";
 import {
   getDisponibilidadeResumo,
@@ -10,14 +14,19 @@ import {
   type DisponibilidadeCD,
   type DisponibilidadeGeral,
 } from "@/lib/repos/disponibilidade";
-import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 import { isInternalAuthorized } from "@/lib/internal-auth";
+import { getLavagem, getManutencao, getParadas } from "@/lib/repos/planejamento";
+import { getCustosPorPeriodo } from "@/lib/repos/custos";
+import { listAlertasAbertos } from "@/lib/repos/alertas";
+import { listTacografoPorFrota } from "@/lib/repos/tacografo";
+import { apiError } from "@/lib/api-error";
 
 async function getSgMail() {
   const sgMail = await import("@sendgrid/mail");
-  const key = process.env.SENDGRID_API_KEY ?? "";
-  if (key) sgMail.default.setApiKey(key);
+  const key = process.env.SENDGRID_API_KEY?.trim();
+  if (!key) throw new Error("SENDGRID_API_KEY não configurada.");
+  sgMail.default.setApiKey(key);
   return sgMail.default;
 }
 
@@ -39,45 +48,6 @@ function formatDateTime(date: Date): string {
 
 function asCdResumo(resumo: DisponibilidadeCD | DisponibilidadeGeral, cdNome: string): DisponibilidadeCD {
   return "cd_nome" in resumo ? resumo : { cd_nome: cdNome, ...resumo };
-}
-
-function scheduledAtToday(schedule: EmailSchedule, now: Date): Date {
-  const [hour, minute] = String(schedule.hora_envio ?? "07:00")
-    .slice(0, 5)
-    .split(":")
-    .map((part) => Number.parseInt(part, 10));
-  const date = new Date(now);
-  date.setHours(Number.isFinite(hour) ? hour : 7, Number.isFinite(minute) ? minute : 0, 0, 0);
-  return date;
-}
-
-function shouldSend(schedule: EmailSchedule, now: Date): boolean {
-  if (!schedule.ativo) return false;
-  if (schedule.proximo_envio) return new Date(schedule.proximo_envio) <= now;
-  return scheduledAtToday(schedule, now) <= now;
-}
-
-function nextRun(schedule: EmailSchedule, from: Date): Date {
-  const next = scheduledAtToday(schedule, from);
-  if (next <= from) {
-    if (schedule.frequencia === "SEMANAL") next.setDate(next.getDate() + 7);
-    else if (schedule.frequencia === "QUINZENAL") next.setDate(next.getDate() + 15);
-    else if (schedule.frequencia === "MENSAL") next.setMonth(next.getMonth() + 1);
-    else next.setDate(next.getDate() + 1);
-  }
-  return next;
-}
-
-async function updateScheduleRun(schedule: EmailSchedule, now: Date) {
-  const proximaData = nextRun(schedule, now);
-  await supabaseManutencao
-    .from("email_schedules")
-    .update({
-      ultimo_envio: now.toISOString(),
-      proximo_envio: proximaData.toISOString(),
-      atualizado_em: now.toISOString(),
-    })
-    .eq("id", schedule.id);
 }
 
 function resumoTexto(cd: DisponibilidadeCD): string {
@@ -189,12 +159,105 @@ async function buildDisponibilidadeEmail(cdNome: string, generatedAt: Date): Pro
   return { html, resumo: resumoCurto };
 }
 
+type ReportRow = Record<string, string | number | null | undefined>;
+
+function buildTable(title: string, rows: ReportRow[], generatedAt: Date): { html: string; resumo: string } {
+  const visibleRows = rows.slice(0, 100);
+  const columns = visibleRows.length > 0 ? Object.keys(visibleRows[0]) : [];
+  const table = visibleRows.length === 0
+    ? "<p>Nenhum registro encontrado para este relatório.</p>"
+    : `<table style="width:100%;border-collapse:collapse;font:12px Arial,sans-serif">
+        <thead><tr>${columns.map((column) => `<th style="padding:8px;text-align:left;background:#e2e8f0;border:1px solid #cbd5e1">${esc(column)}</th>`).join("")}</tr></thead>
+        <tbody>${visibleRows.map((row) => `<tr>${columns.map((column) => `<td style="padding:8px;border:1px solid #e2e8f0">${esc(row[column])}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>`;
+
+  return {
+    resumo: `${rows.length} registro(s) encontrado(s).`,
+    html: `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"></head>
+      <body style="margin:0;background:#f8fafc;color:#0f172a;font-family:Arial,sans-serif">
+        <main style="max-width:960px;margin:24px auto;padding:24px;background:#fff;border:1px solid #dbe7f5;border-radius:14px">
+          <h1 style="font-size:22px;color:#0b3f8e">${esc(title)}</h1>
+          <p style="color:#64748b">Gerado em ${esc(formatDateTime(generatedAt))}. Total: ${rows.length} registro(s).</p>
+          ${table}
+          ${rows.length > visibleRows.length ? `<p style="color:#64748b">Exibindo os primeiros ${visibleRows.length} registros.</p>` : ""}
+        </main>
+      </body></html>`,
+  };
+}
+
+async function buildOperationalEmail(tipo: string, generatedAt: Date): Promise<{ html: string; resumo: string }> {
+  if (tipo === "PREVENTIVAS_ATRASO") {
+    const rows = (await getManutencao()).filter((row) => row.status !== "NO_PRAZO").map((row) => ({
+      Frota: row.frota_numero ?? row.equipamento,
+      Placa: row.placa,
+      Serviço: row.tipo_servico,
+      Status: row.status,
+      "Última realização": row.data_realizada,
+    }));
+    return buildTable("Preventivas em atraso", rows, generatedAt);
+  }
+  if (tipo === "LAVAGEM_PENDENTE") {
+    const rows = (await getLavagem()).filter((row) => (row.atraso_dias ?? 0) > 0).map((row) => ({
+      Frota: row.frota_numero ?? row.equipamento,
+      Placa: row.placa,
+      Setor: row.setor,
+      "Dias em atraso": row.atraso_dias,
+      Status: row.status,
+    }));
+    return buildTable("Lavagens pendentes", rows, generatedAt);
+  }
+  if (tipo === "TACOGRAFO_VENCIDO") {
+    const rows = (await listTacografoPorFrota())
+      .filter((row) => row.status !== "EM_DIA")
+      .map((row) => ({
+        Frota: row.frota_geral,
+        Placa: row.placa,
+        Local: row.localizacao,
+        Status: row.status,
+        Vencimento: row.data_proxima,
+        "Dias para vencer": row.dias_para_vencer,
+      }));
+    return buildTable("Tacógrafos pendentes", rows, generatedAt);
+  }
+  if (tipo === "FROTAS_PARADAS") {
+    const rows = (await getParadas()).map((row) => ({
+      Frota: row.frota_numero,
+      Placa: row.placa,
+      Motivo: row.servicos ?? row.descricao_original,
+      Oficina: row.oficina,
+      "Previsão de saída": row.prev_saida,
+      Criticidade: row.ia_criticidade,
+    }));
+    return buildTable("Frotas paradas", rows, generatedAt);
+  }
+  if (tipo === "CUSTOS") {
+    const rows = (await getCustosPorPeriodo(12)).map((row) => ({
+      Período: row.data_periodo,
+      Ordens: row.qtd_ordens,
+      "Valor total": row.valor_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    }));
+    return buildTable("Custos de manutenção", rows, generatedAt);
+  }
+  if (tipo === "ALERTAS") {
+    const rows = (await listAlertasAbertos(100)).map((row) => ({
+      Frota: row.frota_geral ?? row.frota_id,
+      Placa: row.placa,
+      Tipo: row.tipo,
+      Título: row.titulo,
+      Descrição: row.descricao,
+      Criado: row.criado_em,
+    }));
+    return buildTable("Alertas operacionais", rows, generatedAt);
+  }
+  throw new Error(`Tipo de agenda não suportado neste endpoint: ${tipo}`);
+}
+
 export async function POST(req: NextRequest) {
   if (!isInternalAuthorized(req)) {
-    return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
+    return apiError("Nao autorizado.", 401, "INVALID_INTERNAL_TOKEN");
   }
 
-  const schedules = await listEmailSchedules();
+  const schedules = await claimDueEmailSchedules({ limit: 50, excludeTipo: "RELATORIO_DIARIO_IA" });
   const cds = await listCDsDisponibilidade();
   const agora = new Date();
   const enviados: string[] = [];
@@ -204,25 +267,32 @@ export async function POST(req: NextRequest) {
   const fromEmail = getEmailFrom();
 
   for (const schedule of schedules) {
-    if (!shouldSend(schedule, agora)) continue;
+    const failureCountBefore = falhas.length;
 
     try {
       if (schedule.tipo !== "DISPONIBILIDADE") {
-        const corpo = `<h2 style="font-family:sans-serif;">${esc(schedule.nome)}</h2>
-          <p style="font-family:sans-serif;">Relatório de tipo <strong>${esc(schedule.tipo)}</strong>.</p>
-          <hr/>
-          <p style="font-family:sans-serif;color:#888;font-size:12px;">
-            Enviado automaticamente pelo sistema FROTAS Bemol em ${esc(formatDateTime(agora))}
-          </p>`;
+        const { html: corpo, resumo } = await buildOperationalEmail(schedule.tipo, agora);
+        const assunto = `[FROTAS] ${schedule.nome} - ${agora.toLocaleDateString("pt-BR")}`;
 
         await sgMail.send({
           to: schedule.destinatarios,
           from: fromEmail,
-          subject: `[FROTAS] ${schedule.nome} - ${agora.toLocaleDateString("pt-BR")}`,
+          subject: assunto,
           html: corpo,
         });
+        await logEmail({
+          tipo: schedule.tipo.toLowerCase(),
+          cdNome: null,
+          destinatarios: schedule.destinatarios.join(","),
+          assunto,
+          enviadoPor: "sistema",
+          status: "enviado",
+          resumo,
+          conteudoHtml: corpo,
+          scheduleId: schedule.id,
+        });
         enviados.push(schedule.nome);
-        await updateScheduleRun(schedule, agora);
+        await completeEmailSchedule(schedule, agora);
         continue;
       }
 
@@ -270,12 +340,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      await updateScheduleRun(schedule, agora);
+      if (falhas.length === failureCountBefore) await completeEmailSchedule(schedule, agora);
+      else await releaseEmailScheduleClaim(schedule);
     } catch (err) {
       console.warn(`[email-schedule] falha ao processar "${schedule.nome}"`, err);
       falhas.push(schedule.nome);
+      await releaseEmailScheduleClaim(schedule).catch((releaseError) => {
+        console.error("[email-schedule] falha ao liberar claim", releaseError);
+      });
     }
   }
 
-  return NextResponse.json({ enviados, falhas, total: enviados.length });
+  return NextResponse.json(
+    { enviados, falhas, total: enviados.length },
+    { status: falhas.length > 0 ? 500 : 200 }
+  );
 }

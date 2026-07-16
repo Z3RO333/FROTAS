@@ -29,10 +29,7 @@ export async function listMotoristasStats(): Promise<MotoristaStats[]> {
     .from("v_motorista_stats")
     .select("*")
     .order("total_movimentacoes", { ascending: false });
-  if (error) {
-    console.warn("[motoristas] falha ao listar stats", error.message);
-    return [];
-  }
+  if (error) throw new Error(`listMotoristasStats: ${error.message}`);
   return (data ?? []).map((r) => ({
     motorista_id: String(r.motorista_id),
     motorista_nome: r.motorista_nome ?? null,
@@ -49,10 +46,7 @@ export async function getFrotasDoMotorista(motoristaId: string): Promise<Motoris
     .select("*")
     .eq("motorista_id", motoristaId)
     .order("qtd_movimentacoes", { ascending: false });
-  if (error) {
-    console.warn("[motoristas] falha ao buscar frotas", error.message);
-    return [];
-  }
+  if (error) throw new Error(`getFrotasDoMotorista: ${error.message}`);
   return (data ?? []).map((r) => ({
     frota_id: Number(r.frota_id),
     frota_geral: r.frota_geral ?? null,
@@ -68,9 +62,8 @@ export async function getChecklistStatsMotorista(motoristaId: string): Promise<M
     .select("id, km_informado, criado_em, frota_id")
     .eq("motorista_id", motoristaId);
 
-  if (error || !data) {
-    return { total_checklists: 0, km_total: 0, ultimo_checklist: null, frotas_distintas: 0 };
-  }
+  if (error) throw new Error(`getChecklistStatsMotorista: ${error.message}`);
+  if (!data) throw new Error("getChecklistStatsMotorista: resposta ausente do banco.");
 
   const km_total = data.reduce((s, c) => s + Number(c.km_informado ?? 0), 0);
   const sorted = [...data].sort((a, b) => b.criado_em.localeCompare(a.criado_em));

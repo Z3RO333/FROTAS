@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
   const [search, setSearch] = useState(searchParams.get("search") ?? "");
   const [, startTransition] = useTransition();
 
-  function applyChanges(changes: Record<string, string>) {
+  const applyChanges = useCallback((changes: Record<string, string>) => {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(changes)) {
       if (value && value !== "all") next.set(key, value);
@@ -51,11 +51,11 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
     startTransition(() => {
       router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
     });
-  }
+  }, [basePath, router, searchParams]);
 
-  function update(key: string, value: string) {
+  const update = useCallback((key: string, value: string) => {
     applyChanges({ [key]: value });
-  }
+  }, [applyChanges]);
 
   useEffect(() => {
     setSearch(searchParams.get("search") ?? "");
@@ -67,7 +67,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
 
     const handle = window.setTimeout(() => update("search", search.trim()), 350);
     return () => window.clearTimeout(handle);
-  }, [search, searchParams]);
+  }, [search, searchParams, update]);
 
   const cdAtual = searchParams.get("cd") ?? "all";
 

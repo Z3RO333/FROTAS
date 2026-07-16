@@ -115,6 +115,8 @@ export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
     supabaseManutencao.from("fact_kit_seguranca").select("triangulo_ok,extintor_ok,macaco_ok,chave_roda_ok"),
     supabaseManutencao.from("fact_disponibilidade_diaria").select("disponibilidade,meta").order("data", { ascending: false }).limit(1),
   ]);
+  const overviewError = docs.error ?? manut.error ?? lavagem.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
+  if (overviewError) throw new Error(`getPlanejamentoOverview: ${overviewError.message}`);
 
   const docsRows = (docs.data ?? []) as Array<{ status: string | null; tipo_documento: string | null }>;
   const manutRows = (manut.data ?? []) as Array<{ status: string | null }>;
@@ -144,7 +146,8 @@ export async function getManutencao(tipoServico?: string): Promise<ManutencaoRow
     .order("tipo_servico")
     .order("status", { nullsFirst: false });
   if (tipoServico) query = query.eq("tipo_servico", tipoServico);
-  const { data } = await query.limit(500);
+  const { data, error } = await query.limit(500);
+  if (error) throw new Error(`getManutencao: ${error.message}`);
   return (data ?? []) as ManutencaoRow[];
 }
 
@@ -159,33 +162,37 @@ export async function getDocumentos(tipo?: string): Promise<DocumentoRow[]> {
   } else {
     query = query.neq("tipo_documento", "TACOGRAFO");
   }
-  const { data } = await query.limit(500);
+  const { data, error } = await query.limit(500);
+  if (error) throw new Error(`getDocumentos: ${error.message}`);
   return (data ?? []) as DocumentoRow[];
 }
 
 export async function getDisponibilidade(dias = 60): Promise<DisponibilidadeRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_disponibilidade_diaria")
     .select("data,total,parados,disponibilidade,meta")
     .order("data", { ascending: true })
     .limit(dias);
+  if (error) throw new Error(`getDisponibilidade: ${error.message}`);
   return (data ?? []) as DisponibilidadeRow[];
 }
 
 export async function getDisponibilidadePorTipo(): Promise<DisponibilidadeTipoRow[]> {
-  const { data: latest } = await supabaseManutencao
+  const { data: latest, error: latestError } = await supabaseManutencao
     .from("fact_disponibilidade_tipo_frota")
     .select("data")
     .order("data", { ascending: false })
     .limit(1);
+  if (latestError) throw new Error(`getDisponibilidadePorTipo data: ${latestError.message}`);
   const latestDate = (latest?.[0] as { data: string } | undefined)?.data;
   if (!latestDate) return [];
 
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_disponibilidade_tipo_frota")
     .select("tipo_equipamento,total,parados,disponibilidade")
     .eq("data", latestDate)
     .order("disponibilidade", { ascending: true });
+  if (error) throw new Error(`getDisponibilidadePorTipo: ${error.message}`);
   return (data ?? []) as DisponibilidadeTipoRow[];
 }
 
@@ -198,12 +205,13 @@ export type PneuVeiculoGroup = {
 };
 
 export async function listVeiculosComPneus(limit = 50): Promise<PneuVeiculoGroup[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_pneus")
     .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
     .order("equipamento")
     .order("posicao")
     .limit(2000);
+  if (error) throw new Error(`listVeiculosComPneus: ${error.message}`);
 
   const rows = (data ?? []) as PneuRow[];
   const groups = new Map<string, PneuVeiculoGroup>();
@@ -229,49 +237,54 @@ export async function listVeiculosComPneus(limit = 50): Promise<PneuVeiculoGroup
 }
 
 export async function getPneus(): Promise<PneuRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_pneus")
     .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
     .order("equipamento")
     .order("posicao")
     .limit(1000);
+  if (error) throw new Error(`getPneus: ${error.message}`);
   return (data ?? []) as PneuRow[];
 }
 
 export async function getLavagem(): Promise<LavagemRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_lavagem")
     .select("equipamento,placa,frota_numero,setor,data_realizada,atraso_dias,status")
     .order("atraso_dias", { ascending: false })
     .limit(300);
+  if (error) throw new Error(`getLavagem: ${error.message}`);
   return (data ?? []) as LavagemRow[];
 }
 
 export async function getKitSeguranca(): Promise<KitSegurancaRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_kit_seguranca")
     .select("equipamento,placa,frota_numero,setor,triangulo_ok,extintor_ok,macaco_ok,chave_roda_ok")
     .order("frota_numero")
     .limit(400);
+  if (error) throw new Error(`getKitSeguranca: ${error.message}`);
   return (data ?? []) as KitSegurancaRow[];
 }
 
 export async function getBateria(): Promise<BateriaRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_bateria_garantia")
     .select("equipamento,placa,frota_numero,setor,data_compra,modelo_bateria,loja")
     .order("data_compra", { ascending: true })
     .limit(300);
+  if (error) throw new Error(`getBateria: ${error.message}`);
   return (data ?? []) as BateriaRow[];
 }
 
 export async function getEstepes(): Promise<EstepeRow[]> {
-  const { data } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("fact_estepes")
     .select("frota_numero,placa,modelo,setor,tem_estepe,data_verificacao")
     .order("tem_estepe", { ascending: true })
     .order("placa")
     .limit(200);
+  if (error) throw new Error(`getEstepes: ${error.message}`);
   return (data ?? []) as EstepeRow[];
 }
 
@@ -358,6 +371,8 @@ export async function getParadas(): Promise<ParadaRow[]> {
       .eq("vendido", false)
       .order("manutencao_iniciado_em", { ascending: false, nullsFirst: false }),
   ]);
+  const paradasError = importadasResult.error ?? manutencaoResult.error;
+  if (paradasError) throw new Error(`getParadas: ${paradasError.message}`);
 
   const importadas = (importadasResult.data ?? []) as ParadaRow[];
   const existentes = new Set(importadas.map((r) => paradaKey(r.frota_numero, r.placa)).filter(Boolean));
@@ -368,9 +383,9 @@ export async function getParadas(): Promise<ParadaRow[]> {
   // Lookup veiculo_id for imported rows via frota_numero/placa
   const frotaNums = importadas.map((r) => r.frota_numero).filter(Boolean) as string[];
   const placas = importadas.map((r) => r.placa).filter(Boolean) as string[];
-  let veiculoMap = new Map<string, number>();
+  const veiculoMap = new Map<string, number>();
   if (frotaNums.length > 0 || placas.length > 0) {
-    const { data: veiculos } = await supabaseManutencao
+    const { data: veiculos, error: veiculosError } = await supabaseManutencao
       .from("veiculos")
       .select("id,codigo_frota,placa")
       .or(
@@ -381,6 +396,7 @@ export async function getParadas(): Promise<ParadaRow[]> {
           .filter(Boolean)
           .join(",")
       );
+    if (veiculosError) throw new Error(`getParadas veiculos: ${veiculosError.message}`);
     for (const v of veiculos ?? []) {
       if (v.codigo_frota) veiculoMap.set(v.codigo_frota.trim().toUpperCase(), v.id);
       if (v.placa) veiculoMap.set(v.placa.trim().toUpperCase(), v.id);

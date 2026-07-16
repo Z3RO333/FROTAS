@@ -5,13 +5,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sendSinistroNotification, sendSocorroNotification } from "@/lib/email";
 import { getFrota } from "@/lib/repos/frotas";
-import { createSinistro } from "@/lib/repos/sinistros";
+import { createSinistro, getSinistroBySubmissionId } from "@/lib/repos/sinistros";
 import {
   createSignedSinistroImageUrl,
   removeSinistroImages,
   uploadSinistroImage,
 } from "@/lib/repos/sinistro-images";
-import { requireAppUser } from "@/lib/rbac";
+import { requireMotoristaUser } from "@/lib/rbac";
 import { fileFromForm } from "@/lib/upload-validation";
 import type { SinistroMotoristaActionState } from "./types";
 
@@ -49,10 +49,16 @@ export async function enviarSinistroMotoristaAction(
   _prevState: SinistroMotoristaActionState,
   formData: FormData
 ): Promise<SinistroMotoristaActionState> {
-  const user = await requireAppUser();
+  const user = await requireMotoristaUser();
   const uploadedPaths: string[] = [];
+  let submissionId: string | null = null;
 
   try {
+    submissionId = z.string().uuid("Identificador de envio inválido.").parse(formData.get("submission_id"));
+    const existing = await getSinistroBySubmissionId(submissionId, user.email);
+    if (existing) {
+      return { ok: true, redirectTo: `/motorista/sinistros?ticket=${encodeURIComponent(existing.ticket_number)}` };
+    }
     const tipoSinistro = TipoSinistroSchema.parse(formData.get("tipo_sinistro"));
     const descricao = requiredText(formData, "descricao", "Descreva o que aconteceu.");
     const endereco = requiredText(formData, "endereco", "Informe o endereco.");
@@ -62,6 +68,8 @@ export async function enviarSinistroMotoristaAction(
       .getAll("media")
       .map(fileFromForm)
       .filter((file): file is File => Boolean(file));
+
+    if (mediaFiles.length > 8) throw new Error("Envie no máximo 8 arquivos por ocorrência.");
 
     for (const file of mediaFiles.slice(0, 8)) {
       const path = await uploadSinistroImage(file, { ticketNumber });
@@ -88,6 +96,7 @@ export async function enviarSinistroMotoristaAction(
       }
 
       await createSinistro({
+        submission_id: submissionId,
         ticket_number: ticketNumber,
         tipo_sinistro: "socorro",
         frota_id: socorroFrotaId,
@@ -142,6 +151,7 @@ export async function enviarSinistroMotoristaAction(
       if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponivel para reporte de sinistro.");
 
       await createSinistro({
+        submission_id: submissionId,
         ticket_number: ticketNumber,
         tipo_sinistro: tipoSinistro,
         frota_id: frotaId,
@@ -200,6 +210,12 @@ export async function enviarSinistroMotoristaAction(
     await removeSinistroImages(uploadedPaths).catch((cleanupError) => {
       console.warn("[sinistros] falha ao limpar imagens apos erro", cleanupError);
     });
+    if (submissionId) {
+      const existing = await getSinistroBySubmissionId(submissionId, user.email).catch(() => null);
+      if (existing) {
+        return { ok: true, redirectTo: `/motorista/sinistros?ticket=${encodeURIComponent(existing.ticket_number)}` };
+      }
+    }
     if (error instanceof z.ZodError) {
       return { ok: false, error: error.issues[0]?.message ?? "Dados invalidos." };
     }

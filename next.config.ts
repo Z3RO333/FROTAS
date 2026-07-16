@@ -39,7 +39,10 @@ const ALLOWED_ORIGINS = [
 const config: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb", // fotos de câmera chegam a 2–5 MB cada; checklist envia até 3 fotos
+      // Limite total coerente com 8 imagens de sinistro, fotos do checklist e
+      // dois PDFs validados no servidor. Em evolução futura, mover para upload
+      // direto assinado para não manter arquivos grandes na Server Action.
+      bodySizeLimit: "90mb",
       ...(ALLOWED_ORIGINS.length > 0 ? { allowedOrigins: ALLOWED_ORIGINS } : {}),
     },
   },

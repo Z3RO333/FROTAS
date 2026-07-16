@@ -118,7 +118,7 @@ export function canAccessOperacao(perfil: PerfilUsuario): boolean {
 }
 
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
-  return true;
+  return perfil !== "MOTORISTA";
 }
 
 export function canWriteDocumentos(perfil: PerfilUsuario): boolean {
@@ -142,6 +142,24 @@ export async function requireGestorUser(): Promise<AppUser> {
   if (!canEditFrota(user.perfil)) {
     redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
   }
+  return user;
+}
+
+export async function requireManutencaoUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canAccessManutencao(user.perfil)) redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
+  return user;
+}
+
+export async function requireOperacaoUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canAccessOperacao(user.perfil)) redirect(user.perfil === "MOTORISTA" ? "/motorista" : "/");
+  return user;
+}
+
+export async function requireUserManager(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canManageUsers(user.perfil)) redirect("/");
   return user;
 }
 

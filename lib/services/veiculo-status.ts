@@ -124,7 +124,7 @@ export async function enviarFrotaParaManutencao(
   const statusOpAnterior = f.status_operacional;
   const agora = new Date().toISOString();
 
-  const { error: updateErr } = await supabaseManutencao
+  const { data: updated, error: updateErr } = await supabaseManutencao
     .from("veiculos")
     .update({
       status: "manutencao",
@@ -141,9 +141,13 @@ export async function enviarFrotaParaManutencao(
       manutencao_bloqueia_checklist: input.bloqueiaChecklist ?? true,
       atualizado_por: input.usuarioEmail,
     })
-    .eq("id", input.frotaId);
+    .eq("id", input.frotaId)
+    .neq("status", "manutencao")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) return { ok: false, error: updateErr.message };
+  if (!updated) return { ok: false, error: "A frota foi alterada por outro usuário. Atualize a tela." };
 
   await recordEvent({
     veiculo_id: input.frotaId,
@@ -195,12 +199,19 @@ export async function retornarFrotaParaOperacao(
   // Validar pendências críticas abertas
   const bloqueios: string[] = [];
 
-  const { count: pendCriticas } = await supabaseManutencao
+  const { count: pendCriticas, error: pendCriticasError } = await supabaseManutencao
     .from("pendencias_frota")
     .select("id", { count: "exact", head: true })
     .eq("frota_id", input.frotaId)
     .eq("gravidade", "CRITICA")
     .in("status", ["ABERTA", "EM_TRATATIVA"]);
+
+  if (pendCriticasError) {
+    return {
+      ok: false,
+      error: "Não foi possível validar as pendências críticas. A liberação foi bloqueada.",
+    };
+  }
 
   if ((pendCriticas ?? 0) > 0) {
     bloqueios.push(`${pendCriticas} pendência(s) crítica(s) aberta(s)`);
@@ -243,12 +254,16 @@ export async function retornarFrotaParaOperacao(
     patch.km_origem = "MANUTENCAO_RETORNO";
   }
 
-  const { error: updateErr } = await supabaseManutencao
+  const { data: updated, error: updateErr } = await supabaseManutencao
     .from("veiculos")
     .update(patch)
-    .eq("id", input.frotaId);
+    .eq("id", input.frotaId)
+    .eq("status", "manutencao")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) return { ok: false, error: updateErr.message };
+  if (!updated) return { ok: false, error: "A frota foi alterada por outro usuário. Atualize a tela." };
 
   await recordEvent({
     veiculo_id: input.frotaId,

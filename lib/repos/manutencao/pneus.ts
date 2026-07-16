@@ -1,6 +1,5 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { Veiculo, ServicoApp, TrocaPneuApp } from "./types";
-import { randomUUID } from "crypto";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 
 // Colunas usadas pelo PneusWorkspace — evita transferir os 8 campos de intervalo
@@ -65,8 +64,8 @@ function normalizePlate(value: string | null | undefined): string {
  * `reservar_contagens_numero_fogo` (migration 021). Retorna a primeira contagem do
  * intervalo. Concorrência: serializado por row-lock em numero_fogo_sequencia.
  *
- * Fallback: se a RPC não existir (ex.: dev sem migrations aplicadas), volta para o
- * SELECT MAX legado — sem garantia de unicidade sob concorrência.
+ * A operação falha de forma segura se a RPC não estiver instalada; não usamos
+ * SELECT MAX porque ele gera duplicidades sob concorrência.
  */
 async function reservarContagemNumeroFogo(
   veiculo: Veiculo,
@@ -86,24 +85,6 @@ async function reservarContagemNumeroFogo(
 
   if (!error && typeof data === "number" && Number.isFinite(data) && data > 0) {
     return Math.floor(data);
-  }
-
-  // Fallback legado (somente quando a RPC não existe). NÃO é seguro sob concorrência.
-  if (error && /function .* does not exist/i.test(error.message)) {
-    console.warn("[pneus] RPC reservar_contagens_numero_fogo ausente — usando fallback inseguro");
-    const placa = normalizePlate(veiculo.placa);
-    let query = supabaseManutencao
-      .from("numero_fogo")
-      .select("contagem")
-      .eq("ultimo_digito_ano", digitoAno)
-      .order("contagem", { ascending: false })
-      .limit(1);
-    if (veiculo.codigo_frota) query = query.eq("frota", veiculo.codigo_frota);
-    else if (placa) query = query.eq("placa", placa);
-    const { data: rows, error: fbErr } = await query;
-    if (fbErr) throw new Error(`reservarContagemNumeroFogo fallback: ${fbErr.message}`);
-    const ultima = Number(rows?.[0]?.contagem ?? 0);
-    return Number.isFinite(ultima) && ultima > 0 ? Math.floor(ultima) + 1 : 1;
   }
 
   throw new Error(`reservarContagemNumeroFogo: ${error?.message ?? "sem retorno"}`);
@@ -135,6 +116,7 @@ export async function listUltimaContagemNumeroFogoPorFrota(
 }
 
 export interface TrocaPneuInput {
+  submission_id: string;
   id_veiculo: string;
   quilometragem: number;
   observacoes?: string;
@@ -150,6 +132,19 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
   if (input.posicoes.length === 0) {
     throw new Error("Selecione ao menos uma posição.");
   }
+  const normalizedPositions = input.posicoes.map((item) => item.posicao.trim().toUpperCase());
+  if (new Set(normalizedPositions).size !== normalizedPositions.length) {
+    throw new Error("Não repita a mesma posição de pneu.");
+  }
+
+  const idServico = input.submission_id;
+  const { data: existing, error: existingError } = await supabaseManutencao
+    .from("servicos_app")
+    .select("id_servico")
+    .eq("id_servico", idServico)
+    .maybeSingle();
+  if (existingError) throw new Error(`registrarTrocaPneu idempotencia: ${existingError.message}`);
+  if (existing) return idServico;
 
   const dataServico = new Date();
   const ano = dataServico.getFullYear();
@@ -178,8 +173,7 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
     };
   });
 
-  const idServico = randomUUID();
-  const { error: errServico } = await supabaseManutencao.from("servicos_app").insert({
+  const servico = {
     id_servico: idServico,
     id_veiculo: veiculo.codigo_frota,
     tipo_servico: "troca_pneu",
@@ -187,8 +181,7 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
     observacoes: input.observacoes ?? null,
     registrado_por_email: input.registrado_por_email,
     registrado_por_nome: input.registrado_por_nome,
-  });
-  if (errServico) throw new Error(`registrarTrocaPneu: ${errServico.message}`);
+  };
 
   const trocas = posicoes.map((p) => ({
     id_servico: idServico,
@@ -196,12 +189,6 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
     numero_fogo: p.numero_fogo,
     quilometragem: input.quilometragem,
   }));
-
-  const { error: errTrocas } = await supabaseManutencao.from("trocas_pneus_app").insert(trocas);
-  if (errTrocas) {
-    await supabaseManutencao.from("servicos_app").delete().eq("id_servico", idServico);
-    throw new Error(`registrarTrocaPneu trocas: ${errTrocas.message}`);
-  }
 
   const numerosFogo = posicoes.map((p) => ({
     numero_fogo: p.numero_fogo,
@@ -214,12 +201,12 @@ export async function registrarTrocaPneu(input: TrocaPneuInput): Promise<string>
     qtd_pneus: 1,
   }));
 
-  const { error: errNumeroFogo } = await supabaseManutencao.from("numero_fogo").insert(numerosFogo);
-  if (errNumeroFogo) {
-    await supabaseManutencao.from("trocas_pneus_app").delete().eq("id_servico", idServico);
-    await supabaseManutencao.from("servicos_app").delete().eq("id_servico", idServico);
-    throw new Error(`registrarTrocaPneu numero_fogo: ${errNumeroFogo.message}`);
-  }
+  const { error } = await supabaseManutencao.rpc("registrar_troca_pneu_atomica", {
+    p_servico: servico,
+    p_trocas: trocas,
+    p_numeros_fogo: numerosFogo,
+  });
+  if (error) throw new Error(`registrarTrocaPneu: ${error.message}`);
 
   return idServico;
 }

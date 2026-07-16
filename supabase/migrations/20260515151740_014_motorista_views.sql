@@ -36,4 +36,4 @@ JOIN public.veiculos v ON v.id = m.frota_id
 WHERE m.motorista_id IS NOT NULL
 GROUP BY m.motorista_id, m.frota_id, v.codigo_frota, v.placa;
 
-GRANT SELECT ON public.v_motorista_frotas TO service_role;
+GRANT SELECT ON public.v_motorista_frotas TO service_role;;
