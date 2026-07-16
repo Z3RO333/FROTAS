@@ -130,7 +130,7 @@ export function canManageUsers(perfil: PerfilUsuario): boolean {
 }
 
 export function canManageEmailSchedules(perfil: PerfilUsuario): boolean {
-  return perfil === "GESTOR" || perfil === "DEV";
+  return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
 }
 
 export function canEditFrota(perfil: PerfilUsuario): boolean {

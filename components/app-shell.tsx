@@ -102,8 +102,8 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
   if (canManageUsers(perfil)) sections.push({ title: "Administração", items: ADMINISTRACAO_NAV });
   if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
 
-  // GESTOR e DEV podem acessar as visões do motorista para supervisão
-  if (perfil === "GESTOR" || perfil === "DEV") {
+  // ADMIN, GESTOR e DEV podem acessar as visões do motorista para supervisão
+  if (perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV") {
     sections.push({
       title: perfil === "DEV" ? "Motorista (Dev)" : "Motorista",
       items: [

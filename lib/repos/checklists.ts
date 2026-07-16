@@ -243,6 +243,48 @@ function todayRange() {
   return dateRange();
 }
 
+function hojeStr(): string {
+  const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date()
+  );
+}
+
+function somaDias(dataStr: string, dias: number): string {
+  const [y, m, d] = dataStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
+export type PeriodoChecklist = "hoje" | "ontem" | "semana_atual" | "semana_passada" | "ultimos_30_dias";
+
+// Converte um preset de período em datas "YYYY-MM-DD" (inclusive) para filtrar listAdminChecklists.
+export function periodoParaDatas(periodo: string | undefined): ChecklistListFilters {
+  const hoje = hojeStr();
+  switch (periodo as PeriodoChecklist) {
+    case "hoje":
+      return { dataInicio: hoje, dataFim: hoje };
+    case "ontem": {
+      const ontem = somaDias(hoje, -1);
+      return { dataInicio: ontem, dataFim: ontem };
+    }
+    case "semana_atual": {
+      const diaSemana = new Date(`${hoje}T00:00:00Z`).getUTCDay(); // 0=domingo
+      const offsetSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+      return { dataInicio: somaDias(hoje, -offsetSegunda), dataFim: hoje };
+    }
+    case "semana_passada": {
+      const diaSemana = new Date(`${hoje}T00:00:00Z`).getUTCDay();
+      const offsetSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+      const segundaAtual = somaDias(hoje, -offsetSegunda);
+      return { dataInicio: somaDias(segundaAtual, -7), dataFim: somaDias(segundaAtual, -1) };
+    }
+    case "ultimos_30_dias":
+      return { dataInicio: somaDias(hoje, -29), dataFim: hoje };
+    default:
+      return {};
+  }
+}
+
 async function fetchVeiculosByIds(ids: number[]): Promise<Map<number, VeiculoLite>> {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
   if (uniqueIds.length === 0) return new Map();
@@ -281,13 +323,27 @@ export async function listDriverChecklists(email: string, limit = 20): Promise<C
   }, []);
 }
 
-export async function listAdminChecklists(limit = 100): Promise<ChecklistListRow[]> {
+export type ChecklistListFilters = {
+  // "YYYY-MM-DD" no timezone da operação (FROTAS_TIMEZONE)
+  dataInicio?: string;
+  dataFim?: string;
+};
+
+export async function listAdminChecklists(
+  limit = 100,
+  filters: ChecklistListFilters = {}
+): Promise<ChecklistListRow[]> {
   return safeSupabase("listagem admin", async () => {
-    const { data, error } = await supabaseManutencao
+    let query = supabaseManutencao
       .from("checklists_frota")
       .select(COLS_CHECKLIST_LIST)
       .order("criado_em", { ascending: false })
       .limit(limit);
+
+    if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
+    if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
+
+    const { data, error } = await query;
 
     if (error) throw error;
     const rows = (data ?? []) as ChecklistDbRow[];
