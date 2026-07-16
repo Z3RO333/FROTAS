@@ -15,6 +15,7 @@ import { PortariaSubmitButton } from "./portaria-submit-button";
 import {
   registrarMovimentacaoPortariaAction,
   bloquearSaidaAction,
+  liberarSaidaForcadaAction,
   solicitarCorrecaoAction,
 } from "./_actions";
 
@@ -370,7 +371,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                 </Button>
               )}
               {canLiberarForcado && showCorrecaoForm && (
-                <form action={withToast(registrarMovimentacaoPortariaAction, "Liberação forçada registrada.")} className="space-y-2">
+                <form action={withToast(liberarSaidaForcadaAction, "Liberação forçada registrada.")} className="space-y-2">
                   <input type="hidden" name="frota_id" value={detalhe.frota_id} />
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <input type="hidden" name="tipo_movimentacao" value="SAIDA" />

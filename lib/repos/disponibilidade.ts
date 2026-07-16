@@ -42,6 +42,19 @@ export type DisponibilidadeCD = {
 
 export type DisponibilidadeGeral = Omit<DisponibilidadeCD, "cd_nome">;
 
+function withoutCd(resumo: DisponibilidadeCD): DisponibilidadeGeral {
+  return {
+    total: resumo.total,
+    disponiveis: resumo.disponiveis,
+    em_manutencao: resumo.em_manutencao,
+    indisponiveis: resumo.indisponiveis,
+    em_operacao: resumo.em_operacao,
+    paradas: resumo.paradas,
+    percentual_disponibilidade: resumo.percentual_disponibilidade,
+    pontos_atencao: resumo.pontos_atencao,
+  };
+}
+
 export type PontoAtencao = {
   tipo: "km_desatualizado" | "sem_checklist_recente" | "manutencao_longa" | "manutencao_atrasada" | "bloqueio_checklist";
   titulo: string;
@@ -126,10 +139,7 @@ async function listVeiculosDisponibilidade(): Promise<VeiculoDisponibilidadeRow[
     .order("codigo_frota", { ascending: true })
     .limit(5000);
 
-  if (error) {
-    console.warn("[disponibilidade] falha ao buscar veiculos", error.message);
-    return [];
-  }
+  if (error) throw new Error(`listVeiculosDisponibilidade: ${error.message}`);
 
   return (data ?? []) as VeiculoDisponibilidadeRow[];
 }
@@ -157,8 +167,7 @@ export async function getDisponibilidadePorCD(): Promise<DisponibilidadeCD[]> {
 
 export async function getDisponibilidadeGeral(): Promise<DisponibilidadeGeral> {
   const rows = await listVeiculosDisponibilidade();
-  const { cd_nome: _cd, ...geral } = buildResumo(rows, "Todos os CDs");
-  return geral;
+  return withoutCd(buildResumo(rows, "Todos os CDs"));
 }
 
 export async function getDisponibilidadeResumo(cdNome?: string): Promise<DisponibilidadeCD | DisponibilidadeGeral> {
@@ -166,8 +175,7 @@ export async function getDisponibilidadeResumo(cdNome?: string): Promise<Disponi
   const filtered = cdNome ? rows.filter((row) => normalizeCdNome(row.local) === cdNome) : rows;
   const resumo = buildResumo(filtered, cdNome ?? "Todos os CDs");
   if (cdNome) return resumo;
-  const { cd_nome: _cd, ...geral } = resumo;
-  return geral;
+  return withoutCd(resumo);
 }
 
 function buildPontosAtencao(

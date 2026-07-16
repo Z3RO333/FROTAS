@@ -5,23 +5,23 @@ import {
   listQueuedChecklistImageInspections,
   markChecklistImageInspectionFailed,
   markChecklistImageInspectionProcessed,
-  markChecklistImageInspectionProcessing,
 } from "@/lib/repos/checklist-images";
 import { analyzeChecklistImageWithYolo } from "@/lib/vision/yolo";
+import { apiError } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const secret = process.env.CHECKLIST_VISION_SECRET?.trim();
   if (!secret) {
-    return NextResponse.json({ error: "CHECKLIST_VISION_SECRET nao configurado." }, { status: 503 });
+    return apiError("CHECKLIST_VISION_SECRET nao configurado.", 503, "VISION_NOT_CONFIGURED");
   }
 
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   const a = Buffer.from(secret);
   const b = Buffer.from(token);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
+    return apiError("Nao autorizado.", 401, "INVALID_INTERNAL_TOKEN");
   }
 
   const body = await request.json().catch(() => ({}));
@@ -31,7 +31,6 @@ export async function POST(request: Request) {
 
   for (const inspection of rows) {
     try {
-      await markChecklistImageInspectionProcessing(inspection.id);
       const imageUrl = await createSignedChecklistImageUrl(inspection.storage_path);
       const yoloResult = await analyzeChecklistImageWithYolo({ inspection, imageUrl });
       await markChecklistImageInspectionProcessed(inspection.id, yoloResult);

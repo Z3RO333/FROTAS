@@ -57,12 +57,13 @@ export async function updateDocument(
 
 export async function deleteDocument(id: string): Promise<void> {
   const current = await getDocumentById(id);
-  if (current) {
-    await removeDocumentFiles([current.dut_url, current.crlv_url]);
-  }
-
   const { error } = await supabaseManutencao.from(T).delete().eq("id", id);
   if (error) throw new Error(`deleteDocument: ${error.message}`);
+  if (current) {
+    await removeDocumentFiles([current.dut_url, current.crlv_url]).catch((storageError) => {
+      console.error("[documents] registro removido, mas arquivos antigos ficaram órfãos", storageError);
+    });
+  }
 }
 
 export async function getDocumentById(id: string): Promise<DocumentRecord | null> {
@@ -100,18 +101,25 @@ export async function replaceDocumentFiles(
   const oldPaths: Array<string | null> = [];
   const updates: { dut_url?: string | null; crlv_url?: string | null } = {};
 
-  if (files.dut) {
-    const path = await uploadDocumentFile(files.dut, placa, "dut");
-    uploadedPaths.push(path);
-    oldPaths.push(current.dut_url);
-    updates.dut_url = path;
-  }
+  try {
+    if (files.dut) {
+      const path = await uploadDocumentFile(files.dut, placa, "dut");
+      uploadedPaths.push(path);
+      oldPaths.push(current.dut_url);
+      updates.dut_url = path;
+    }
 
-  if (files.crlv) {
-    const path = await uploadDocumentFile(files.crlv, placa, "crlv");
-    uploadedPaths.push(path);
-    oldPaths.push(current.crlv_url);
-    updates.crlv_url = path;
+    if (files.crlv) {
+      const path = await uploadDocumentFile(files.crlv, placa, "crlv");
+      uploadedPaths.push(path);
+      oldPaths.push(current.crlv_url);
+      updates.crlv_url = path;
+    }
+  } catch (error) {
+    await removeDocumentFiles(uploadedPaths).catch((cleanupError) => {
+      console.error("[documents] falha ao limpar upload parcial", cleanupError);
+    });
+    throw error;
   }
 
   return { ...updates, uploadedPaths, oldPaths };

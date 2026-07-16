@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogIn } from "lucide-react";
-import { requireAppUser } from "@/lib/rbac";
+import { requirePortariaUser } from "@/lib/rbac";
 import { listPortariaToday } from "@/lib/repos/checklists";
 import { PortariaClient } from "./portaria-client";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,7 +13,7 @@ export default async function PortariaPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireAppUser();
+  await requirePortariaUser();
   const sp = await searchParams;
   const rows = await listPortariaToday();
 

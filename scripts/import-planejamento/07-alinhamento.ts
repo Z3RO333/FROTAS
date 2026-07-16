@@ -34,8 +34,6 @@ export async function runAlinhamento(batchId: string): Promise<void> {
   if (!ws) throw new Error("Aba ALINHAMENTO E PREVENTIVA não encontrada");
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { defval: null, header: 1 });
 
-  const records: Array<Record<string, unknown>> = [];
-
   // Deduplica por (equipamento, tipo_servico) — mantém último
   const seen = new Map<string, Record<string, unknown>>();
 

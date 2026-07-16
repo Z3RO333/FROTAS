@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PagePagination } from "@/components/ui/page-pagination";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { listFrotas } from "@/lib/repos/frotas";
@@ -28,7 +30,8 @@ export default async function FrotasVendidasPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const page = sp.page ? Number.parseInt(sp.page, 10) : 1;
+  const parsedPage = sp.page ? Number.parseInt(sp.page, 10) : 1;
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const status = sp.status && STATUS_VALUES.has(sp.status) ? (sp.status as StatusFrota) : undefined;
   const condicao =
     sp.condicao && CONDICAO_VALUES.has(sp.condicao)
@@ -58,6 +61,7 @@ export default async function FrotasVendidasPage({
     listCDsDisponibilidade(),
   ]);
   const totalPages = Math.ceil(total / 50);
+  if (totalPages > 0 && page > totalPages) redirect(pageHref(sp, totalPages));
 
   return (
     <div className="space-y-5">
@@ -78,15 +82,7 @@ export default async function FrotasVendidasPage({
       <FrotasFilters modelos={modelos} localizacoes={localizacoes} cds={cds} basePath="/frotas/vendidos" />
       <FrotasTable rows={rows} />
 
-      {totalPages > 1 && (
-        <div className="flex flex-wrap justify-center gap-2">
-          {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
-            <Button key={p} variant={p === page ? "default" : "outline"} size="sm" asChild>
-              <Link href={pageHref(sp, p)}>{p}</Link>
-            </Button>
-          ))}
-        </div>
-      )}
+      <PagePagination page={page} totalPages={totalPages} href={(value) => pageHref(sp, value)} />
     </div>
   );
 }

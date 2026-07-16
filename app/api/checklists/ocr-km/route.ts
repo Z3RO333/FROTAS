@@ -1,61 +1,50 @@
 import { NextResponse } from "next/server";
 import { analyzeOdometerImage, calcStatusLeitura } from "@/lib/ai/odometer";
 import { auth } from "@/lib/auth";
-import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { apiError } from "@/lib/api-error";
+import { fileFromForm, UploadValidationError, validateImageFile } from "@/lib/upload-validation";
 
-// Rate limiter in-memory: máximo 10 chamadas por usuário por minuto
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT = 10;
-const RATE_WINDOW_MS = 60_000;
-
-function checkRateLimit(email: string): boolean {
-  const now = Date.now();
-
-  // Limpeza preguiçosa de entradas expiradas — sem isso o Map cresce
-  // indefinidamente com o número de e-mails únicos (leak lento em produção).
-  if (rateLimitMap.size > 500) {
-    for (const [key, value] of rateLimitMap) {
-      if (now > value.resetAt) rateLimitMap.delete(key);
-    }
-  }
-
-  const entry = rateLimitMap.get(email);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(email, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+const RATE_WINDOW_SECONDS = 60;
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    return apiError("Não autenticado.", 401, "AUTH_REQUIRED");
   }
 
-  if (!checkRateLimit(session.user.email)) {
-    return NextResponse.json(
-      { error: "Muitas requisições. Tente novamente em instantes." },
-      { status: 429 }
-    );
+  let allowed: boolean;
+  try {
+    allowed = await consumeRateLimit({
+      key: `ocr-km:${session.user.email.toLowerCase()}`,
+      limit: RATE_LIMIT,
+      windowSeconds: RATE_WINDOW_SECONDS,
+    });
+  } catch (error) {
+    console.error("[ocr-km] rate limit indisponivel", error);
+    return apiError("Serviço temporariamente indisponível.", 503, "RATE_LIMIT_UNAVAILABLE", error);
+  }
+
+  if (!allowed) {
+    return apiError("Muitas requisições. Tente novamente em instantes.", 429, "RATE_LIMITED");
   }
 
   try {
     const formData = await request.formData();
     const file = fileFromForm(formData.get("foto_km"));
     if (!file) {
-      return NextResponse.json({ error: "Envie a foto do painel." }, { status: 400 });
+      return apiError("Envie a foto do painel.", 400, "IMAGE_REQUIRED");
     }
 
     await validateImageFile(file, "Foto do hodômetro");
 
     const kmAnteriorRaw = formData.get("km_anterior");
-    const kmAnterior =
-      kmAnteriorRaw != null && String(kmAnteriorRaw).trim() !== ""
-        ? parseInt(String(kmAnteriorRaw), 10) || null
-        : null;
+    const kmText = kmAnteriorRaw == null ? "" : String(kmAnteriorRaw).trim();
+    const kmAnterior = kmText === "" ? null : Number(kmText);
+    if (kmAnterior != null && (!Number.isSafeInteger(kmAnterior) || kmAnterior < 0)) {
+      return apiError("KM anterior inválido.", 400, "INVALID_PREVIOUS_KM");
+    }
 
     const reading = await analyzeOdometerImage(file);
     const status_leitura = calcStatusLeitura(reading, kmAnterior);
@@ -63,6 +52,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...reading, status_leitura, km_anterior_usado: kmAnterior });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Não foi possível analisar a foto.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    if (error instanceof UploadValidationError) {
+      return apiError(message, 400, "INVALID_UPLOAD");
+    }
+    console.error("[ocr-km] falha no processamento", error);
+    return apiError("Serviço de leitura temporariamente indisponível.", 502, "OCR_UNAVAILABLE", error);
   }
 }

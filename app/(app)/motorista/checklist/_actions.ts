@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { analyzeOdometerImage, type OdometerReading } from "@/lib/ai/odometer";
+import { type OdometerReading } from "@/lib/ai/odometer";
 import { CHECKLIST_ITEMS, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import {
   itemNeedsEvidence,
@@ -18,7 +18,7 @@ import {
 } from "@/lib/repos/checklist-images";
 import { createChecklist } from "@/lib/repos/checklists";
 import { getFrota } from "@/lib/repos/frotas";
-import { requireAppUser } from "@/lib/rbac";
+import { requireMotoristaUser } from "@/lib/rbac";
 import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
 
 // Tipos e constantes movidos para types.ts (arquivos "use server" só exportam funções async)
@@ -71,7 +71,7 @@ export async function enviarChecklistMotoristaAction(
   _prevState: ChecklistMotoristaActionState,
   formData: FormData
 ): Promise<ChecklistMotoristaActionState> {
-  const user = await requireAppUser();
+  const user = await requireMotoristaUser();
   const uploadedPaths: string[] = [];
 
   try {
@@ -80,6 +80,7 @@ export async function enviarChecklistMotoristaAction(
       .int()
       .positive("Selecione uma frota para enviar o checklist.")
       .parse(formData.get("frota_id"));
+    const submissionId = z.string().uuid("Identificador de envio inválido.").parse(formData.get("submission_id"));
     const kmDigitado = optionalInteger(formData.get("km_informado"));
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
@@ -227,6 +228,7 @@ export async function enviarChecklistMotoristaAction(
     });
 
     const result = await createChecklist({
+      submission_id: submissionId,
       frota_id: frotaId,
       motorista_id: user.email,
       motorista_nome: user.name,

@@ -17,7 +17,7 @@ export type EmailLog = {
 };
 
 export async function logEmail(args: {
-  tipo: "geral" | "individual" | "diario_ia" | "disponibilidade_cd" | "painel_executivo" | "socorro" | "sinistro";
+  tipo: string;
   frotaId?: number | null;
   cdNome?: string | null;
   destinatarios: string;
@@ -58,10 +58,7 @@ export async function listEmailLogs(limit = 50, tipo?: string): Promise<EmailLog
   if (tipo) query = query.eq("tipo", tipo);
 
   const { data, error } = await query;
-  if (error) {
-    console.warn("[email-logs] falha ao listar", error.message);
-    return [];
-  }
+  if (error) throw new Error(`listEmailLogs: ${error.message}`);
 
   return (data ?? []) as EmailLog[];
 }

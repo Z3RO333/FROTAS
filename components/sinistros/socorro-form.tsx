@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, useActionState, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { AlertTriangle, Camera, ChevronRight, Loader2, MapPin, Send } from "lucide-react";
@@ -15,8 +15,17 @@ import { cn } from "@/lib/utils";
 
 export function SocorroForm({ user, frotas }: { user: { name: string; email: string }; frotas: Frota[] }) {
   const router = useRouter();
+  const submissionIdRef = useRef<string | null>(null);
+  const actionWithSubmissionId = useCallback(
+    async (prevState: Parameters<typeof enviarSinistroMotoristaAction>[0], formData: FormData) => {
+      if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+      formData.set("submission_id", submissionIdRef.current);
+      return enviarSinistroMotoristaAction(prevState, formData);
+    },
+    []
+  );
   const [actionState, formAction] = useActionState(
-    enviarSinistroMotoristaAction,
+    actionWithSubmissionId,
     SINISTRO_MOTORISTA_INITIAL_STATE
   );
   const [frotaId, setFrotaId] = useState("");
@@ -102,6 +111,7 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
 
   return (
     <form action={formAction} onSubmit={handlePreSubmit} className="mx-auto max-w-3xl space-y-5">
+      <input type="hidden" name="submission_id" value="" />
       <input type="hidden" name="tipo_sinistro" value="socorro" />
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="latitude" value={latitude} />

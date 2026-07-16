@@ -117,14 +117,11 @@ export async function countChecklistImageInspectionsByStatus(): Promise<Record<C
 }
 
 export async function listQueuedChecklistImageInspections(limit = 10): Promise<ChecklistImageInspection[]> {
-  const { data, error } = await supabaseManutencao
-    .from("checklist_image_inspections")
-    .select("*")
-    .eq("status", "queued")
-    .order("created_at", { ascending: true })
-    .limit(limit);
+  const { data, error } = await supabaseManutencao.rpc("claim_checklist_image_inspections", {
+    p_limit: limit,
+  });
 
-  if (error) throw new Error(`listQueuedChecklistImageInspections: ${error.message}`);
+  if (error) throw new Error(`claimChecklistImageInspections: ${error.message}`);
   return (data ?? []) as ChecklistImageInspection[];
 }
 

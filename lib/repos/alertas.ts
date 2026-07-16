@@ -57,10 +57,11 @@ export async function listAlertasAbertos(limit = 50): Promise<AlertaRow[]> {
 
   if (frotaIds.length === 0) return [];
 
-  const { data: veiculos } = await supabaseManutencao
+  const { data: veiculos, error: veiculosError } = await supabaseManutencao
     .from("veiculos")
     .select("id,codigo_frota,placa")
     .in("id", frotaIds);
+  if (veiculosError) throw new Error(`listAlertasAbertos veiculos: ${veiculosError.message}`);
 
   const veiculoMap = new Map(
     (veiculos ?? []).map((v) => [Number(v.id), v as { id: number; codigo_frota: string | null; placa: string | null }])
@@ -90,6 +91,6 @@ export async function countAlertasAbertos(): Promise<number> {
     .from("alertas_frota")
     .select("id", { count: "exact", head: true })
     .eq("status", "ABERTO");
-  if (error) return 0;
+  if (error) throw new Error(`countAlertasAbertos: ${error.message}`);
   return count ?? 0;
 }

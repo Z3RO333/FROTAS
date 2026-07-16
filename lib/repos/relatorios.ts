@@ -1,4 +1,5 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
+import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
 
 const SEVERITY_ORDER = ["OK", "ATENCAO", "CRITICO", "MANUTENCAO", "BLOQUEIO_SUGERIDO"];
 function worstCriticidade(a: string, b: string): string {
@@ -39,22 +40,20 @@ export type EvolucaoDiaria = {
 };
 
 export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
-  const base = new Date(`${date}T00:00:00.000Z`);
-  const start = new Date(base.getTime() - 4 * 60 * 60 * 1000).toISOString();
-  const end = new Date(base.getTime() + 28 * 60 * 60 * 1000).toISOString();
+  const { start, end } = reportDayUtcRange(date);
 
   const [analises, pendentes, alertas] = await Promise.all([
     supabaseManutencao
       .from("analises_checklist_ia")
       .select("criticidade")
       .gte("data_checklist", start)
-      .lte("data_checklist", end),
+      .lt("data_checklist", end),
     supabaseManutencao
       .from("checklists_frota")
       .select("id", { count: "exact", head: true })
       .eq("analise_status", "PENDENTE")
       .gte("data_checklist", start)
-      .lte("data_checklist", end),
+      .lt("data_checklist", end),
     supabaseManutencao
       .from("alertas_frota")
       .select("id", { count: "exact", head: true })
@@ -62,6 +61,8 @@ export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
   ]);
 
   const rows = (analises.data ?? []) as Array<{ criticidade: string }>;
+  const firstError = analises.error ?? pendentes.error ?? alertas.error;
+  if (firstError) throw new Error(`getRelatorioKpis: ${firstError.message}`);
 
   return {
     total_checklists: rows.length,
@@ -76,18 +77,16 @@ export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
 }
 
 export async function getRankingFrotas(date: string, limit = 10): Promise<FrotaProblema[]> {
-  const base = new Date(`${date}T00:00:00.000Z`);
-  const start = new Date(base.getTime() - 4 * 60 * 60 * 1000).toISOString();
-  const end = new Date(base.getTime() + 28 * 60 * 60 * 1000).toISOString();
+  const { start, end } = reportDayUtcRange(date);
 
   const { data, error } = await supabaseManutencao
     .from("analises_checklist_ia")
     .select("frota_id,criticidade,problemas_detectados")
     .gte("data_checklist", start)
-    .lte("data_checklist", end)
+    .lt("data_checklist", end)
     .in("criticidade", ["ATENCAO", "CRITICO", "MANUTENCAO", "BLOQUEIO_SUGERIDO"]);
 
-  if (error) return [];
+  if (error) throw new Error(`getRankingFrotas: ${error.message}`);
 
   const frotaMap = new Map<number, { total: number; criticidade: string }>();
   for (const row of data ?? []) {
@@ -102,10 +101,11 @@ export async function getRankingFrotas(date: string, limit = 10): Promise<FrotaP
   const frotaIds = [...frotaMap.keys()];
   if (frotaIds.length === 0) return [];
 
-  const { data: veiculos } = await supabaseManutencao
+  const { data: veiculos, error: veiculosError } = await supabaseManutencao
     .from("veiculos")
     .select("id,codigo_frota,placa")
     .in("id", frotaIds);
+  if (veiculosError) throw new Error(`getRankingFrotas veiculos: ${veiculosError.message}`);
 
   const veiculoMap = new Map(
     (veiculos ?? []).map((v) => [Number(v.id), v as { id: number; codigo_frota: string | null; placa: string | null }])
@@ -124,17 +124,15 @@ export async function getRankingFrotas(date: string, limit = 10): Promise<FrotaP
 }
 
 export async function getRankingMotoristas(date: string, limit = 10): Promise<MotoristaRanking[]> {
-  const base = new Date(`${date}T00:00:00.000Z`);
-  const start = new Date(base.getTime() - 4 * 60 * 60 * 1000).toISOString();
-  const end = new Date(base.getTime() + 28 * 60 * 60 * 1000).toISOString();
+  const { start, end } = reportDayUtcRange(date);
 
   const { data, error } = await supabaseManutencao
     .from("checklists_frota")
     .select("motorista_id,motorista_nome")
     .gte("data_checklist", start)
-    .lte("data_checklist", end);
+    .lt("data_checklist", end);
 
-  if (error) return [];
+  if (error) throw new Error(`getRankingMotoristas: ${error.message}`);
 
   const map = new Map<string, { nome: string | null; total: number }>();
   for (const row of (data ?? []) as Array<{ motorista_id: string; motorista_nome: string | null }>) {
@@ -153,13 +151,12 @@ export async function getRankingMotoristas(date: string, limit = 10): Promise<Mo
 }
 
 export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
-  const hoje = new Date();
+  const hoje = reportCalendarDate();
 
   const promises = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(hoje);
-    d.setDate(d.getDate() - (6 - i));
-    return getRelatorioKpis(d.toISOString().slice(0, 10)).then((kpis) => ({
-      data: d.toISOString().slice(0, 10),
+    const data = shiftCalendarDate(hoje, -(6 - i));
+    return getRelatorioKpis(data).then((kpis) => ({
+      data,
       total: kpis.total_checklists,
       ok: kpis.ok,
       atencao: kpis.atencao,

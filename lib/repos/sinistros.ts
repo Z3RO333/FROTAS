@@ -7,6 +7,7 @@ export type TerceiroSinistroInput = {
 };
 
 export type CreateSinistroInput = {
+  submission_id: string;
   ticket_number: string;
   tipo_sinistro: "veiculo" | "casa" | "socorro";
   frota_id?: number | null;
@@ -58,6 +59,7 @@ export async function createSinistro(input: CreateSinistroInput): Promise<{ id: 
   const { data, error } = await supabaseManutencao
     .from("sinistros_frota")
     .insert({
+      submission_id: input.submission_id,
       ticket_number: input.ticket_number,
       tipo_sinistro: input.tipo_sinistro,
       frota_id: input.frota_id ?? null,
@@ -87,6 +89,20 @@ export async function createSinistro(input: CreateSinistroInput): Promise<{ id: 
   return { id: Number(data.id) };
 }
 
+export async function getSinistroBySubmissionId(
+  submissionId: string,
+  motoristaId: string
+): Promise<{ ticket_number: string } | null> {
+  const { data, error } = await supabaseManutencao
+    .from("sinistros_frota")
+    .select("ticket_number")
+    .eq("submission_id", submissionId)
+    .eq("motorista_id", motoristaId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { ticket_number: String(data.ticket_number) } : null;
+}
+
 export async function listDriverSinistros(email: string, limit = 50): Promise<SinistroRow[]> {
   const { data, error } = await supabaseManutencao
     .from("sinistros_frota")
@@ -95,10 +111,7 @@ export async function listDriverSinistros(email: string, limit = 50): Promise<Si
     .order("criado_em", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.warn("[sinistros] listagem do motorista indisponivel", error);
-    return [];
-  }
+  if (error) throw new Error(`listDriverSinistros: ${error.message}`);
 
   return (data ?? []) as SinistroRow[];
 }
@@ -110,10 +123,7 @@ export async function listAdminSinistros(limit = 200): Promise<SinistroRow[]> {
     .order("criado_em", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.warn("[sinistros] listagem admin indisponivel", error);
-    return [];
-  }
+  if (error) throw new Error(`listAdminSinistros: ${error.message}`);
 
   return (data ?? []) as SinistroRow[];
 }
@@ -138,8 +148,7 @@ export async function sinistrosDashboardKpis(): Promise<{
   };
 }
 
-const SOCORRO_VALID_STATUSES = ["ABERTO", "EM_ATENDIMENTO", "GUINCHO_ACIONADO", "RESOLVIDO", "CANCELADO"] as const;
-export type SocorroStatus = (typeof SOCORRO_VALID_STATUSES)[number];
+export type SocorroStatus = "ABERTO" | "EM_ATENDIMENTO" | "GUINCHO_ACIONADO" | "RESOLVIDO" | "CANCELADO";
 
 export async function updateSocorroStatus(
   sinistroId: number,

@@ -13,4 +13,4 @@ UPDATE public.movimentacoes_frota
 
 -- Índice para busca de histórico por frota + ação
 CREATE INDEX IF NOT EXISTS idx_movimentacoes_tipo_acao
-  ON public.movimentacoes_frota (frota_id, tipo_acao, data_hora DESC);
+  ON public.movimentacoes_frota (frota_id, tipo_acao, data_hora DESC);;

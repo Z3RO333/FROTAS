@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Flame, Gauge, RotateCcw, Save, Search, Truck } from "lucide-react";
 import { registrarTrocaAction } from "@/app/(app)/pneus/_actions";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export function PneusWorkspace({
   const [km, setKm] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [isPending, startTransition] = useTransition();
+  const submissionIdRef = useRef<string | null>(null);
 
   const selected = useMemo(
     () => veiculos.find((veiculo) => String(veiculo.id) === selectedId) ?? veiculos[0] ?? null,
@@ -265,12 +266,16 @@ export function PneusWorkspace({
           <form
             action={(formData) => {
               startTransition(async () => {
+                if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+                formData.set("submission_id", submissionIdRef.current);
                 await registrarTrocaAction(formData);
+                submissionIdRef.current = null;
                 clearSelection();
               });
             }}
             className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]"
           >
+            <input type="hidden" name="submission_id" value="" />
             <input type="hidden" name="id_veiculo" value={selected?.codigo_frota ?? ""} />
             <input type="hidden" name="posicoes" value={posicoesPayload} />
             <div className="space-y-4">

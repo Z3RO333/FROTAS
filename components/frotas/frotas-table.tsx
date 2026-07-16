@@ -321,7 +321,7 @@ function LocalizacaoSelectForm({
   action: UpdateLocalizacaoAction;
   compact?: boolean;
 }) {
-  const options = localizacaoOptions();
+  const options = [...new Set([...localizacaoOptions(), ...localizacoes])];
 
   return (
     <form

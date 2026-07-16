@@ -4,8 +4,7 @@ import { z } from "zod";
 import { analyzeChecklist } from "@/lib/ai/checklist-analyzer";
 import { listChecklistItems } from "@/lib/repos/checklists";
 import {
-  getAnaliseByChecklist,
-  listChecklistsPendentesAnalise,
+  claimChecklistsPendentesAnalise,
   saveAnaliseIa,
   saveLogIa,
   setAnaliseStatus,
@@ -14,16 +13,17 @@ import { createAlerta } from "@/lib/repos/alertas";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 import { isInternalAuthorized } from "@/lib/internal-auth";
+import { apiError } from "@/lib/api-error";
 
 // GET /api/checklists/analyze — processa batch de pendentes
 export async function GET(req: NextRequest) {
-  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isInternalAuthorized(req)) return apiError("Unauthorized", 401, "INVALID_INTERNAL_TOKEN");
 
-  const pendentes = await listChecklistsPendentesAnalise(20);
+  const pendentes = await claimChecklistsPendentesAnalise(20);
   const results: Array<{ checklist_id: number; status: string }> = [];
 
   for (const checklist of pendentes) {
-    const res = await processarChecklist(checklist.id, false);
+    const res = await processarChecklist(checklist.id);
     results.push({ checklist_id: checklist.id, status: res });
   }
 
@@ -32,24 +32,22 @@ export async function GET(req: NextRequest) {
 
 // POST /api/checklists/analyze — analisa um checklist específico
 export async function POST(req: NextRequest) {
-  if (!isInternalAuthorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isInternalAuthorized(req)) return apiError("Unauthorized", 401, "INVALID_INTERNAL_TOKEN");
 
   const body = await req.json().catch(() => ({}));
   const parsed = z.object({ checklist_id: z.number().int().positive() }).safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "checklist_id inválido" }, { status: 400 });
+  if (!parsed.success) return apiError("checklist_id inválido", 400, "INVALID_CHECKLIST_ID");
 
-  const status = await processarChecklist(parsed.data.checklist_id, true);
+  const claimed = await claimChecklistsPendentesAnalise(1, parsed.data.checklist_id);
+  if (claimed.length === 0) {
+    return NextResponse.json({ checklist_id: parsed.data.checklist_id, status: "nao_pendente" });
+  }
+  const status = await processarChecklist(parsed.data.checklist_id);
   return NextResponse.json({ checklist_id: parsed.data.checklist_id, status });
 }
 
-async function processarChecklist(checklistId: number, forcar: boolean): Promise<string> {
-  if (!forcar) {
-    const existente = await getAnaliseByChecklist(checklistId).catch(() => null);
-    if (existente) return "ja_analisado";
-  }
-
+async function processarChecklist(checklistId: number): Promise<string> {
   try {
-    await setAnaliseStatus(checklistId, "PROCESSANDO");
     const { data: checklistRows, error: clError } = await supabaseManutencao
       .from("checklists_frota")
       .select("id,frota_id,motorista_id,data_checklist,observacao_original,km_informado,status_geral")

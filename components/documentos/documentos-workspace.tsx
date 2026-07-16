@@ -7,7 +7,6 @@ import {
   Download,
   ExternalLink,
   FileCheck2,
-  FileText,
   FileX2,
   Layers,
   Pencil,

@@ -7,9 +7,9 @@
 
 create or replace function public.is_service_role()
 returns boolean language sql stable as $$
-  select auth.role() = 'service_role';
+  select current_setting('request.jwt.claims', true)::jsonb->>'role' = 'service_role'
+     or auth.role() = 'service_role';
 $$;
-
 -- MÓDULO: VEÍCULOS / MANUTENÇÃO
 
 create table if not exists public.veiculos (
@@ -33,7 +33,6 @@ create table if not exists public.veiculos (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
 create table if not exists public.servicos_app (
   id_servico          text primary key default gen_random_uuid()::text,
   id_veiculo          text not null references public.veiculos(codigo_frota) on delete cascade,
@@ -51,7 +50,6 @@ create table if not exists public.servicos_app (
     'km_diario','ar-condicionado','suspensao','bateria'
   ))
 );
-
 create table if not exists public.trocas_pneus_app (
   id          bigserial primary key,
   id_servico  text not null references public.servicos_app(id_servico) on delete cascade,
@@ -61,7 +59,6 @@ create table if not exists public.trocas_pneus_app (
   observacoes text,
   created_at  timestamptz not null default now()
 );
-
 create table if not exists public.alinhamentos_app (
   id         bigserial primary key,
   id_servico text not null references public.servicos_app(id_servico) on delete cascade,
@@ -69,25 +66,21 @@ create table if not exists public.alinhamentos_app (
   created_at timestamptz not null default now(),
   constraint alinhamentos_app_tipo_ck check (tipo in ('alinhamento','balanceamento'))
 );
-
 create table if not exists public.lavagens_app (
   id         bigserial primary key,
   id_servico text not null references public.servicos_app(id_servico) on delete cascade,
   observacoes text,
   created_at timestamptz not null default now()
 );
-
 create table if not exists public.servicos_km_base_app (
   id          bigserial primary key,
   id_veiculo  text not null references public.veiculos(codigo_frota) on delete cascade,
   tipo_servico text not null,
   km_base     numeric(12,0) not null,
   data_base   timestamptz not null default now(),
-  created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   unique (id_veiculo, tipo_servico)
 );
-
 create table if not exists public.numero_fogo (
   id                bigserial primary key,
   numero_fogo       text not null,
@@ -100,7 +93,6 @@ create table if not exists public.numero_fogo (
   qtd_pneus         integer,
   created_at        timestamptz not null default now()
 );
-
 -- MÓDULO: EQUIPAMENTOS
 
 create table if not exists public.equipamentos_app (
@@ -125,7 +117,6 @@ create table if not exists public.equipamentos_app (
     segmento in ('EMPILHADEIRA','SELECIONADORA','PALETEIRA')
   )
 );
-
 create table if not exists public.equipamentos_preventivas_app (
   id               uuid primary key default gen_random_uuid(),
   equipamento_id   uuid not null references public.equipamentos_app(id) on delete cascade,
@@ -142,7 +133,6 @@ create table if not exists public.equipamentos_preventivas_app (
     tipo_preventiva in ('300h','1500h')
   )
 );
-
 create table if not exists public.equipamentos_componentes_app (
   id               uuid primary key default gen_random_uuid(),
   equipamento_id   uuid not null references public.equipamentos_app(id) on delete cascade,
@@ -161,7 +151,6 @@ create table if not exists public.equipamentos_componentes_app (
   ),
   unique (equipamento_id, tipo_componente, numero_componente)
 );
-
 -- MÓDULO: OPERAÇÃO
 
 create table if not exists public.operacao_motoristas_app (
@@ -177,7 +166,6 @@ create table if not exists public.operacao_motoristas_app (
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
-
 create table if not exists public.operacao_permissoes_app (
   id           bigserial primary key,
   auth_user_id uuid unique,
@@ -189,7 +177,6 @@ create table if not exists public.operacao_permissoes_app (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
-
 create table if not exists public.operacao_demandas_app (
   id                     uuid primary key default gen_random_uuid(),
   status                 text not null default 'disponivel',
@@ -245,7 +232,6 @@ create table if not exists public.operacao_demandas_app (
     tipo_movimentacao in ('retirada','levar_frota')
   )
 );
-
 create table if not exists public.operacao_demandas_adm_app (
   id         bigserial primary key,
   demanda_id uuid not null references public.operacao_demandas_app(id) on delete cascade,
@@ -258,7 +244,6 @@ create table if not exists public.operacao_demandas_adm_app (
     status in ('pendente','em_tratativa','concluida')
   )
 );
-
 create table if not exists public.operacao_oficinas_app (
   id               bigserial primary key,
   nome             text not null unique,
@@ -273,7 +258,6 @@ create table if not exists public.operacao_oficinas_app (
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
-
 create table if not exists public.operacao_oficina_registros_app (
   id             bigserial primary key,
   oficina_id     bigint not null references public.operacao_oficinas_app(id) on delete cascade,
@@ -286,7 +270,6 @@ create table if not exists public.operacao_oficina_registros_app (
   criado_por_nome  text,
   created_at     timestamptz not null default now()
 );
-
 create table if not exists public.operacao_motoristas_localizacao_app (
   id           bigserial primary key,
   motorista_id bigint not null references public.operacao_motoristas_app(id) on delete cascade,
@@ -299,10 +282,8 @@ create table if not exists public.operacao_motoristas_localizacao_app (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
-
 create unique index if not exists idx_operacao_motoristas_localizacao_unique
   on public.operacao_motoristas_localizacao_app (motorista_id);
-
 create table if not exists public.operacao_motoristas_localizacao_historico_app (
   id           bigserial primary key,
   demanda_id   uuid references public.operacao_demandas_app(id) on delete set null,
@@ -315,7 +296,6 @@ create table if not exists public.operacao_motoristas_localizacao_historico_app 
   capturado_em timestamptz not null default now(),
   created_at   timestamptz not null default now()
 );
-
 -- MÓDULO: DOCUMENTOS
 
 create table if not exists public.documents (
@@ -328,10 +308,8 @@ create table if not exists public.documents (
   created_at timestamptz not null default timezone('utc', now()),
   created_by text
 );
-
 create index if not exists documents_placa_idx  on public.documents (lower(placa));
 create index if not exists documents_frota_idx  on public.documents (lower(frota));
-
 -- ÍNDICES DE PERFORMANCE
 
 create index if not exists idx_servicos_veiculo_data
@@ -344,6 +322,8 @@ create index if not exists idx_alinhamentos_servico
   on public.alinhamentos_app (id_servico);
 create index if not exists idx_lavagens_servico
   on public.lavagens_app (id_servico);
+create index if not exists idx_km_base_veiculo_tipo
+  on public.servicos_km_base_app (id_veiculo, tipo_servico);
 create index if not exists idx_numero_fogo_placa
   on public.numero_fogo (placa);
 create index if not exists idx_numero_fogo_data
@@ -360,7 +340,6 @@ create index if not exists idx_demandas_motorista
   on public.operacao_demandas_app (motorista_email, assigned_at desc);
 create index if not exists idx_demandas_created
   on public.operacao_demandas_app (created_at desc);
-
 -- RLS — service_role only em todas as tabelas
 
 do $$ declare
@@ -383,57 +362,45 @@ begin
     );
   end loop;
 end $$;
-
 -- STORAGE: bucket documents (privado)
 
 insert into storage.buckets (id, name, public)
 values ('documents', 'documents', false)
 on conflict (id) do nothing;
-
 create policy "service_role_documents_all"
   on storage.objects
   for all
   using (bucket_id = 'documents' and public.is_service_role());
-
 -- TRIGGERS: updated_at automático
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end;
 $$;
-
 create trigger trg_veiculos_updated_at
   before update on public.veiculos
   for each row execute function public.set_updated_at();
-
 create trigger trg_servicos_km_base_updated_at
   before update on public.servicos_km_base_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_equipamentos_updated_at
   before update on public.equipamentos_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_equipamentos_componentes_updated_at
   before update on public.equipamentos_componentes_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_operacao_motoristas_updated_at
   before update on public.operacao_motoristas_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_operacao_permissoes_updated_at
   before update on public.operacao_permissoes_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_operacao_demandas_updated_at
   before update on public.operacao_demandas_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_operacao_oficinas_updated_at
   before update on public.operacao_oficinas_app
   for each row execute function public.set_updated_at();
-
 create trigger trg_operacao_localizacao_updated_at
   before update on public.operacao_motoristas_localizacao_app
   for each row execute function public.set_updated_at();

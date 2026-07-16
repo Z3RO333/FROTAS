@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   AlertTriangle,
-  CalendarClock,
   CheckCircle2,
   Clock,
   History,
@@ -62,7 +61,6 @@ const FREQUENCIA_LABELS: Record<string, string> = {
   SEMANAL: "Semanal",
   QUINZENAL: "Quinzenal",
   MENSAL: "Mensal",
-  PERSONALIZADO: "Personalizado",
 };
 
 function formatDateTime(value: string | null | undefined): string {
@@ -331,10 +329,10 @@ export default async function FrotasDisponibilidadesPage({
                 </Field>
                 <Field label="Frequencia">
                   <select name="frequencia" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="DIARIO">Diário</option>
+                    <option value="DIARIO">Diário</option>
                     <option value="SEMANAL">Semanal</option>
+                    <option value="QUINZENAL">Quinzenal</option>
                     <option value="MENSAL">Mensal</option>
-                    <option value="PERSONALIZADO">Personalizado</option>
                   </select>
                 </Field>
                 <Field label="Horario">

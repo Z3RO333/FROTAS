@@ -22,13 +22,11 @@ alter table public.veiculos
   add column if not exists ultimo_abastecimento_em timestamptz,
   add column if not exists ultimo_abastecimento_litros double precision,
   add column if not exists status_operacional text;
-
 create index if not exists veiculos_codigo_frota_idx on public.veiculos (lower(codigo_frota));
 create index if not exists veiculos_placa_idx on public.veiculos (lower(placa));
 create index if not exists veiculos_chassi_idx on public.veiculos (lower(chassi));
 create index if not exists veiculos_status_idx on public.veiculos (status);
 create index if not exists veiculos_ativo_vendido_idx on public.veiculos (ativo, vendido);
-
 create table if not exists public.usuarios (
   id text primary key,
   nome text,
@@ -39,7 +37,6 @@ create table if not exists public.usuarios (
   criado_em timestamptz not null default now(),
   atualizado_em timestamptz not null default now()
 );
-
 create table if not exists public.frotas_historico (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -49,7 +46,6 @@ create table if not exists public.frotas_historico (
   alterado_em timestamptz not null default now(),
   alterado_por text
 );
-
 create table if not exists public.checklists_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -66,7 +62,6 @@ create table if not exists public.checklists_frota (
   observacao_corrigida_ia text,
   criado_em timestamptz not null default now()
 );
-
 create table if not exists public.checklist_itens (
   id bigserial primary key,
   checklist_id bigint not null references public.checklists_frota(id) on delete cascade,
@@ -79,7 +74,6 @@ create table if not exists public.checklist_itens (
   observacao text,
   foto_url text
 );
-
 create table if not exists public.pendencias_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -91,7 +85,6 @@ create table if not exists public.pendencias_frota (
   criado_em timestamptz not null default now(),
   resolvido_em timestamptz
 );
-
 create table if not exists public.anexos_checklist (
   id bigserial primary key,
   checklist_id bigint references public.checklists_frota(id) on delete cascade,
@@ -103,7 +96,6 @@ create table if not exists public.anexos_checklist (
   storage_url text,
   criado_em timestamptz not null default now()
 );
-
 create table if not exists public.historico_status_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -113,7 +105,6 @@ create table if not exists public.historico_status_frota (
   alterado_em timestamptz not null default now(),
   alterado_por text
 );
-
 create table if not exists public.movimentacoes_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -125,7 +116,6 @@ create table if not exists public.movimentacoes_frota (
   observacao text,
   criado_em timestamptz not null default now()
 );
-
 create table if not exists public.historico_km_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -143,7 +133,6 @@ create table if not exists public.historico_km_frota (
   observacao_validacao text,
   criado_em timestamptz not null default now()
 );
-
 create table if not exists public.abastecimentos_frota (
   id bigserial primary key,
   frota_id bigint not null references public.veiculos(id) on delete cascade,
@@ -159,7 +148,6 @@ create table if not exists public.abastecimentos_frota (
   origem text not null,
   criado_em timestamptz not null default now()
 );
-
 create table if not exists public.email_logs (
   id bigserial primary key,
   tipo text not null,
@@ -171,7 +159,6 @@ create table if not exists public.email_logs (
   status text,
   erro_msg text
 );
-
 create table if not exists public.unidades_operacionais (
   id bigserial primary key,
   uf text,
@@ -190,19 +177,16 @@ create table if not exists public.unidades_operacionais (
   origem_arquivo text,
   importado_em timestamptz not null default now()
 );
-
 create table if not exists public.migration_frota_id_map (
   databricks_frota_id bigint primary key,
   supabase_veiculo_id bigint references public.veiculos(id) on delete cascade,
   codigo_frota text,
   criado_em timestamptz not null default now()
 );
-
 alter table public.documents
   alter column dut_url drop not null,
   alter column crlv_url drop not null,
   add column if not exists updated_at timestamptz not null default now();
-
 create index if not exists idx_frotas_historico_frota on public.frotas_historico (frota_id, alterado_em desc);
 create index if not exists idx_checklists_frota_data on public.checklists_frota (frota_id, data_checklist desc);
 create index if not exists idx_checklists_motorista_data on public.checklists_frota (motorista_id, data_checklist desc);
@@ -213,13 +197,10 @@ create index if not exists idx_historico_km_frota_data on public.historico_km_fr
 create index if not exists idx_historico_km_validacao on public.historico_km_frota (validado, criado_em);
 create index if not exists idx_abastecimentos_frota_data on public.abastecimentos_frota (frota_id, data_hora desc);
 create index if not exists idx_unidades_busca on public.unidades_operacionais (lower(loja), lower(centro), lower(cnpj));
-
 drop trigger if exists trg_documents_updated_at on public.documents;
-
 create trigger trg_documents_updated_at
 before update on public.documents
 for each row execute function public.set_updated_at();
-
 do $$ declare
   t text;
 begin

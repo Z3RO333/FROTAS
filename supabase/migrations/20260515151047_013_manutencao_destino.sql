@@ -23,4 +23,4 @@ CREATE INDEX IF NOT EXISTS idx_tacografo_veiculo
 ALTER TABLE public.veiculo_tacografo_historico ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "service_role_only" ON public.veiculo_tacografo_historico
-  USING (auth.role() = 'service_role');
+  USING (auth.role() = 'service_role');;

@@ -14,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -111,7 +110,6 @@ export default async function FrotaDetailPage({
     ["ABERTA", "EM_TRATATIVA"].includes(item.status)
   );
   const ultimoChecklist = checklists[0] ?? null;
-  const documentosCompletos = documentosResult.rows.filter((doc) => doc.dut_url && doc.crlv_url).length;
   const pneusTrocados = trocasPneus.reduce((sum, item) => sum + (item.trocas?.length ?? 0), 0);
 
   const tabs = [
@@ -482,31 +480,6 @@ function ServicosList({ rows }: { rows: ServicoApp[] }) {
           <div className="text-right text-sm text-muted-foreground">
             <div>{formatDate(servico.data_servico)}</div>
             <div>KM {formatNumber(servico.quilometragem)}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ChecklistsList({ rows }: { rows: Awaited<ReturnType<typeof listChecklistsByFrota>> }) {
-  if (rows.length === 0)
-    return (
-      <div className="p-4">
-        <EmptyState icon={ClipboardCheck} title="Sem checklists" />
-      </div>
-    );
-  return (
-    <div className="divide-y">
-      {rows.map((checklist) => (
-        <div key={checklist.id} className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="font-semibold text-slate-950">{formatDate(checklist.data_checklist)}</div>
-            <StatusBadge status={checklist.status_geral} />
-          </div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            {checklist.motorista_nome ?? checklist.motorista_id} · KM{" "}
-            {formatNumber(checklist.km_informado)}
           </div>
         </div>
       ))}

@@ -48,16 +48,18 @@ export async function listTacografoPorFrota(): Promise<TacografoVeiculo[]> {
     .eq("ativo", true)
     .eq("vendido", false);
 
-  if (error || !veiculos) return [];
+  if (error) throw new Error(`listTacografoPorFrota: ${error.message}`);
+  if (!veiculos) throw new Error("listTacografoPorFrota: resposta ausente do banco.");
 
   const ids = veiculos.map((v) => v.id);
   if (ids.length === 0) return [];
 
-  const { data: historico } = await supabaseManutencao
+  const { data: historico, error: historicoError } = await supabaseManutencao
     .from("veiculo_tacografo_historico")
     .select("veiculo_id, data_servico, data_proxima")
     .in("veiculo_id", ids)
     .order("data_servico", { ascending: false });
+  if (historicoError) throw new Error(`listTacografoPorFrota historico: ${historicoError.message}`);
 
   const ultimoPorVeiculo = new Map<number, { data_servico: string; data_proxima: string | null }>();
   for (const h of historico ?? []) {
@@ -104,7 +106,7 @@ export async function getHistoricoTacografo(veiculoId: number): Promise<Tacograf
     .select("*")
     .eq("veiculo_id", veiculoId)
     .order("data_servico", { ascending: false });
-  if (error) return [];
+  if (error) throw new Error(`getHistoricoTacografo: ${error.message}`);
   return (data ?? []) as TacografoHistoricoRow[];
 }
 

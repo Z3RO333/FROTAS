@@ -1,20 +1,3 @@
--- Migration 022: torna a criação de checklist atômica.
---
--- Bug original (lib/repos/checklists.ts createChecklist):
---   Supabase JS não tem transação, então o código fazia INSERTs sequenciais.
---   O INSERT de itens tinha rollback manual (delete do checklist), mas o de
---   pendências e o appendKmHistory NÃO. Uma falha após o checklist deixava
---   estado parcial: checklist sem pendência, ou checklist+itens sem histórico
---   de KM.
---
--- Fix: RPC que insere checklist + itens + pendências + histórico de KM numa
--- única transação (toda função plpgsql roda atomicamente — qualquer exceção
--- reverte tudo). A lógica de negócio (cálculo de status, gravidade, etc.)
--- permanece em JS; a RPC só persiste os dados já calculados.
---
--- Fora da RPC (mantidos em JS, recuperáveis pelo histórico): update de
--- km_atual do veículo e registro de abastecimento.
-
 CREATE OR REPLACE FUNCTION criar_checklist_atomico(
   p_checklist jsonb,
   p_itens jsonb DEFAULT '[]'::jsonb,
@@ -22,7 +5,6 @@ CREATE OR REPLACE FUNCTION criar_checklist_atomico(
   p_km_history jsonb DEFAULT NULL
 ) RETURNS bigint
 LANGUAGE plpgsql
-SET search_path = public
 AS $$
 DECLARE
   v_checklist_id bigint;
@@ -33,7 +15,6 @@ BEGIN
     RAISE EXCEPTION 'p_checklist é obrigatório' USING ERRCODE = '22023';
   END IF;
 
-  -- 1. Checklist
   INSERT INTO checklists_frota (
     frota_id, motorista_id, motorista_nome, data_checklist,
     km_informado, km_lido_ocr, ocr_confianca, km_confirmado,
@@ -54,7 +35,6 @@ BEGIN
   )
   RETURNING id INTO v_checklist_id;
 
-  -- 2. Itens
   IF p_itens IS NOT NULL AND jsonb_typeof(p_itens) = 'array' THEN
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_itens) LOOP
       INSERT INTO checklist_itens (
@@ -74,7 +54,6 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 3. Pendências
   IF p_pendencias IS NOT NULL AND jsonb_typeof(p_pendencias) = 'array' THEN
     FOR v_pend IN SELECT * FROM jsonb_array_elements(p_pendencias) LOOP
       INSERT INTO pendencias_frota (
@@ -91,7 +70,6 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 4. Histórico de KM
   IF p_km_history IS NOT NULL AND jsonb_typeof(p_km_history) = 'object' THEN
     INSERT INTO historico_km_frota (
       frota_id, checklist_id, motorista_id, motorista_nome,
@@ -115,4 +93,4 @@ BEGIN
 
   RETURN v_checklist_id;
 END;
-$$;
+$$;;

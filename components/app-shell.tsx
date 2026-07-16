@@ -1,13 +1,12 @@
-import Link from "next/link";
 import { AppSidebar, type NavIconName } from "@/components/app-sidebar";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { UserMenu } from "@/components/user-menu";
 import { MobileNav } from "@/components/mobile-nav";
 import { cn } from "@/lib/utils";
+import { OnlineStatus } from "@/components/online-status";
 import {
   canAccessDocumentos,
   canAccessManutencao,
-  canAccessOperacao,
   canManageUsers,
   type PerfilUsuario,
 } from "@/lib/rbac";
@@ -74,7 +73,6 @@ const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista/sinistros", label: "Meus Sinistros", icon: "ShieldAlert" },
   { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
   { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
-  { href: "/documentos", label: "Documentos", icon: "FileText" },
 ];
 
 const PORTARIA_NAV: NavItem[] = [
@@ -116,7 +114,9 @@ function buildSections(perfil: PerfilUsuario): NavSection[] {
     });
   }
 
-  sections.push({ title: "Portaria", items: PORTARIA_OPERACIONAL_NAV });
+  if (perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV") {
+    sections.push({ title: "Portaria", items: PORTARIA_OPERACIONAL_NAV });
+  }
 
   return sections;
 }
@@ -156,13 +156,7 @@ export function AppShell({
             </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
-            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 lg:inline-flex">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-              Sistema online
-            </span>
+            <OnlineStatus />
             <UserMenu email={email} name={name} />
           </div>
         </header>

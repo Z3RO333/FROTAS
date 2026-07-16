@@ -11,6 +11,7 @@ export default auth((req) => {
     // Liberadas aqui pra que o secret check rode (sem isso, sessao redireciona pra /login).
     pathname === "/api/relatorios/daily" ||
     pathname === "/api/checklists/analyze" ||
+    pathname === "/api/checklists/vision/process" ||
     pathname === "/api/email/send-scheduled" ||
     pathname === "/api/geocode/reverse";
 

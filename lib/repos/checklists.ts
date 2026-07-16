@@ -9,13 +9,14 @@ const COLS_CHECKLIST_LIST =
 // Colunas de pendências para listagem
 const COLS_PENDENCIA_LIST =
   "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
-import { createAbastecimento } from "@/lib/repos/abastecimentos";
-import { aplicarResumoAbastecimento, aplicarResumoChecklist, getFrota } from "@/lib/repos/frotas";
+import { getFrota } from "@/lib/repos/frotas";
 import {
   countPendingKmValidations,
   type KmOrigem,
 } from "@/lib/repos/historico-km";
 import { recordChecklistEnviado } from "@/lib/services/veiculo-eventos";
+import { getAppUrl } from "@/lib/app-url";
+import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
 
 type VeiculoLite = {
   id: number;
@@ -156,6 +157,7 @@ export type ChecklistItemInput = {
 };
 
 export type CreateChecklistInput = {
+  submission_id: string;
   frota_id: number;
   motorista_id: string;
   motorista_nome: string;
@@ -195,48 +197,18 @@ export type RegistrarMovimentacaoInput = {
   motivo_bloqueio?: string | null;
 };
 
-async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T): Promise<T> {
+async function safeSupabase<T>(label: string, cb: () => Promise<T>, _fallback: T): Promise<T> {
   try {
     return await cb();
   } catch (error) {
-    console.warn(`[checklists] ${label} indisponivel`, error);
-    return fallback;
+    void _fallback;
+    throw new Error(`[checklists] ${label} indisponível`, { cause: error });
   }
-}
-
-// Calcula offset UTC em horas a partir do Intl.DateTimeFormat (ex: "GMT-4" → 4)
-function getUtcOffsetHours(tz: string): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    timeZoneName: "shortOffset",
-  }).formatToParts(new Date());
-  const tzName = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT+0";
-  const m = tzName.match(/GMT([+-])(\d+)(?::(\d+))?/);
-  if (!m) return 0;
-  const sign = m[1] === "+" ? 1 : -1;
-  return -sign * (parseInt(m[2]) + (parseInt(m[3] ?? "0") / 60));
 }
 
 // dateStr: "YYYY-MM-DD" no timezone local. Se omitido, usa hoje.
 function dateRange(dateStr?: string) {
-  const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
-
-  let year: number, month: number, day: number;
-
-  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    [year, month, day] = dateStr.split("-").map(Number);
-  } else {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
-    });
-    [year, month, day] = fmt.format(new Date()).split("-").map(Number);
-  }
-
-  // Offset dinâmico — funciona para qualquer timezone, incluindo com DST
-  const offsetHours = getUtcOffsetHours(tz);
-  const start = new Date(Date.UTC(year, month - 1, day, offsetHours, 0, 0));
-  const end = new Date(start.getTime() + 86_400_000);
-  return { start: start.toISOString(), end: end.toISOString() };
+  return reportDayUtcRange(dateStr ?? reportCalendarDate());
 }
 
 function todayRange() {
@@ -244,15 +216,11 @@ function todayRange() {
 }
 
 function hojeStr(): string {
-  const tz = process.env.FROTAS_TIMEZONE ?? "America/Manaus";
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date()
-  );
+  return reportCalendarDate();
 }
 
 function somaDias(dataStr: string, dias: number): string {
-  const [y, m, d] = dataStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().slice(0, 10);
+  return shiftCalendarDate(dataStr, dias);
 }
 
 export type PeriodoChecklist = "hoje" | "ontem" | "semana_atual" | "semana_passada" | "ultimos_30_dias";
@@ -778,10 +746,14 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     validado_em: kmAutoValidado ? new Date().toISOString() : null,
   };
 
-  const { data: novoChecklistId, error: rpcError } = await supabaseManutencao.rpc(
-    "criar_checklist_atomico",
+  const statusOperacional = resolveStatusOperacional(input.status_geral);
+  const statusFrota = input.status_geral === "CRITICO" ? "critico" : null;
+
+  const { data: rpcResult, error: rpcError } = await supabaseManutencao.rpc(
+    "criar_checklist_atomico_v2",
     {
       p_checklist: {
+        submission_id: input.submission_id,
         frota_id: input.frota_id,
         motorista_id: input.motorista_id,
         motorista_nome: input.motorista_nome,
@@ -798,51 +770,35 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
       p_itens: itensPayload,
       p_pendencias: pendenciasPayload,
       p_km_history: kmHistoryPayload,
+      p_abastecimento: {
+        motorista_id: input.motorista_id,
+        motorista_nome: input.motorista_nome,
+        tipo_combustivel: input.tipo_combustivel ?? null,
+        litros_combustivel: input.litros_combustivel ?? null,
+        litros_arla: input.litros_arla ?? null,
+        km_no_abastecimento: input.km_informado,
+        foto_comprovante_url: input.foto_comprovante_abastecimento_url ?? null,
+      },
+      p_vehicle_summary: {
+        km_atual: input.km_informado,
+        km_origem: kmOrigem,
+        km_validado: kmAutoValidado,
+        motorista_id: input.motorista_id,
+        motorista_nome: input.motorista_nome,
+        status: statusFrota,
+        status_operacional: statusOperacional,
+        nivel_combustivel: input.nivel_combustivel ?? null,
+        nivel_arla: input.nivel_arla ?? null,
+        litros_combustivel: input.litros_combustivel ?? null,
+      },
     }
   );
 
   if (rpcError) throw new Error(`createChecklist: ${rpcError.message}`);
-  const checklistId = Number(novoChecklistId);
+  const result = rpcResult as { checklist_id?: number; abastecimento_id?: number | null } | null;
+  const checklistId = Number(result?.checklist_id);
   if (!checklistId) throw new Error("Checklist nao foi criado");
-
-  let abastecimentoId: number | null = null;
-  if ((input.litros_combustivel ?? 0) > 0 || (input.litros_arla ?? 0) > 0) {
-    abastecimentoId = await createAbastecimento({
-      frota_id: input.frota_id,
-      motorista_id: input.motorista_id,
-      motorista_nome: input.motorista_nome,
-      checklist_id: checklistId,
-      tipo_combustivel: input.tipo_combustivel ?? null,
-      litros_combustivel: input.litros_combustivel ?? null,
-      litros_arla: input.litros_arla ?? null,
-      km_no_abastecimento: input.km_informado,
-      foto_comprovante_url: input.foto_comprovante_abastecimento_url ?? null,
-      origem: "CHECKLIST",
-    });
-    await aplicarResumoAbastecimento(
-      input.frota_id,
-      input.litros_combustivel ?? null,
-      input.motorista_id
-    );
-  }
-
-  const statusOperacional = resolveStatusOperacional(input.status_geral);
-  const statusFrota = input.status_geral === "CRITICO" ? "critico" : undefined;
-
-  await aplicarResumoChecklist(
-    input.frota_id,
-    {
-      km_atual: input.km_informado,
-      km_origem: kmOrigem,
-      km_validado: kmAutoValidado,
-      ultimo_checklist_id: checklistId,
-      ultimo_motorista_id: input.motorista_id,
-      ultimo_motorista_nome: input.motorista_nome,
-      status: statusFrota,
-      status_operacional: statusOperacional,
-    },
-    input.motorista_id
-  );
+  const abastecimentoId = result?.abastecimento_id ?? null;
 
   // Event sourcing — registra eventos do checklist no veículo
   const itensNaoAptos = itensPayload.filter((i) => i.status === "NAO_APTO");
@@ -865,7 +821,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
 
   const internalSecret = process.env.FROTAS_INTERNAL_SECRET;
   if (internalSecret) {
-    const baseUrl = process.env.FROTAS_APP_URL ?? "http://localhost:3000";
+    const baseUrl = getAppUrl();
     fetch(`${baseUrl}/api/checklists/analyze`, {
       method: "POST",
       headers: {

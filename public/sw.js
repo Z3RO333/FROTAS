@@ -1,10 +1,10 @@
-// Service Worker — Frotas Bemol PWA
-const CACHE_NAME = "frotas-v1";
+// Service Worker — somente recursos públicos e estáticos.
+// Páginas autenticadas nunca podem ser persistidas: o Cache API não
+// particiona as entradas por cookie ou usuário.
+const CACHE_NAME = "frotas-static-v2";
 
 // Recursos estáticos para cache na instalação
 const STATIC_ASSETS = [
-  "/",
-  "/login",
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
@@ -26,37 +26,15 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Estratégia: Network First (sempre tenta a rede, usa cache se offline)
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignora requests não-GET e de outras origens
   if (request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
-
-  // Ignora APIs, auth e rotas de servidor
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/_next/") ||
-    url.pathname.startsWith("/login")
-  ) {
-    return;
-  }
+  if (!STATIC_ASSETS.includes(url.pathname)) return;
 
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Cacheia respostas bem-sucedidas de páginas
-        if (response.ok && response.type === "basic") {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      })
-      .catch(() =>
-        // Offline: retorna da cache
-        caches.match(request).then((cached) => cached ?? caches.match("/"))
-      )
+    caches.match(request).then((cached) => cached ?? fetch(request))
   );
 });

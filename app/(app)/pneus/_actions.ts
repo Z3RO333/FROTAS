@@ -7,6 +7,7 @@ import { canAccessManutencao, requireAppUser } from "@/lib/rbac";
 import { registrarTrocaPneu } from "@/lib/repos/manutencao/pneus";
 
 const TrocaSchema = z.object({
+  submission_id: z.string().uuid("Identificador de envio inválido."),
   id_veiculo: z.string().min(1),
   quilometragem: z.coerce.number().int().positive(),
   observacoes: z.string().optional(),
@@ -29,6 +30,12 @@ const TrocaSchema = z.object({
           })
         )
         .min(1, "Selecione ao menos uma posição.")
+        .superRefine((items, ctx) => {
+          const normalized = items.map((item) => item.posicao.trim().toUpperCase());
+          if (new Set(normalized).size !== normalized.length) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Não repita a mesma posição de pneu." });
+          }
+        })
     ),
 });
 
@@ -39,6 +46,7 @@ export async function registrarTrocaAction(formData: FormData) {
   const input = TrocaSchema.parse(Object.fromEntries(formData));
   await registrarTrocaPneu({
     ...input,
+    submission_id: input.submission_id,
     registrado_por_email: user.email,
     registrado_por_nome: user.name,
   });

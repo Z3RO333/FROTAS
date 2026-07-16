@@ -17,12 +17,43 @@ export type HistoricoEntry = {
   origem?: string | null;
 };
 
+type HistorySourceRow = {
+  id: number | string;
+  frota_id: number | string;
+  km_anterior?: number | null;
+  km_novo?: number | null;
+  diferenca_km?: number | null;
+  validado?: boolean | null;
+  validado_por?: string | null;
+  motorista_id?: string | null;
+  motorista_nome?: string | null;
+  origem?: string | null;
+  criado_em?: string | null;
+  data_checklist?: string | null;
+  status_geral?: string | null;
+  km_informado?: number | null;
+  observacao_corrigida_ia?: string | null;
+  observacao_original?: string | null;
+  litros_combustivel?: number | null;
+  litros_arla?: number | null;
+  tipo_combustivel?: string | null;
+  km_no_abastecimento?: number | null;
+  data_hora?: string | null;
+  tipo_movimentacao?: string | null;
+  observacao?: string | null;
+  usuario_portaria_id?: string | null;
+  gravidade?: string | null;
+  status?: string | null;
+  item_nome?: string | null;
+  responsavel_id?: string | null;
+};
+
 async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await cb();
   } catch (error) {
-    console.warn(`[historico] ${label} indisponivel`, error);
-    return fallback;
+    void fallback;
+    throw new Error(`[historico] ${label} indisponível`, { cause: error });
   }
 }
 
@@ -60,7 +91,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
         .limit(100);
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HistorySourceRow[];
     }, []),
     safeSupabase("checklists", async () => {
       const { data, error } = await supabaseManutencao
@@ -72,7 +103,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
         .limit(100);
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HistorySourceRow[];
     }, []),
     safeSupabase("abastecimentos", async () => {
       const { data, error } = await supabaseManutencao
@@ -84,7 +115,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
         .limit(100);
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HistorySourceRow[];
     }, []),
     safeSupabase("movimentacoes", async () => {
       const { data, error } = await supabaseManutencao
@@ -96,7 +127,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
         .limit(100);
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HistorySourceRow[];
     }, []),
     safeSupabase("pendencias", async () => {
       const { data, error } = await supabaseManutencao
@@ -108,7 +139,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
         .limit(100);
 
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as HistorySourceRow[];
     }, []),
   ]);
 
@@ -119,7 +150,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
       titulo: `Cadastro: ${labelCampo(item.campo)}`,
       descricao: null,
     })),
-    ...kms.map((item: any) => ({
+    ...kms.map((item) => ({
       id: Number(item.id),
       frota_id: Number(item.frota_id),
       tipo: "KM",
@@ -138,14 +169,14 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
       motorista_nome: item.motorista_nome,
       origem: item.origem,
     })),
-    ...checklists.map((item: any) => ({
+    ...checklists.map((item) => ({
       id: Number(item.id),
       frota_id: Number(item.frota_id),
       tipo: "CHECKLIST",
       titulo: "Checklist de frota",
       campo: "checklist",
       valor_antigo: null,
-      valor_novo: item.status_geral,
+      valor_novo: item.status_geral ?? null,
       descricao: [
         item.km_informado != null ? `KM informado: ${item.km_informado}` : null,
         item.observacao_corrigida_ia ?? item.observacao_original,
@@ -156,7 +187,7 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
       motorista_id: item.motorista_id,
       motorista_nome: item.motorista_nome,
     })),
-    ...abastecimentos.map((item: any) => ({
+    ...abastecimentos.map((item) => ({
       id: Number(item.id),
       frota_id: Number(item.frota_id),
       tipo: "ABASTECIMENTO",
@@ -177,28 +208,28 @@ export async function listHistoricoCompleto(frotaId: number): Promise<HistoricoE
       motorista_nome: item.motorista_nome,
       origem: item.origem,
     })),
-    ...movimentacoes.map((item: any) => ({
+    ...movimentacoes.map((item) => ({
       id: Number(item.id),
       frota_id: Number(item.frota_id),
       tipo: "PORTARIA",
       titulo: item.tipo_movimentacao === "ENTRADA" ? "Entrada registrada" : "Saida registrada",
       campo: "movimentacao",
       valor_antigo: null,
-      valor_novo: item.tipo_movimentacao,
+      valor_novo: item.tipo_movimentacao ?? null,
       descricao: item.observacao,
       alterado_em: item.data_hora ?? "",
       alterado_por: item.usuario_portaria_id ?? "-",
       motorista_id: item.motorista_id,
       status: item.tipo_movimentacao,
     })),
-    ...pendencias.map((item: any) => ({
+    ...pendencias.map((item) => ({
       id: Number(item.id),
       frota_id: Number(item.frota_id),
       tipo: "PENDENCIA",
       titulo: "Pendencia de frota",
       campo: "pendencia",
-      valor_antigo: item.gravidade,
-      valor_novo: item.status,
+      valor_antigo: item.gravidade ?? null,
+      valor_novo: item.status ?? null,
       descricao: item.item_nome,
       alterado_em: item.criado_em ?? "",
       alterado_por: item.responsavel_id ?? "sistema",

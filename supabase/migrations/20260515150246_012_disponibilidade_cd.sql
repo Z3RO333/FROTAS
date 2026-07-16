@@ -12,7 +12,7 @@ SELECT
   COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false)::integer AS total,
   COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false AND v.status = 'disponivel')::integer AS disponiveis,
   COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false AND v.status = 'manutencao')::integer AS em_manutencao,
-  COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false AND (v.status = 'indisponivel' OR v.status IS NULL))::integer AS paradas,
+  COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false AND (v.status = 'indisponivel' OR v.status IS NULL AND v.ativo = true))::integer AS paradas,
   ROUND(
     COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false AND v.status = 'disponivel')::numeric
     / NULLIF(COUNT(*) FILTER (WHERE v.ativo = true AND v.vendido = false), 0) * 100
@@ -22,4 +22,4 @@ WHERE v.ativo = true AND v.vendido = false
 GROUP BY 1
 ORDER BY 1;
 
-GRANT SELECT ON public.v_disponibilidade_cd TO service_role;
+GRANT SELECT ON public.v_disponibilidade_cd TO service_role;;

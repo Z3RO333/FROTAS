@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import os
 import re
+import socket
 import tempfile
+from urllib.parse import urljoin, urlparse
 from pathlib import Path
 from typing import Any, Literal
 
@@ -74,7 +78,10 @@ class OdometerReadingResponse(BaseModel):
 def require_token(authorization: str | None = Header(default=None)) -> None:
     token = os.getenv("YOLO_SERVICE_TOKEN", "").strip()
     if not token:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="YOLO_SERVICE_TOKEN is not configured",
+        )
 
     expected = f"Bearer {token}"
     if authorization != expected:
@@ -107,27 +114,44 @@ def get_ocr_reader() -> Any:
 
 async def download_image(url: str) -> Path:
     timeout = httpx.Timeout(connect=5, read=30, write=5, pool=5)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-        response = await client.get(url)
+    current_url = url
+    image_bytes = b""
+    content_type = ""
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        for _ in range(4):
+            await ensure_public_http_url(current_url)
+            async with client.stream("GET", current_url) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = response.headers.get("location")
+                    if not location:
+                        raise HTTPException(status_code=422, detail="Redirect without location")
+                    current_url = urljoin(current_url, location)
+                    continue
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Could not download image: HTTP {response.status_code}",
+                    )
+                content_type = response.headers.get("content-type", "")
+                if content_type and not content_type.startswith("image/"):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"URL did not return an image: {content_type}",
+                    )
+                chunks: list[bytes] = []
+                total = 0
+                async for chunk in response.aiter_bytes():
+                    total += len(chunk)
+                    if total > MAX_IMAGE_BYTES:
+                        raise HTTPException(status_code=413, detail="Image is too large")
+                    chunks.append(chunk)
+                image_bytes = b"".join(chunks)
+                break
+        else:
+            raise HTTPException(status_code=422, detail="Too many redirects")
 
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Could not download image: HTTP {response.status_code}",
-        )
-
-    content_type = response.headers.get("content-type", "")
-    if content_type and not content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"URL did not return an image: {content_type}",
-        )
-
-    image_bytes = response.content
     if not image_bytes:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Image is empty")
-    if len(image_bytes) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image is too large")
 
     suffix = extension_from_content_type(content_type)
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -137,6 +161,22 @@ async def download_image(url: str) -> Path:
     finally:
         tmp.close()
     return Path(tmp.name)
+
+
+async def ensure_public_http_url(value: str) -> None:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise HTTPException(status_code=422, detail="Only public HTTP(S) image URLs are allowed")
+    try:
+        addresses = await asyncio.to_thread(
+            socket.getaddrinfo, parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80)
+        )
+    except socket.gaierror as exc:
+        raise HTTPException(status_code=422, detail="Image host could not be resolved") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0])
+        if not ip.is_global:
+            raise HTTPException(status_code=422, detail="Private or reserved image hosts are not allowed")
 
 
 def extension_from_content_type(content_type: str) -> str:
@@ -308,7 +348,7 @@ def health() -> dict[str, str]:
 async def inspect(payload: ChecklistVisionRequest) -> ChecklistVisionResponse:
     image_path = await download_image(str(payload.image_url))
     try:
-        model, detections = run_yolo(image_path)
+        model, detections = await asyncio.to_thread(run_yolo, image_path)
     finally:
         image_path.unlink(missing_ok=True)
 
@@ -346,6 +386,6 @@ async def odometer(foto_km: UploadFile = File(...)) -> OdometerReadingResponse:
 
     image_path = Path(tmp.name)
     try:
-        return run_odometer_ocr(image_path)
+        return await asyncio.to_thread(run_odometer_ocr, image_path)
     finally:
         image_path.unlink(missing_ok=True)

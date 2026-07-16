@@ -235,9 +235,11 @@ function toVeiculoInput(input: Partial<FrotaInput>, userEmail?: string): Record<
 }
 
 function pagination(f: FrotaFilters): { page: number; pageSize: number } {
+  const rawPage = Math.floor(f.page ?? 1);
+  const rawPageSize = Math.floor(f.pageSize ?? 50);
   return {
-    page: Math.max(1, Math.floor(f.page ?? 1)),
-    pageSize: Math.max(1, Math.min(200, Math.floor(f.pageSize ?? 50))),
+    page: Number.isFinite(rawPage) ? Math.max(1, rawPage) : 1,
+    pageSize: Number.isFinite(rawPageSize) ? Math.max(1, Math.min(200, rawPageSize)) : 50,
   };
 }
 
@@ -271,38 +273,6 @@ function operacional(frota: Frota): "disponivel" | "manutencao" | "indisponivel"
   return "disponivel";
 }
 
-function matchesFilters(frota: Frota, f: FrotaFilters): boolean {
-  if (f.vendidos || f.operacional === "baixado") {
-    if (!frota.vendido && frota.status !== "vendido") return false;
-  } else if (frota.vendido) {
-    return false;
-  }
-  if (f.search) {
-    const haystack = [
-      frota.frota_geral,
-      frota.placa,
-      frota.chassi,
-      frota.modelo,
-      frota.localizacao,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    if (!haystack.includes(f.search.toLowerCase())) return false;
-  }
-  if (f.modelo && frota.modelo !== f.modelo) return false;
-  if (f.localizacao && frota.localizacao !== f.localizacao) return false;
-  if (f.cd && normalizeCdNome(frota.localizacao) !== f.cd) return false;
-  if (f.ano && frota.ano_fabricacao !== f.ano) return false;
-  if (f.status && frota.status !== f.status) return false;
-  if (f.operacional && operacional(frota) !== f.operacional) return false;
-  if (f.condicao && condition(frota) !== f.condicao) return false;
-  if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;
-  if (f.semKm && frota.km_atual != null) return false;
-  if (f.idadeMin && (idade(frota) ?? -1) < f.idadeMin) return false;
-  return frota.ativo;
-}
-
 // Cache de analytics (30s) para evitar re-fetch em múltiplas calls por página
 const _analyticsCache = new Map<string, { val: unknown; exp: number }>();
 function analyticsCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
@@ -324,15 +294,22 @@ const COLS_LIST =
 
 // Mantida para compatibilidade com kpis() e funções de analytics internas
 async function allFrotas(): Promise<Frota[]> {
-  const { data, error } = await supabaseManutencao
-    .from("veiculos")
-    .select(COLS_MINIMAL) // antes era SELECT * com 30+ colunas desnecessárias
-    .eq("ativo", true)
-    .eq("vendido", false)
-    .order("id", { ascending: true })
-    .limit(5000);
-  if (error) throw new Error(`allFrotas: ${error.message}`);
-  return ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
+  const rows: VeiculoRow[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("veiculos")
+      .select(COLS_MINIMAL)
+      .eq("ativo", true)
+      .eq("vendido", false)
+      .order("id", { ascending: true })
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`allFrotas: ${error.message}`);
+    const chunk = (data ?? []) as VeiculoRow[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
+  return rows.map(fromVeiculo);
 }
 
 /** Detecta se a query precisa de filtros derivados em JS (cálculos baseados na data atual). */
@@ -376,6 +353,32 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   return next;
 }
 
+async function fetchAllListRows(f: FrotaFilters): Promise<Frota[]> {
+  const rows: VeiculoRow[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const base = supabaseManutencao.from("veiculos").select(COLS_LIST);
+    const q = applySqlFilters(base, f);
+    const { data, error } = await q.order("id", { ascending: true }).range(from, from + chunkSize - 1);
+    if (error) throw new Error(`fetchAllListRows: ${error.message}`);
+    const chunk = (data ?? []) as VeiculoRow[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
+  return rows.map(fromVeiculo);
+}
+
+function applyDerivedFilters(rows: Frota[], f: FrotaFilters): Frota[] {
+  return rows.filter((frota) => {
+    if (f.cd && normalizeCdNome(frota.localizacao) !== f.cd) return false;
+    if (f.operacional && f.operacional !== "baixado" && operacional(frota) !== f.operacional) return false;
+    if (f.condicao && condition(frota) !== f.condicao) return false;
+    if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;
+    if (f.idadeMin && (idade(frota) ?? -1) < f.idadeMin) return false;
+    return true;
+  });
+}
+
 export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[]; total: number }> {
   const { page, pageSize } = pagination(f);
   const needsJs = needsJsDerivedFilter(f);
@@ -393,29 +396,14 @@ export async function listFrotas(f: FrotaFilters = {}): Promise<{ rows: Frota[];
   }
 
   // Branch derivada: precisa de filtros em JS (condicao, idadeMin, cadastro, operacional≠baixado).
-  // Continua puxando até 5000 com SELECT enxuto e filtrando depois.
-  const base = supabaseManutencao.from("veiculos").select(COLS_LIST);
-  const q = applySqlFilters(base, f);
-  const { data, error } = await q.order("id", { ascending: true }).limit(5000);
-  if (error) throw new Error(`listFrotas: ${error.message}`);
-
-  const allRows = ((data ?? []) as VeiculoRow[]).map(fromVeiculo);
-  const filtered = allRows.filter((frota) => {
-    if (f.cd && normalizeCdNome(frota.localizacao) !== f.cd) return false;
-    if (f.operacional && f.operacional !== "baixado" && operacional(frota) !== f.operacional) return false;
-    if (f.condicao && condition(frota) !== f.condicao) return false;
-    if (f.cadastro === "incompleto" && !cadastroIncompleto(frota)) return false;
-    if (f.idadeMin && (idade(frota) ?? -1) < f.idadeMin) return false;
-    return true;
-  });
+  const filtered = applyDerivedFilters(await fetchAllListRows(f), f);
 
   const offset = (page - 1) * pageSize;
   return { rows: filtered.slice(offset, offset + pageSize), total: filtered.length };
 }
 
 export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]> {
-  const { rows } = await listFrotas({ ...f, pageSize: 5000, page: 1 });
-  return rows;
+  return applyDerivedFilters(await fetchAllListRows(f), f);
 }
 
 export async function getFrota(id: number): Promise<Frota | null> {
@@ -562,22 +550,13 @@ export async function createFrota(input: FrotaInput, userEmail: string): Promise
   };
   const { data, error } = await supabaseManutencao.from("veiculos").insert(payload).select("id").single();
   if (error) throw new Error(`createFrota: ${error.message}`);
+  _analyticsCache.clear();
   return Number(data.id);
 }
 
 export async function updateFrota(id: number, input: Partial<FrotaInput>, userEmail: string): Promise<void> {
   const current = await getFrota(id);
   if (!current) throw new Error(`Frota ${id} não encontrada`);
-
-  for (const field of TRACKED_FIELDS) {
-    if (field in input) {
-      const novo = input[field];
-      const antigo = current[field];
-      if (String(novo ?? "") !== String(antigo ?? "")) {
-        await appendHistorico(id, field === "km_atual" ? "km" : field, String(antigo ?? ""), String(novo ?? ""), userEmail);
-      }
-    }
-  }
 
   const patch: Record<string, unknown> = {};
   for (const field of WRITABLE_FIELDS) {
@@ -586,8 +565,32 @@ export async function updateFrota(id: number, input: Partial<FrotaInput>, userEm
   if (Object.keys(patch).length === 0) return;
   patch.atualizado_por = userEmail;
 
-  const { error } = await supabaseManutencao.from("veiculos").update(patch).eq("id", id);
+  const { data: updated, error } = await supabaseManutencao
+    .from("veiculos")
+    .update(patch)
+    .eq("id", id)
+    .eq("updated_at", current.atualizado_em)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(`updateFrota: ${error.message}`);
+  if (!updated) throw new Error("A frota foi alterada por outro usuário. Atualize a página e tente novamente.");
+
+  for (const field of TRACKED_FIELDS) {
+    if (field in input) {
+      const novo = input[field];
+      const antigo = current[field];
+      if (String(novo ?? "") !== String(antigo ?? "")) {
+        await appendHistorico(
+          id,
+          field === "km_atual" ? "km" : field,
+          String(antigo ?? ""),
+          String(novo ?? ""),
+          userEmail
+        ).catch((historyError) => console.error("[frotas] falha ao registrar histórico", historyError));
+      }
+    }
+  }
+  _analyticsCache.clear();
 }
 
 export type FrotaResumoChecklistInput = {
@@ -624,6 +627,7 @@ export async function aplicarResumoChecklist(
 
   const { error } = await supabaseManutencao.from("veiculos").update(patch).eq("id", frotaId);
   if (error) throw new Error(`aplicarResumoChecklist: ${error.message}`);
+  _analyticsCache.clear();
 }
 
 export async function aplicarResumoAbastecimento(
@@ -640,6 +644,7 @@ export async function aplicarResumoAbastecimento(
     })
     .eq("id", frotaId);
   if (error) throw new Error(`aplicarResumoAbastecimento: ${error.message}`);
+  _analyticsCache.clear();
 }
 
 export async function softDeleteFrota(id: number, userEmail: string): Promise<void> {
@@ -648,4 +653,5 @@ export async function softDeleteFrota(id: number, userEmail: string): Promise<vo
     .update({ ativo: false, atualizado_por: userEmail })
     .eq("id", id);
   if (error) throw new Error(`softDeleteFrota: ${error.message}`);
+  _analyticsCache.clear();
 }

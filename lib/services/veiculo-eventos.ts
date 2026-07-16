@@ -180,14 +180,6 @@ export async function recordChecklistEnviado(input: ChecklistEventInput): Promis
   }
 
   if (input.litros_combustivel != null && input.litros_combustivel > 0) {
-    await recordCombustivel({
-      veiculo_id: input.veiculo_id,
-      checklist_id: input.checklist_id,
-      litros: input.litros_combustivel,
-      nivel_relativo: input.nivel_combustivel ?? null,
-      origem: "checklist_abastecimento",
-      usuario_id: input.motorista_id,
-    });
     await recordEvent({
       veiculo_id: input.veiculo_id,
       tipo_evento: "COMBUSTIVEL_REGISTRADO",
@@ -196,24 +188,6 @@ export async function recordChecklistEnviado(input: ChecklistEventInput): Promis
       titulo: `Abastecimento ${input.litros_combustivel} L`,
       severidade: "INFO",
       payload: { litros: input.litros_combustivel, nivel: input.nivel_combustivel },
-      usuario_id: input.motorista_id,
-    });
-  } else if (input.nivel_combustivel != null && input.nivel_combustivel > 0) {
-    await recordCombustivel({
-      veiculo_id: input.veiculo_id,
-      checklist_id: input.checklist_id,
-      nivel_relativo: input.nivel_combustivel,
-      origem: "checklist_nivel",
-      usuario_id: input.motorista_id,
-    });
-  }
-
-  if (input.nivel_arla != null && input.nivel_arla > 0) {
-    await recordArla({
-      veiculo_id: input.veiculo_id,
-      checklist_id: input.checklist_id,
-      nivel_relativo: input.nivel_arla,
-      origem: "checklist_nivel",
       usuario_id: input.motorista_id,
     });
   }
@@ -240,10 +214,7 @@ export async function listEventosByVeiculo(veiculoId: number, limit = 50): Promi
     .eq("veiculo_id", veiculoId)
     .order("criado_em", { ascending: false })
     .limit(limit);
-  if (error) {
-    console.warn("[veiculo-eventos] falha listagem", error.message);
-    return [];
-  }
+  if (error) throw new Error(`listEventosByVeiculo: ${error.message}`);
   return (data ?? []) as VeiculoEventoRow[];
 }
 
@@ -265,6 +236,6 @@ export async function listCombustivelByVeiculo(veiculoId: number, limit = 30): P
     .eq("veiculo_id", veiculoId)
     .order("criado_em", { ascending: false })
     .limit(limit);
-  if (error) return [];
+  if (error) throw new Error(`listCombustivelByVeiculo: ${error.message}`);
   return (data ?? []) as CombustivelHistoricoRow[];
 }

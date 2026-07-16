@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import { canManageUsers, requireAppUser } from "@/lib/rbac";
 import { listUsuarioAuditoria } from "@/lib/repos/usuarios";
+import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await requireAppUser();
+  const user = await requireAppUser().catch(() => null);
+  if (!user) return apiError("Não autenticado.", 401, "AUTH_REQUIRED");
   if (!canManageUsers(user.perfil)) {
-    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+    return apiError("Acesso negado.", 403, "FORBIDDEN");
   }
 
   const url = new URL(request.url);
   const id = url.searchParams.get("id")?.trim();
   if (!id) {
-    return NextResponse.json({ ok: false, error: "missing_id" }, { status: 400 });
+    return apiError("Parâmetro id obrigatório.", 400, "MISSING_ID");
   }
 
   const entries = await listUsuarioAuditoria(id, 50);

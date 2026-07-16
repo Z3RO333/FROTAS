@@ -52,7 +52,7 @@ const ScheduleSchema = z.object({
     .string()
     .transform((s) => s.split(",").map((e) => e.trim()).filter(Boolean))
     .refine((items) => items.length > 0, "Informe pelo menos um destinatario"),
-  frequencia: z.enum(["DIARIO", "SEMANAL", "MENSAL", "PERSONALIZADO"]),
+  frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL"]),
   hora_envio: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
 });
 
@@ -100,6 +100,7 @@ export async function createDisponibilidadeScheduleAction(formData: FormData) {
       ativo: true,
       criado_por: user.email,
       dia_semana: null,
+      dia_mes: null,
     });
 
     revalidatePath(PATH);
