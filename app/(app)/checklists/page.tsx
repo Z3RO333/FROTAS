@@ -2,10 +2,12 @@ import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, Eye, Gauge, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChecklistFilters } from "@/components/checklists/checklist-filters";
 import {
   checklistDashboardKpis,
   listAdminChecklists,
   listOpenPendencias,
+  periodoParaDatas,
 } from "@/lib/repos/checklists";
 import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
 import { requireAdminUser } from "@/lib/rbac";
@@ -13,11 +15,24 @@ import { formatDate, formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChecklistsAdminPage() {
+export default async function ChecklistsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   await requireAdminUser();
+  const sp = await searchParams;
+  const DATA_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const filtroData = sp.dataInicio || sp.dataFim
+    ? {
+        dataInicio: sp.dataInicio && DATA_RE.test(sp.dataInicio) ? sp.dataInicio : undefined,
+        dataFim: sp.dataFim && DATA_RE.test(sp.dataFim) ? sp.dataFim : undefined,
+      }
+    : periodoParaDatas(sp.periodo);
+
   const [kpis, checklists, pendencias, vision] = await Promise.all([
     checklistDashboardKpis(),
-    listAdminChecklists(100),
+    listAdminChecklists(100, filtroData),
     listOpenPendencias(5),
     countChecklistImageInspectionsByStatus(),
   ]);
@@ -43,6 +58,9 @@ export default async function ChecklistsAdminPage() {
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <section className="overflow-hidden rounded-md border bg-white shadow-sm">
           <div className="border-b bg-slate-50 px-4 py-3 font-semibold">Registros recentes</div>
+          <div className="p-3">
+            <ChecklistFilters />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-muted-foreground">
