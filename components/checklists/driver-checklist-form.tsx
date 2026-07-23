@@ -8,6 +8,7 @@ import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Searc
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
+import { frotaEstaFora } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -410,7 +411,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   const bloqueada =
                     frota.status === "manutencao" && fAny.manutencao_bloqueia_checklist !== false;
                   const bloqueadaVenda = frota.vendido || !frota.ativo;
-                  const indisponivel = bloqueada || bloqueadaVenda;
+                  const foraDaBase = frotaEstaFora(frota.status_operacional);
+                  const indisponivel = bloqueada || bloqueadaVenda || foraDaBase;
 
                   return (
                     <tr
@@ -429,7 +431,9 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           ? `Em manutenção: ${fAny.manutencao_motivo ?? "sem motivo"}`
                           : bloqueadaVenda
                             ? "Frota indisponível"
-                            : undefined
+                            : foraDaBase
+                              ? "Frota fora da base (saída registrada)"
+                              : undefined
                       }
                     >
                       <td className="p-3">
@@ -459,6 +463,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           {bloqueadaVenda && (
                             <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                               INDISPONÍVEL
+                            </span>
+                          )}
+                          {foraDaBase && (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
+                              FORA DA BASE
                             </span>
                           )}
                         </div>

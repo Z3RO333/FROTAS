@@ -10,6 +10,7 @@ const COLS_CHECKLIST_LIST =
 const COLS_PENDENCIA_LIST =
   "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
 import { getFrota } from "@/lib/repos/frotas";
+import { frotaEstaFora } from "@/lib/frota-derived";
 import {
   countPendingKmValidations,
   type KmOrigem,
@@ -620,7 +621,7 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
   // Fallback inseguro (sem dedupe) apenas quando a RPC não existe — dev sem
   // migrations aplicadas. Em produção a RPC sempre existe.
   if (!/function .* does not exist/i.test(error.message)) {
-    throw error;
+    throw new Error(`registrarMovimentacaoFrota: ${error.message}`, { cause: error });
   }
   console.warn("[portaria] RPC registrar_movimentacao_idempotente ausente — usando insert direto");
   const { error: fbError } = await supabaseManutencao
@@ -637,7 +638,9 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
       tipo_acao: input.tipo_acao ?? input.tipo_movimentacao,
       motivo_bloqueio: input.motivo_bloqueio ?? null,
     });
-  if (fbError) throw fbError;
+  if (fbError) {
+    throw new Error(`registrarMovimentacaoFrota: ${fbError.message}`, { cause: fbError });
+  }
 }
 
 function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): StatusPortaria {
@@ -674,6 +677,10 @@ function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): Statu
 export async function createChecklist(input: CreateChecklistInput): Promise<CreateChecklistResult> {
   const frotaAtual = await getFrota(input.frota_id);
   if (!frotaAtual) throw new Error(`Frota ${input.frota_id} nao encontrada`);
+
+  if (frotaEstaFora(frotaAtual.status_operacional)) {
+    throw new Error("Frota fora da base. Registre a entrada na portaria antes de criar outro checklist.");
+  }
 
   // Bloqueio operacional: frota em manutenção não pode receber checklist
   if (

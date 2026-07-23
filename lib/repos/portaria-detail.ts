@@ -46,7 +46,7 @@ export async function getChecklistDetalhePortaria(
       .from("checklists_frota")
       .select(`
         id, frota_id, motorista_id, motorista_nome,
-        km_informado, status_geral, observacao_original,
+        km_informado, foto_km_url, status_geral, observacao_original,
         observacao_corrigida_ia, criado_em,
         veiculos!inner(codigo_frota, placa, modelo, km_atual)
       `)
@@ -76,12 +76,28 @@ export async function getChecklistDetalhePortaria(
   const c = checklistResult.data;
   const veiculo = (c as unknown as { veiculos?: { codigo_frota?: string | null; placa?: string | null; modelo?: string | null; km_atual?: number | null } }).veiculos ?? {};
 
-  const imagens = imagensResult.data ?? [];
+  const fotoKmPath = (c as { foto_km_url?: string | null }).foto_km_url ?? null;
+  const imagens = [...(imagensResult.data ?? [])];
+  if (fotoKmPath && !imagens.some((img) => img.source_type === "hodometro")) {
+    imagens.push({
+      id: `checklist-${checklistId}-hodometro`,
+      source_type: "hodometro",
+      checklist_item_codigo: null,
+      storage_path: fotoKmPath,
+    });
+  }
   const fotos: FotoChecklist[] = await Promise.all(
     imagens.map(async (img) => {
-      const { data: signed } = await supabaseManutencao.storage
+      const { data: signed, error: signedError } = await supabaseManutencao.storage
         .from("checklist-images")
         .createSignedUrl(img.storage_path, 3600);
+      if (signedError) {
+        console.warn("[portaria-detail] falha ao assinar imagem", {
+          checklistId,
+          sourceType: img.source_type,
+          message: signedError.message,
+        });
+      }
       return {
         id: String(img.id),
         source_type: img.source_type as FotoChecklist["source_type"],

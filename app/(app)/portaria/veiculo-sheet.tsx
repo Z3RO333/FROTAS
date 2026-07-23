@@ -53,6 +53,7 @@ type Props = {
   detalhe: ChecklistDetalhePortaria | null;
   loading: boolean;
   statusPortaria: StatusPortaria | null;
+  canApproveExit: boolean;
 };
 
 const STATUS_GERAL_CLASS: Record<string, string> = {
@@ -108,17 +109,24 @@ function InfoCell({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPortaria }: Props) {
+export function VeiculoSheet({
+  open,
+  onOpenChange,
+  detalhe,
+  loading,
+  statusPortaria,
+  canApproveExit,
+}: Props) {
   const [showBloqueioForm, setShowBloqueioForm] = useState(false);
   const [showCorrecaoForm, setShowCorrecaoForm] = useState(false);
 
   const canLiberar = statusPortaria === "LIBERADA_SAIDA";
   const canEntrada = statusPortaria === "SAIDA_REGISTRADA";
-  // Portaria pode bloquear qualquer veículo liberado, ou forçar liberação com justificativa
+  // A portaria registra a movimentação física; apenas aprovadores autorizam exceções.
   const canBloquear = statusPortaria === "LIBERADA_SAIDA";
   const canCorrecao = statusPortaria === "BLOQUEADA_CHECKLIST" || statusPortaria === "CHECKLIST_REALIZADO";
   // Liberação forçada com justificativa quando houver itens obrigatórios inconforme
-  const canLiberarForcado = statusPortaria === "BLOQUEADA_CHECKLIST";
+  const canLiberarForcado = canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST";
 
   const itensProblema = detalhe?.itens.filter((i) => i.status === "NAO_APTO") ?? [];
   const itensObrigatoriosInconformes = itensProblema.filter((i) => i.obrigatorio);
@@ -185,7 +193,11 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
             </div>
 
             {/* Foto do hodômetro */}
-            <FotoPreview url={fotoHodometro?.signed_url ?? null} label="Foto do painel / hodômetro" />
+            <FotoPreview
+              key={fotoHodometro?.signed_url ?? "sem-foto-hodometro"}
+              url={fotoHodometro?.signed_url ?? null}
+              label="Foto do painel / hodômetro"
+            />
 
             {/* Observações do motorista */}
             {(detalhe.observacao_corrigida_ia ?? detalhe.observacao_original) && (
@@ -321,7 +333,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                   <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
                   <input type="hidden" name="tipo_movimentacao" value="SAIDA" />
                   <PortariaSubmitButton loadingText="Registrando saída...">
-                    <LogOut className="mr-2 h-4 w-4" /> Liberar saída
+                    <LogOut className="mr-2 h-4 w-4" /> Registrar saída
                   </PortariaSubmitButton>
                 </form>
               )}
@@ -364,10 +376,16 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                   <p className="mt-0.5">Para liberar mesmo assim, registre uma justificativa.</p>
                 </div>
               )}
+              {!canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST" && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                  <p className="font-semibold">Aguardando decisão de um aprovador.</p>
+                  <p className="mt-0.5">A portaria não pode aprovar ou liberar uma saída bloqueada.</p>
+                </div>
+              )}
               {canLiberarForcado && !showCorrecaoForm && (
                 <Button type="button" variant="outline" className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
                   onClick={() => { setShowCorrecaoForm(true); setShowBloqueioForm(false); }}>
-                  <LogOut className="mr-2 h-4 w-4" /> Liberar com justificativa
+                  <LogOut className="mr-2 h-4 w-4" /> Aprovar com justificativa
                 </Button>
               )}
               {canLiberarForcado && showCorrecaoForm && (
@@ -379,7 +397,7 @@ export function VeiculoSheet({ open, onOpenChange, detalhe, loading, statusPorta
                     Justificativa obrigatória para liberação forçada
                   </Label>
                   <textarea id="motivo_forcado" name="observacao" rows={2} required
-                    placeholder="Ex: Motorista ciente do problema, frota liberada por decisão do gestor..."
+                    placeholder="Ex: Risco avaliado e saída autorizada pelo aprovador responsável..."
                     className="w-full rounded-md border border-amber-300 bg-background px-3 py-2 text-sm" />
                   <div className="flex gap-2">
                     <PortariaSubmitButton size="sm" className="flex-1 bg-amber-600 hover:bg-amber-700" loadingText="Liberando...">Confirmar liberação</PortariaSubmitButton>

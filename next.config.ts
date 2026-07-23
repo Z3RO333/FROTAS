@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
-const SUPABASE_HOST = (process.env.NEXT_PUBLIC_SUPABASE_MANUTENCAO_URL ?? "")
+const SUPABASE_HOST = (
+  process.env.NEXT_PUBLIC_SUPABASE_MANUTENCAO_URL ??
+  process.env.SUPABASE_MANUTENCAO_URL ??
+  ""
+)
   .replace(/^https?:\/\//, "")
   .split("/")[0];
 

@@ -4,6 +4,13 @@ import { auth } from "@/lib/auth";
 import { PERFIS_USUARIO, isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
 import { ensureUsuarioForAccess } from "@/lib/repos/usuarios";
 import { normalizeUserDisplayName } from "@/lib/user";
+import { canAccessPortaria } from "@/lib/perfil-permissions";
+
+export {
+  canAccessDocumentos,
+  canAccessPortaria,
+  canApprovePortariaExit,
+} from "@/lib/perfil-permissions";
 
 export type { PerfilUsuario } from "@/lib/perfis";
 
@@ -17,6 +24,7 @@ const ADMIN_EMAILS = parseList(process.env.FROTAS_ADMIN_EMAILS);
 const DEV_EMAILS = parseList(process.env.FROTAS_DEV_EMAILS ?? "");
 const DRIVER_EMAILS = parseList(process.env.FROTAS_DRIVER_EMAILS);
 const PORTARIA_EMAILS = parseList(process.env.FROTAS_PORTARIA_EMAILS);
+const APPROVER_EMAILS = parseList(process.env.FROTAS_APROVADOR_EMAILS);
 const MAINTENANCE_EMAILS = parseList(process.env.FROTAS_MANUTENCAO_EMAILS);
 const MANAGER_EMAILS = parseList(process.env.FROTAS_GESTOR_EMAILS);
 
@@ -40,6 +48,7 @@ export function resolvePerfilFromEnv(email: string): PerfilUsuario {
   const isProd = process.env.NODE_ENV === "production";
   if (!isProd && hasEmail(DEV_EMAILS, normalized)) return "DEV";
   if (hasEmail(ADMIN_EMAILS, normalized)) return "ADMIN";
+  if (hasEmail(APPROVER_EMAILS, normalized)) return "APROVADOR";
   if (hasEmail(MANAGER_EMAILS, normalized)) return "GESTOR";
   if (hasEmail(MAINTENANCE_EMAILS, normalized)) return "MANUTENCAO";
   if (hasEmail(PORTARIA_EMAILS, normalized)) return "PORTARIA";
@@ -61,8 +70,10 @@ export function canAccessAdmin(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "MANUTENCAO" || perfil === "DEV";
 }
 
-export function canAccessPortaria(perfil: PerfilUsuario): boolean {
-  return perfil === "PORTARIA" || perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
+function redirectForOperationalProfile(perfil: PerfilUsuario): string {
+  if (perfil === "PORTARIA" || perfil === "APROVADOR") return "/portaria";
+  if (perfil === "MOTORISTA") return "/motorista";
+  return "/";
 }
 
 export function canAccessMotorista(perfil: PerfilUsuario): boolean {
@@ -93,19 +104,19 @@ export const requireAppUser = cache(async (): Promise<AppUser> => {
 
 export async function requireAdminUser(): Promise<AppUser> {
   const user = await requireAppUser();
-  if (!canAccessAdmin(user.perfil)) redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
+  if (!canAccessAdmin(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
   return user;
 }
 
 export async function requirePortariaUser(): Promise<AppUser> {
   const user = await requireAppUser();
-  if (!canAccessPortaria(user.perfil)) redirect(user.perfil === "MOTORISTA" ? "/motorista" : "/");
+  if (!canAccessPortaria(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
   return user;
 }
 
 export async function requireMotoristaUser(): Promise<AppUser> {
   const user = await requireAppUser();
-  if (!canAccessMotorista(user.perfil)) redirect(user.perfil === "PORTARIA" ? "/portaria" : "/");
+  if (!canAccessMotorista(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
   return user;
 }
 
@@ -115,10 +126,6 @@ export function canAccessManutencao(perfil: PerfilUsuario): boolean {
 
 export function canAccessOperacao(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "PORTARIA" || perfil === "DEV";
-}
-
-export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
-  return perfil !== "MOTORISTA";
 }
 
 export function canWriteDocumentos(perfil: PerfilUsuario): boolean {
@@ -140,20 +147,20 @@ export function canEditFrota(perfil: PerfilUsuario): boolean {
 export async function requireGestorUser(): Promise<AppUser> {
   const user = await requireAppUser();
   if (!canEditFrota(user.perfil)) {
-    redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
+    redirect(redirectForOperationalProfile(user.perfil));
   }
   return user;
 }
 
 export async function requireManutencaoUser(): Promise<AppUser> {
   const user = await requireAppUser();
-  if (!canAccessManutencao(user.perfil)) redirect(user.perfil === "PORTARIA" ? "/portaria" : "/motorista");
+  if (!canAccessManutencao(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
   return user;
 }
 
 export async function requireOperacaoUser(): Promise<AppUser> {
   const user = await requireAppUser();
-  if (!canAccessOperacao(user.perfil)) redirect(user.perfil === "MOTORISTA" ? "/motorista" : "/");
+  if (!canAccessOperacao(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
   return user;
 }
 

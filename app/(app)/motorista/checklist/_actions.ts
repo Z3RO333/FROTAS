@@ -18,6 +18,7 @@ import {
 } from "@/lib/repos/checklist-images";
 import { createChecklist } from "@/lib/repos/checklists";
 import { getFrota } from "@/lib/repos/frotas";
+import { frotaEstaFora } from "@/lib/frota-derived";
 import { requireMotoristaUser } from "@/lib/rbac";
 import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
 
@@ -149,6 +150,9 @@ export async function enviarChecklistMotoristaAction(
 
     const frota = await getFrota(frotaId);
     if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
+    if (frotaEstaFora(frota.status_operacional)) {
+      throw new Error("Esta frota está fora da base. Registre a entrada na portaria antes de fazer outro checklist.");
+    }
 
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
