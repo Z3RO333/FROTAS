@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogIn } from "lucide-react";
-import { requirePortariaUser } from "@/lib/rbac";
+import { canApprovePortariaExit, requirePortariaUser } from "@/lib/rbac";
 import { listPortariaToday } from "@/lib/repos/checklists";
 import { PortariaClient } from "./portaria-client";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,7 +13,7 @@ export default async function PortariaPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requirePortariaUser();
+  const user = await requirePortariaUser();
   const sp = await searchParams;
   const rows = await listPortariaToday();
 
@@ -70,7 +70,11 @@ export default async function PortariaPage({
         />
       </MetricGrid>
 
-      <PortariaClient rows={rows} erro={sp.erro} />
+      <PortariaClient
+        rows={rows}
+        erro={sp.erro}
+        canApproveExit={canApprovePortariaExit(user.perfil)}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
+import { frotaEstaFora } from "@/lib/frota-derived";
 
 export type Frota = {
   id: number;
@@ -269,7 +270,7 @@ function condition(frota: Frota): "normal" | "atencao" | "critico" {
 function operacional(frota: Frota): "disponivel" | "manutencao" | "indisponivel" | "baixado" {
   if (frota.vendido || frota.status === "vendido") return "baixado";
   if (frota.status === "manutencao") return "manutencao";
-  if (frota.status === "critico") return "indisponivel";
+  if (frota.status === "critico" || frotaEstaFora(frota.status_operacional)) return "indisponivel";
   return "disponivel";
 }
 
@@ -425,11 +426,13 @@ export async function getKpisPorFiltro(localizacao: string): Promise<KpisFiltro>
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao)
-      .not("status", "in", '("manutencao","critico")'),
+      .not("status", "in", '("manutencao","critico")')
+      .or("status_operacional.is.null,status_operacional.neq.SAIDA_REGISTRADA"),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao).eq("status", "manutencao"),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
-      .eq("ativo", true).eq("vendido", false).eq("local", localizacao).eq("status", "critico"),
+      .eq("ativo", true).eq("vendido", false).eq("local", localizacao)
+      .or("status.eq.critico,status_operacional.eq.SAIDA_REGISTRADA"),
   ]);
   return {
     total: total.count ?? 0,

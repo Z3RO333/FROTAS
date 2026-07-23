@@ -48,13 +48,13 @@ const FILTER_TABS: {
   { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
-type Props = { rows: PortariaRow[]; erro?: string | null };
+type Props = { rows: PortariaRow[]; erro?: string | null; canApproveExit: boolean };
 
 function isBloqueada(status: StatusPortaria): boolean {
   return status === "BLOQUEADA_CHECKLIST" || status === "BLOQUEADA_MANUTENCAO";
 }
 
-export function PortariaClient({ rows, erro }: Props) {
+export function PortariaClient({ rows, erro, canApproveExit }: Props) {
   const [queryFrota, setQueryFrota] = useState("");
   const [queryPlaca, setQueryPlaca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "BLOQUEADAS" | "TODAS">("LIBERADA_SAIDA");
@@ -225,6 +225,7 @@ export function PortariaClient({ rows, erro }: Props) {
         detalhe={detalhe}
         loading={loadingDetalhe}
         statusPortaria={selectedRow?.status_portaria ?? null}
+        canApproveExit={canApproveExit}
       />
     </>
   );

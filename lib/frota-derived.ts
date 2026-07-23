@@ -4,6 +4,12 @@ import { THRESHOLDS, calcularIdade } from "@/lib/rules";
 export type CondicaoFrota = "normal" | "atencao" | "critico";
 export type StatusOperacional = "disponivel" | "manutencao" | "indisponivel" | "baixado";
 
+export const STATUS_OPERACIONAL_FORA = "SAIDA_REGISTRADA";
+
+export function frotaEstaFora(statusOperacional: string | null | undefined): boolean {
+  return statusOperacional === STATUS_OPERACIONAL_FORA;
+}
+
 export const CONDICAO_LABELS: Record<CondicaoFrota, string> = {
   normal: "Normal",
   atencao: "Atenção",
@@ -28,7 +34,7 @@ export function cadastroIncompleto(frota: Frota): boolean {
 export function statusOperacional(frota: Frota): StatusOperacional {
   if (!frota.ativo || frota.vendido || frota.status === "vendido") return "baixado";
   if (frota.status === "manutencao") return "manutencao";
-  if (frota.status === "critico") return "indisponivel";
+  if (frota.status === "critico" || frotaEstaFora(frota.status_operacional)) return "indisponivel";
   return "disponivel";
 }
 

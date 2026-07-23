@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const user = await requireAppUser();
   if (user.perfil === "MOTORISTA") redirect("/motorista");
-  if (user.perfil === "PORTARIA") redirect("/portaria");
+  if (user.perfil === "PORTARIA" || user.perfil === "APROVADOR") redirect("/portaria");
 
   const [{ k, operational, conditions, byYear }, plan] = await Promise.all([
     dashboardFrotasCached(),

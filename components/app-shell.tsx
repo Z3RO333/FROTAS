@@ -82,6 +82,8 @@ const PORTARIA_NAV: NavItem[] = [
 function buildSections(perfil: PerfilUsuario): NavSection[] {
   if (perfil === "MOTORISTA") return [{ title: "Motorista", items: MOTORISTA_NAV }];
 
+  if (perfil === "APROVADOR") return [{ title: "Aprovação", items: PORTARIA_NAV }];
+
   if (perfil === "PORTARIA") {
     const sections: NavSection[] = [{ title: "Portaria", items: PORTARIA_NAV }];
     if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });

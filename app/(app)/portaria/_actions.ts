@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { listPortariaToday, registrarMovimentacaoFrota } from "@/lib/repos/checklists";
-import { requirePortariaUser } from "@/lib/rbac";
+import { canApprovePortariaExit, requireAppUser, requirePortariaUser } from "@/lib/rbac";
 
 const MovimentoSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
@@ -152,7 +152,10 @@ export async function solicitarCorrecaoAction(formData: FormData) {
 
 export async function liberarSaidaForcadaAction(formData: FormData) {
   try {
-    const user = await requirePortariaUser();
+    const user = await requireAppUser();
+    if (!canApprovePortariaExit(user.perfil)) {
+      redirect(`/portaria?erro=${encodeURIComponent("Somente usuários com cargo Aprovador podem aprovar uma saída bloqueada.")}`);
+    }
     const frotaId = Number(formData.get("frota_id"));
     const checklistId = Number(formData.get("checklist_id"));
     const justificativa = String(formData.get("observacao") ?? "").trim();
