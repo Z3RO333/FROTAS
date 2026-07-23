@@ -15,6 +15,7 @@ const CSP = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob:${SUPABASE_HOST ? ` https://${SUPABASE_HOST}` : ""}`,
+  `frame-src 'self'${SUPABASE_HOST ? ` https://${SUPABASE_HOST}` : ""}`,
   `connect-src 'self'${SUPABASE_HOST ? ` https://${SUPABASE_HOST} wss://${SUPABASE_HOST}` : ""} https://api.openai.com https://login.microsoftonline.com`,
   "font-src 'self'",
   "object-src 'none'",

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Download,
-  ExternalLink,
   FileCheck2,
   FileX2,
   Layers,
@@ -45,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import type { DocumentRecordWithSignedUrls } from "@/lib/repos/manutencao/types";
 import { cn } from "@/lib/utils";
+import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
 
 type Props = {
   documents: DocumentRecordWithSignedUrls[];
@@ -506,15 +506,7 @@ function DocumentActions({ signedUrl, label }: { signedUrl: string | null; label
 
   return (
     <div className="inline-flex items-center gap-0.5 rounded-lg bg-blue-50/60 p-0.5 ring-1 ring-inset ring-blue-100">
-      <a
-        href={signedUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-white"
-      >
-        <ExternalLink className="h-3 w-3" aria-hidden="true" />
-        {label}
-      </a>
+      <DocumentPreviewDialog signedUrl={signedUrl} label={label} />
       <a
         href={signedUrl}
         download
