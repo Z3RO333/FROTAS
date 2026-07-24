@@ -280,10 +280,6 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />
-      {/* Resultado do OCR cacheado — evita re-analisar no submit */}
-      <input type="hidden" name="ocr_km_lido" value={ocrState?.km_lido ?? ""} />
-      <input type="hidden" name="ocr_confianca" value={ocrState?.confianca ?? ""} />
-      <input type="hidden" name="ocr_leitura_segura" value={ocrState?.leitura_segura ? "true" : "false"} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
           key={item.codigo}

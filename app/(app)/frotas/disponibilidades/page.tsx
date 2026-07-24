@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
+import { canManageEmailSchedules, requireAdminUser } from "@/lib/rbac";
 import {
   getDisponibilidadePorCD,
   getDisponibilidadeResumo,
@@ -89,7 +89,7 @@ export default async function FrotasDisponibilidadesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const actor = await requireAppUser();
+  const actor = await requireAdminUser();
   const canConfigure = canManageEmailSchedules(actor.perfil);
   const sp = await searchParams;
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
+import { canManageEmailSchedules, requireAdminUser, requireAppUser } from "@/lib/rbac";
 import {
   createEmailSchedule,
   deleteEmailSchedule,
@@ -30,7 +30,7 @@ export async function enviarRelatorioDisponibilidadeCDAction(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const user = await requireAppUser();
+    const user = await requireAdminUser();
     const raw = formData.get("destinatarios");
     if (typeof raw !== "string") return { ok: false, error: "Destinatários obrigatórios." };
     const destinatarios = EmailListSchema.parse(raw);

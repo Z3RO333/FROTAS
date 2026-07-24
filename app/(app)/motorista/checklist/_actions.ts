@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { type OdometerReading } from "@/lib/ai/odometer";
+import { analyzeOdometerImage, calcStatusLeitura } from "@/lib/ai/odometer";
 import { CHECKLIST_ITEMS, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import {
   itemNeedsEvidence,
@@ -27,12 +27,6 @@ export type { ChecklistMotoristaActionState } from "./types";
 import type { ChecklistMotoristaActionState } from "./types";
 
 const StatusSchema = z.enum(["APTO", "NAO_APTO", "NAO_SE_APLICA"]);
-
-// Threshold mínimo de confiança do OCR para aceitar leitura automática.
-// DEVE bater com o limiar usado em lib/ai/odometer.ts (analyzeOdometerImage e
-// calcStatusLeitura usam 0.7). Se divergir, o cliente mostra "leitura segura"
-// (verde) mas o servidor marca leitura_segura=false — inconsistência.
-const OCR_MIN_CONFIDENCE = 0.7;
 
 const TipoCombustivelSchema = z
   .enum(["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"])
@@ -91,32 +85,23 @@ export async function enviarChecklistMotoristaAction(
       throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
     }
 
-    // Reutiliza resultado do OCR feito no cliente, mas REAVALIA a confiança no servidor.
-    // O cliente envia km_lido e confiança; o servidor decide se a leitura é segura.
-    // Não confiar no flag "ocr_leitura_segura" do cliente — vetor de bypass conhecido.
-    const ocrKmLidoRaw = optionalInteger(formData.get("ocr_km_lido"));
-    const ocrConfiancaRaw = optionalDecimal(formData.get("ocr_confianca"));
-    const confianca =
-      ocrConfiancaRaw != null && ocrConfiancaRaw >= 0 && ocrConfiancaRaw <= 1
-        ? ocrConfiancaRaw
-        : 0;
-    const leituraSeguraServidor =
-      ocrKmLidoRaw != null && confianca >= OCR_MIN_CONFIDENCE;
+    // A leitura persistida é calculada novamente a partir da própria foto
+    // recebida pela Server Action. Valores enviados pelo navegador são ignorados.
+    const leituraKm = await analyzeOdometerImage(fotoKm);
 
-    const leituraKm: OdometerReading = {
-      km_lido: ocrKmLidoRaw,
-      confianca,
-      leitura_segura: leituraSeguraServidor,
-      precisa_digitacao_manual: !leituraSeguraServidor,
-      motivo: null,
-      texto_visivel: null,
-      candidatos_descartados: [],
-      regiao_detectada: "desconhecido",
-    };
+    const frota = await getFrota(frotaId);
+    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
+    if (frotaEstaFora(frota.status_operacional)) {
+      throw new Error("Esta frota está fora da base. Registre a entrada na portaria antes de fazer outro checklist.");
+    }
+
+    const statusLeituraServidor = calcStatusLeitura(leituraKm, frota.km_atual);
 
     const kmInformado =
       kmDigitado ??
-      (leituraKm.leitura_segura && leituraKm.km_lido != null ? leituraKm.km_lido : null);
+      (statusLeituraServidor === "LEITURA_SEGURA" && leituraKm.km_lido != null
+        ? leituraKm.km_lido
+        : null);
 
     if (kmInformado == null) {
       throw new Error("Não conseguimos ler a quilometragem com segurança. Digite o KM manualmente.");
@@ -147,12 +132,6 @@ export async function enviarChecklistMotoristaAction(
       fileFromForm(formData.get("foto_comprovante")),
       "Foto do comprovante"
     );
-
-    const frota = await getFrota(frotaId);
-    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
-    if (frotaEstaFora(frota.status_operacional)) {
-      throw new Error("Esta frota está fora da base. Registre a entrada na portaria antes de fazer outro checklist.");
-    }
 
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
@@ -239,7 +218,9 @@ export async function enviarChecklistMotoristaAction(
       km_informado: kmInformado,
       km_lido_ocr: leituraKm.km_lido ?? null,
       ocr_confianca: leituraKm.confianca ?? null,
-      km_confirmado: kmDigitado != null || Boolean(leituraKm.km_lido === kmInformado && leituraKm.leitura_segura),
+      km_confirmado:
+        kmDigitado != null ||
+        Boolean(leituraKm.km_lido === kmInformado && statusLeituraServidor === "LEITURA_SEGURA"),
       foto_km_url: fotoKmUrl,
       status_geral: statusGeral,
       observacao_original: observacaoOriginal,

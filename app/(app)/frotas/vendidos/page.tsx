@@ -8,6 +8,7 @@ import { FrotasTable } from "@/components/frotas/frotas-table";
 import { listFrotas } from "@/lib/repos/frotas";
 import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
+import { requireAdminUser } from "@/lib/rbac";
 import type { StatusFrota } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export default async function FrotasVendidasPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  await requireAdminUser();
   const sp = await searchParams;
   const parsedPage = sp.page ? Number.parseInt(sp.page, 10) : 1;
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
