@@ -45,6 +45,9 @@ export function calcStatusLeitura(
   kmAnterior: number | null
 ): StatusLeitura {
   if (reading.km_lido == null) return "LEITURA_FALHOU";
+  if (!reading.leitura_segura || reading.precisa_digitacao_manual) {
+    return reading.confianca >= 0.5 ? "LEITURA_SUSPEITA" : "LEITURA_FALHOU";
+  }
 
   if (kmAnterior == null || kmAnterior <= 0) {
     if (reading.confianca >= 0.8 && reading.leitura_segura) return "LEITURA_SEGURA";

@@ -11,6 +11,7 @@ import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-
 import { listFrotas, getKpisPorFiltro } from "@/lib/repos/frotas";
 import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
+import { requireAdminUser } from "@/lib/rbac";
 import type { StatusFrota } from "@/lib/rules";
 import { atualizarLocalizacaoFrotaAction, enviarRelatorioGeralAction } from "./_actions";
 
@@ -34,6 +35,7 @@ export default async function FrotasPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  await requireAdminUser();
   const sp = await searchParams;
   const parsedPage = sp.page ? Number.parseInt(sp.page, 10) : 1;
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;

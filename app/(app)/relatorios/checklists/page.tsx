@@ -4,6 +4,7 @@ import { requireAppUser, canAccessAdmin } from "@/lib/rbac";
 import { getRelatorioKpis, getRankingFrotas, getRankingMotoristas } from "@/lib/repos/relatorios";
 import { listAlertasAbertos } from "@/lib/repos/alertas";
 import { listAnalisesDia } from "@/lib/repos/analises-ia";
+import { formatReportDate, reportCalendarDate } from "@/lib/report-date";
 import { ChecklistIaKpis } from "@/components/relatorios/checklist-ia-kpis";
 import { AlertasAtivos } from "@/components/relatorios/alertas-ativos";
 import { RankingFrotas } from "@/components/relatorios/ranking-frotas";
@@ -15,7 +16,8 @@ export default async function RelatoriosChecklistPage() {
   const user = await requireAppUser();
   if (!canAccessAdmin(user.perfil)) redirect("/motorista");
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const agora = new Date();
+  const hoje = reportCalendarDate(agora);
 
   const [kpis, alertas, rankingFrotas, rankingMotoristas, analises] = await Promise.all([
     getRelatorioKpis(hoje),
@@ -31,7 +33,7 @@ export default async function RelatoriosChecklistPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Inteligência Operacional</p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Análise de Checklists — IA</h1>
         <p className="text-sm text-muted-foreground">
-          Resultados de hoje ({new Date().toLocaleDateString("pt-BR")})
+          Resultados de hoje ({formatReportDate(agora)})
         </p>
       </div>
 
