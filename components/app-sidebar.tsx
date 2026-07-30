@@ -86,7 +86,7 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "relative border-b text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-slate-900/60",
+        "relative shrink-0 border-b text-white transition-[width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-slate-900/60",
         "bg-[linear-gradient(180deg,#0b1220_0%,#070d18_60%,#050913_100%)]",
         collapsed ? "lg:w-[64px]" : "lg:w-[264px]"
       )}
