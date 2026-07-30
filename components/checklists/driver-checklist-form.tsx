@@ -301,7 +301,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
       ) : null}
 
       <div>
-        <div className="flex items-center gap-1 text-sm">
+        <p className="text-sm font-medium text-blue-700 sm:hidden">
+          Etapa {step + 1} de {STEPS.length} · {STEPS[step]}
+        </p>
+        <div className="hidden items-center gap-1 text-sm sm:flex">
           {STEPS.map((label, i) => (
             <span key={label} className="flex items-center gap-1">
               <span
@@ -342,8 +345,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
         </div>
 
         {selected && (
-          <div className="flex items-center justify-between gap-4 rounded-md border bg-white p-4 shadow-sm">
-            <div>
+          <div className="flex flex-col gap-4 rounded-md border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="font-semibold">{selected.modelo ?? "Sem modelo"}</div>
               <div className="mt-0.5 text-sm text-muted-foreground">
                 Frota: <strong>{selected.frota_geral ?? selected.id}</strong>
@@ -351,7 +354,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                 {selected.localizacao ? ` - Setor: ${selected.localizacao}` : ""}
               </div>
             </div>
-            <Button type="button" onClick={() => setStep(1)}>
+            <Button type="button" onClick={() => setStep(1)} className="w-full shrink-0 sm:w-auto">
               Prosseguir
               <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
             </Button>
@@ -387,14 +390,14 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
               {filteredFrotas.length !== 1 ? "s" : ""}.
             </p>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div className="max-h-[60vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-slate-50">
                 <tr className="border-b">
                   <th className="w-10 p-3" />
                   <th className="p-3 text-left font-medium text-muted-foreground">Frota</th>
                   <th className="p-3 text-left font-medium text-muted-foreground">Placa</th>
-                  <th className="p-3 text-left font-medium text-muted-foreground">Modelo</th>
+                  <th className="hidden p-3 text-left font-medium text-muted-foreground sm:table-cell">Modelo</th>
                 </tr>
               </thead>
               <tbody>
@@ -432,7 +435,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                               : undefined
                       }
                     >
-                      <td className="p-3">
+                      <td className="p-2 sm:p-3">
                         <input
                           type="checkbox"
                           readOnly
@@ -442,13 +445,13 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           aria-label={`Selecionar frota ${frota.frota_geral}`}
                         />
                       </td>
-                      <td className={`p-3 font-medium ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
+                      <td className={`p-2 font-medium sm:p-3 ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
                         {frota.frota_geral ?? frota.id}
                       </td>
-                      <td className={`p-3 ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
+                      <td className={`p-2 sm:p-3 ${isSelected && !indisponivel ? "text-blue-600" : ""}`}>
                         {frota.placa ?? "-"}
                       </td>
-                      <td className="p-3">
+                      <td className="hidden p-3 sm:table-cell">
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">{frota.modelo ?? "-"}</span>
                           {bloqueada && (
@@ -559,7 +562,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                       type="button"
                       aria-pressed={isApto}
                       onClick={() => setItemStatus(item.codigo, "APTO")}
-                      className={`h-9 rounded-md border text-sm font-medium transition-colors ${
+                      className={`h-11 rounded-md border text-sm font-medium transition-colors sm:h-10 ${
                         isApto
                           ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                           : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
@@ -571,7 +574,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                       type="button"
                       aria-pressed={isProblem}
                       onClick={() => setItemStatus(item.codigo, "NAO_APTO")}
-                      className={`h-9 rounded-md border text-sm font-medium transition-colors ${
+                      className={`h-11 rounded-md border text-sm font-medium transition-colors sm:h-10 ${
                         isProblem
                           ? "border-red-500 bg-red-50 text-red-800"
                           : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
@@ -591,7 +594,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                       <Input
                         name={`item_observacao_${item.codigo}`}
                         placeholder="Descreva o problema..."
-                        className="h-8 text-xs"
+                        className="text-sm"
                         value={itemObservacoes[item.codigo] ?? ""}
                         onChange={(e) => {
                           setItemObservacoes((prev) => ({ ...prev, [item.codigo]: e.target.value }));

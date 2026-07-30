@@ -24,6 +24,7 @@ type VeiculoLite = {
   codigo_frota: string | null;
   placa: string | null;
   modelo: string | null;
+  local: string | null;
   status: string | null;
   vendido: boolean | null;
   ativo: boolean | null;
@@ -78,6 +79,7 @@ export type ChecklistListRow = {
   frota_geral: string | null;
   placa: string | null;
   modelo: string | null;
+  rota: string | null;
   motorista_id: string;
   motorista_nome: string | null;
   data_checklist: string | null;
@@ -260,7 +262,7 @@ async function fetchVeiculosByIds(ids: number[]): Promise<Map<number, VeiculoLit
 
   const { data, error } = await supabaseManutencao
     .from("veiculos")
-    .select("id,codigo_frota,placa,modelo,status,vendido,ativo")
+    .select("id,codigo_frota,placa,modelo,local,status,vendido,ativo")
     .in("id", uniqueIds);
 
   if (error) throw error;
@@ -273,6 +275,7 @@ function mapChecklist(row: ChecklistDbRow, veiculo?: VeiculoLite): ChecklistList
     frota_geral: veiculo?.codigo_frota ?? null,
     placa: veiculo?.placa ?? null,
     modelo: veiculo?.modelo ?? null,
+    rota: veiculo?.local ?? null,
   };
 }
 
@@ -296,13 +299,41 @@ export type ChecklistListFilters = {
   // "YYYY-MM-DD" no timezone da operação (FROTAS_TIMEZONE)
   dataInicio?: string;
   dataFim?: string;
+  // A rota operacional é representada pelo campo `local` do veículo.
+  rota?: string;
 };
+
+export async function listChecklistRoutes(): Promise<string[]> {
+  return safeSupabase("rotas de checklist", async () => {
+    const { data, error } = await supabaseManutencao
+      .from("veiculos")
+      .select("local")
+      .eq("ativo", true)
+      .eq("vendido", false)
+      .not("local", "is", null)
+      .order("local", { ascending: true });
+
+    if (error) throw error;
+    return [...new Set((data ?? []).map((item) => String(item.local ?? "").trim()).filter(Boolean))];
+  }, []);
+}
 
 export async function listAdminChecklists(
   limit = 100,
   filters: ChecklistListFilters = {}
 ): Promise<ChecklistListRow[]> {
   return safeSupabase("listagem admin", async () => {
+    let frotaIdsDaRota: number[] | null = null;
+    if (filters.rota) {
+      const { data: veiculosDaRota, error: rotaError } = await supabaseManutencao
+        .from("veiculos")
+        .select("id")
+        .eq("local", filters.rota);
+      if (rotaError) throw rotaError;
+      frotaIdsDaRota = (veiculosDaRota ?? []).map((item) => Number(item.id)).filter(Number.isFinite);
+      if (frotaIdsDaRota.length === 0) return [];
+    }
+
     let query = supabaseManutencao
       .from("checklists_frota")
       .select(COLS_CHECKLIST_LIST)
@@ -311,6 +342,7 @@ export async function listAdminChecklists(
 
     if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
     if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
+    if (frotaIdsDaRota) query = query.in("frota_id", frotaIdsDaRota);
 
     const { data, error } = await query;
 

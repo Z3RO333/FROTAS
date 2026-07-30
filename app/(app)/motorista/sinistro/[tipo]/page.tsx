@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { DriverSinistroForm, type SinistroTipo } from "@/components/sinistros/driver-sinistro-form";
 import { SocorroForm } from "@/components/sinistros/socorro-form";
-import { listFrotas } from "@/lib/repos/frotas";
+import { listFrotasForOperationalForms } from "@/lib/repos/frotas";
 import { requireAppUser } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +17,11 @@ export default async function ReportarSinistroTipoPage({
   const { tipo } = await params;
   if (!TIPOS_VALIDOS.has(tipo as SinistroTipo)) notFound();
 
-  const { rows } = await listFrotas({ pageSize: 200 });
+  const frotas = await listFrotasForOperationalForms();
 
   if (tipo === "socorro") {
-    return <SocorroForm user={{ name: user.name, email: user.email }} frotas={rows} />;
+    return <SocorroForm user={{ name: user.name, email: user.email }} frotas={frotas} />;
   }
 
-  return <DriverSinistroForm frotas={rows} tipo={tipo as "veiculo" | "casa"} />;
+  return <DriverSinistroForm frotas={frotas} tipo={tipo as "veiculo" | "casa"} />;
 }

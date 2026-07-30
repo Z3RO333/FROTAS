@@ -18,11 +18,11 @@ export function FilterBar({ children, sticky = false, className }: FilterBarProp
     <div
       className={cn(
         "rounded-xl border border-slate-200/80 bg-white/85 p-3 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] backdrop-blur-md",
-        sticky && "sticky top-14 z-20",
+        sticky && "sm:sticky sm:top-14 sm:z-20",
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">{children}</div>
     </div>
   );
 }
@@ -47,7 +47,7 @@ export function FilterSearch({ value, onChange, placeholder = "Buscar…", class
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 text-sm text-slate-900 placeholder:text-slate-400",
+          "h-11 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-11 text-base text-slate-900 placeholder:text-slate-400 sm:h-9 sm:pr-8 sm:text-sm",
           "focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
         )}
       />
@@ -56,7 +56,7 @@ export function FilterSearch({ value, onChange, placeholder = "Buscar…", class
           type="button"
           aria-label="Limpar busca"
           onClick={() => onChange("")}
-          className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          className="absolute right-0.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 sm:right-1 sm:h-8 sm:w-8"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -90,7 +90,7 @@ export function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "group inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] font-medium transition-all duration-150",
+        "group inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-[12.5px] font-medium transition-all duration-150 sm:h-9",
         active
           ? cn(
               "border-blue-300 bg-blue-50 text-blue-800 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.18)]",

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   AlertTriangle,
   BarChart2,
@@ -73,37 +74,35 @@ export function MobileNav({
   }
 
   return (
-    <>
-      {/* Botão hamburger — só aparece no mobile */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 transition-colors hover:bg-slate-100 lg:hidden"
-        aria-label="Abrir menu"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+      <DialogPrimitive.Trigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+          aria-label="Abrir menu de navegação"
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </DialogPrimitive.Trigger>
 
-      {/* Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setOpen(false)}
-        />
-      )}
-
-      {/* Drawer lateral */}
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col text-white shadow-2xl transition-transform duration-200 lg:hidden",
-          "bg-[linear-gradient(180deg,#0b1220_0%,#070d18_60%,#050913_100%)]",
-          open ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 lg:hidden" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col text-white shadow-2xl outline-none lg:hidden",
+            "bg-[linear-gradient(180deg,#0b1220_0%,#070d18_60%,#050913_100%)]",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left"
+          )}
+        >
         {/* Header do drawer */}
-        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="space-y-1">
-            <p className="text-sm font-bold tracking-wide text-white">FROTAS BEMOL</p>
+            <DialogPrimitive.Title className="text-sm font-bold tracking-wide text-white">
+              FROTAS BEMOL
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Menu principal do sistema de frotas
+            </DialogPrimitive.Description>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2 py-0.5 ring-1 ring-inset ring-white/10">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -112,18 +111,13 @@ export function MobileNav({
               <span className="text-[10.5px] font-semibold tracking-wide text-slate-200">{perfil}</span>
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="Fechar menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <DialogPrimitive.Close className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300" aria-label="Fechar menu">
+            <X className="h-5 w-5" aria-hidden="true" />
+          </DialogPrimitive.Close>
         </div>
 
         {/* Navegação */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3" aria-label="Menu principal">
           {sections.map((section) => {
             const isOpen = openSections[section.title] !== false;
             return (
@@ -131,7 +125,8 @@ export function MobileNav({
                 <button
                   type="button"
                   onClick={() => toggleSection(section.title)}
-                  className="group mb-1 flex w-full items-center justify-between rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.03]"
+                  className="group mb-1 flex min-h-11 w-full items-center justify-between rounded-md px-2 py-2 text-left transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                  aria-expanded={isOpen}
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 group-hover:text-slate-400">
                     {section.title}
@@ -155,11 +150,12 @@ export function MobileNav({
                           href={item.href}
                           onClick={() => setOpen(false)}
                           className={cn(
-                            "group relative flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-400 transition-all duration-150",
+                            "group relative flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium text-slate-300 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300",
                             "hover:bg-white/[0.06] hover:text-white",
                             active &&
                               "bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(96,165,250,0.18)]"
                           )}
+                          aria-current={active ? "page" : undefined}
                         >
                           <span
                             className={cn(
@@ -195,7 +191,8 @@ export function MobileNav({
             );
           })}
         </nav>
-      </div>
-    </>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

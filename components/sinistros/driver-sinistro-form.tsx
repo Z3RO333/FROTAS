@@ -271,7 +271,7 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
               id="setor"
               name="setor"
               defaultValue=""
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
             >
               <option value="">Selecione</option>
               {SETORES.map((setor) => (
@@ -380,7 +380,7 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
         {mediaCount > 0 ? <p className="text-xs font-medium text-blue-700">{mediaCount} arquivo(s) selecionado(s)</p> : null}
       </section>
 
-      <div className="flex justify-end">
+      <div className="flex justify-stretch sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
         <SubmitButton />
       </div>
     </form>
@@ -403,7 +403,7 @@ function Choice({
   return (
     <label
       className={cn(
-        "flex h-10 cursor-pointer items-center justify-center rounded-md border bg-white px-3 text-sm font-medium transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800"
+        "flex h-11 cursor-pointer items-center justify-center rounded-md border bg-white px-3 text-sm font-medium transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 sm:h-10"
       )}
     >
       <input
