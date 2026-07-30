@@ -49,6 +49,13 @@ const EmailListSchema = z
 
 type RelatorioActionResult = { ok: true } | { ok: false; error: string };
 
+export type FrotaActionState = {
+  error: string | null;
+  field?: "frota_geral" | "placa" | "modelo" | "chassi" | "renavam" | "ano_fabricacao" | "localizacao" | "km_atual" | "qtd_pneus" | "observacoes";
+  values: Record<string, string>;
+  attempt: number;
+};
+
 // Relatórios: qualquer perfil administrativo (ADMIN/GESTOR/MANUTENCAO/DEV)
 async function requireUser(): Promise<string> {
   const user = await requireAdminUser();
@@ -68,6 +75,41 @@ function formObject(formData: FormData): Record<string, unknown> {
     obj[key] = value === "" ? null : value;
   }
   return obj;
+}
+
+function formStringValues(formData: FormData): Record<string, string> {
+  return Object.fromEntries(
+    [...formData.entries()]
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  );
+}
+
+function frotaFormError(error: unknown): Pick<FrotaActionState, "error" | "field"> {
+  if (error instanceof z.ZodError) {
+    const issue = error.issues[0];
+    return {
+      error: issue?.message ?? "Revise os dados informados.",
+      field: issue?.path[0] as FrotaActionState["field"],
+    };
+  }
+
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("Placa já cadastrada")) {
+    return { error: "Esta placa já está cadastrada em outra frota.", field: "placa" };
+  }
+  if (message.includes("Chassi já cadastrado")) {
+    return { error: "Este chassi já está cadastrado em outra frota.", field: "chassi" };
+  }
+  if (message.includes("RENAVAM já cadastrado")) {
+    return { error: "Este RENAVAM já está cadastrado em outra frota.", field: "renavam" };
+  }
+  if (message.toLowerCase().includes("duplicate key")) {
+    return {
+      error: "Já existe uma frota com um dos identificadores informados. Revise o número da frota, placa, chassi e RENAVAM.",
+      field: "frota_geral",
+    };
+  }
+  return { error: "Não foi possível salvar a frota. Revise os dados e tente novamente." };
 }
 
 function parseDestinatarios(formData: FormData): string[] {
@@ -99,18 +141,46 @@ function actionErrorMessage(error: unknown): string {
   return "Erro inesperado ao enviar relatório.";
 }
 
-export async function criarFrotaAction(formData: FormData) {
+export async function criarFrotaAction(
+  previousState: FrotaActionState,
+  formData: FormData
+): Promise<FrotaActionState> {
   const email = await requireFrotaEditor();
-  const parsed = FrotaSchema.parse(formObject(formData));
-  const id = await createFrota(parsed, email);
+  const values = formStringValues(formData);
+  let id: number;
+  try {
+    const parsed = FrotaSchema.parse(formObject(formData));
+    id = await createFrota(parsed, email);
+  } catch (error) {
+    console.error("Erro ao cadastrar frota", error);
+    return {
+      ...frotaFormError(error),
+      values,
+      attempt: previousState.attempt + 1,
+    };
+  }
   revalidateFrotasCache();
   redirect(`/frotas/${id}`);
 }
 
-export async function editarFrotaAction(id: number, formData: FormData) {
+export async function editarFrotaAction(
+  id: number,
+  previousState: FrotaActionState,
+  formData: FormData
+): Promise<FrotaActionState> {
   const email = await requireFrotaEditor();
-  const parsed = FrotaSchema.partial().parse(formObject(formData));
-  await updateFrota(id, parsed, email);
+  const values = formStringValues(formData);
+  try {
+    const parsed = FrotaSchema.partial().parse(formObject(formData));
+    await updateFrota(id, parsed, email);
+  } catch (error) {
+    console.error(`Erro ao editar frota ${id}`, error);
+    return {
+      ...frotaFormError(error),
+      values,
+      attempt: previousState.attempt + 1,
+    };
+  }
   revalidatePath(`/frotas/${id}`);
   revalidateFrotasCache();
   redirect(`/frotas/${id}`);
