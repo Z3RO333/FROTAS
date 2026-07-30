@@ -575,7 +575,9 @@ export async function updateFrota(id: number, input: Partial<FrotaInput>, userEm
 
   const patch: Record<string, unknown> = {};
   for (const field of WRITABLE_FIELDS) {
-    if (input[field] !== undefined) Object.assign(patch, toVeiculoInput({ [field]: input[field] }, userEmail));
+    if (input[field] === undefined) continue;
+    if (String(input[field] ?? "") === String(current[field] ?? "")) continue;
+    Object.assign(patch, toVeiculoInput({ [field]: input[field] }, userEmail));
   }
   if (Object.keys(patch).length === 0) return;
   patch.atualizado_por = userEmail;
