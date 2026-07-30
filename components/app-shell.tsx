@@ -139,7 +139,7 @@ export function AppShell({
     <div className="min-h-screen text-foreground lg:flex bg-[radial-gradient(ellipse_at_top_left,_rgba(59,130,246,0.06),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(15,23,42,0.05),_transparent_50%)] bg-slate-50">
       {/* A barra lateral pertence exclusivamente ao layout desktop. No mobile,
           o MobileNav fornece a mesma navegação sem duplicar altura/conteúdo. */}
-      <div className="hidden lg:block">
+      <div className="hidden shrink-0 lg:block">
         <AppSidebar sections={sections} perfil={perfil} />
       </div>
 
@@ -162,7 +162,7 @@ export function AppShell({
             <UserMenu email={email} name={name} />
           </div>
         </header>
-        <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4 lg:p-8">{children}</main>
+        <main className="w-full min-w-0 max-w-full flex-1 overflow-x-hidden p-3 sm:p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
