@@ -407,6 +407,18 @@ export async function listFrotasForReport(f: FrotaFilters = {}): Promise<Frota[]
   return applyDerivedFilters(await fetchAllListRows(f), f);
 }
 
+/**
+ * Lista completa usada em seletores operacionais (checklist, sinistro e socorro).
+ *
+ * `listFrotas` limita cada página a 200 registros por segurança. Esse limite é
+ * correto para tabelas, mas fazia frotas recém-cadastradas desaparecerem dos
+ * formulários quando a base ultrapassava 200 veículos. Aqui a leitura ocorre
+ * em blocos de 1.000 e mantém os mesmos filtros: somente ativas e não vendidas.
+ */
+export async function listFrotasForOperationalForms(): Promise<Frota[]> {
+  return fetchAllListRows({});
+}
+
 export async function getFrota(id: number): Promise<Frota | null> {
   const { data, error } = await supabaseManutencao.from("veiculos").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(`getFrota: ${error.message}`);

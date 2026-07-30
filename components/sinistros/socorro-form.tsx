@@ -216,7 +216,7 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
             name="setor"
             required
             defaultValue=""
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
           >
             <option value="" disabled>Selecione um setor</option>
             {SETORES.map((setor) => (
@@ -301,7 +301,7 @@ function Choice({
   return (
     <label
       className={cn(
-        "flex h-10 cursor-pointer items-center justify-center rounded-md border bg-white px-3 text-sm font-medium transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800"
+        "flex h-11 cursor-pointer items-center justify-center rounded-md border bg-white px-3 text-sm font-medium transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 sm:h-10"
       )}
     >
       <input

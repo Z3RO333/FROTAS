@@ -18,15 +18,16 @@ export function OnlineStatus() {
 
   return (
     <span
-      className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset lg:inline-flex ${
+      className={`items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset ${
         online
-          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-          : "bg-amber-50 text-amber-800 ring-amber-200"
+          ? "hidden bg-emerald-50 text-emerald-700 ring-emerald-200 lg:inline-flex"
+          : "inline-flex bg-amber-50 text-amber-800 ring-amber-200"
       }`}
       role="status"
+      aria-live="polite"
     >
       <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-500" : "bg-amber-500"}`} />
-      {online ? "Sistema online" : "Sem conexão"}
+      {online ? "Sistema online" : "Offline"}
     </span>
   );
 }

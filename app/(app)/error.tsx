@@ -18,7 +18,7 @@ export default function AppError({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-md space-y-4 rounded-lg border bg-white p-8 text-center shadow-sm">
+      <div className="w-full max-w-md space-y-4 rounded-lg border bg-white p-5 text-center shadow-sm sm:p-8">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 ring-1 ring-red-200">
           <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
         </div>
@@ -31,7 +31,7 @@ export default function AppError({
         {error.digest && (
           <p className="text-[10px] font-mono text-slate-400">ref: {error.digest}</p>
         )}
-        <div className="flex justify-center gap-2 pt-2">
+        <div className="flex flex-col justify-center gap-2 pt-2 sm:flex-row">
           <Button type="button" variant="outline" onClick={() => reset()}>
             <RotateCw className="mr-1.5 h-4 w-4" />
             Tentar novamente

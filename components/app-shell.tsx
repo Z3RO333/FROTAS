@@ -2,7 +2,6 @@ import { AppSidebar, type NavIconName } from "@/components/app-sidebar";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { UserMenu } from "@/components/user-menu";
 import { MobileNav } from "@/components/mobile-nav";
-import { cn } from "@/lib/utils";
 import { OnlineStatus } from "@/components/online-status";
 import {
   canAccessDocumentos,
@@ -135,11 +134,12 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const sections = buildSections(perfil);
-  const hideMobileSidebar = perfil === "MOTORISTA";
 
   return (
     <div className="min-h-screen text-foreground lg:flex bg-[radial-gradient(ellipse_at_top_left,_rgba(59,130,246,0.06),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(15,23,42,0.05),_transparent_50%)] bg-slate-50">
-      <div className={cn(hideMobileSidebar && "hidden lg:block")}>
+      {/* A barra lateral pertence exclusivamente ao layout desktop. No mobile,
+          o MobileNav fornece a mesma navegação sem duplicar altura/conteúdo. */}
+      <div className="hidden lg:block">
         <AppSidebar sections={sections} perfil={perfil} />
       </div>
 
@@ -162,7 +162,7 @@ export function AppShell({
             <UserMenu email={email} name={name} />
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-3 lg:p-8">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
