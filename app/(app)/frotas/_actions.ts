@@ -8,8 +8,10 @@ import { createFrota, getFrota, listFrotasForReport, softDeleteFrota, updateFrot
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
 import { requireAdminUser, requireGestorUser } from "@/lib/rbac";
+import { TIPO_POR_QTD_PNEUS } from "@/lib/pneus-layout";
 
 const StatusEnum = z.enum(["disponivel", "manutencao", "atencao", "critico", "vendido"]);
+const QTD_PNEUS_VALIDA = new Set(Object.keys(TIPO_POR_QTD_PNEUS).map(Number));
 
 const FrotaSchema = z.object({
   frota_geral: z.string().trim().optional().nullable(),
@@ -23,6 +25,15 @@ const FrotaSchema = z.object({
   qtd_pneus: z.coerce.number().int().min(0).optional().nullable(),
   status: StatusEnum.optional().nullable(),
   observacoes: z.string().trim().optional().nullable(),
+});
+
+// No cadastro (criação), a quantidade de pneus é obrigatória e precisa bater com um layout mapeado
+// (lib/pneus-layout.ts) — evita frotas com qtd_pneus inválida (ex: 0) e sem layout de posições.
+const FrotaCreateSchema = FrotaSchema.extend({
+  qtd_pneus: z.coerce
+    .number({ required_error: "Selecione a quantidade de pneus.", invalid_type_error: "Selecione a quantidade de pneus." })
+    .int()
+    .refine((qtd) => QTD_PNEUS_VALIDA.has(qtd), { message: "Selecione uma quantidade de pneus válida." }),
 });
 
 const ALLOWED_EMAIL_DOMAIN = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
@@ -149,7 +160,7 @@ export async function criarFrotaAction(
   const values = formStringValues(formData);
   let id: number;
   try {
-    const parsed = FrotaSchema.parse(formObject(formData));
+    const parsed = FrotaCreateSchema.parse(formObject(formData));
     id = await createFrota(parsed, email);
   } catch (error) {
     console.error("Erro ao cadastrar frota", error);
