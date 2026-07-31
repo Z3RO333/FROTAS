@@ -18,6 +18,7 @@ import {
 import { recordChecklistEnviado } from "@/lib/services/veiculo-eventos";
 import { getAppUrl } from "@/lib/app-url";
 import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
+import { matchesVehicleSearch } from "@/lib/checklists/vehicle-search";
 
 type VeiculoLite = {
   id: number;
@@ -299,23 +300,30 @@ export type ChecklistListFilters = {
   // "YYYY-MM-DD" no timezone da operação (FROTAS_TIMEZONE)
   dataInicio?: string;
   dataFim?: string;
-  // A rota operacional é representada pelo campo `local` do veículo.
-  rota?: string;
+  // Pesquisa parcial pelo código da frota ou placa do veículo.
+  veiculo?: string;
 };
 
-export async function listChecklistRoutes(): Promise<string[]> {
-  return safeSupabase("rotas de checklist", async () => {
+async function findVehicleIdsBySearch(search: string): Promise<number[]> {
+  const pageSize = 1000;
+  const ids: number[] = [];
+
+  for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabaseManutencao
       .from("veiculos")
-      .select("local")
-      .eq("ativo", true)
-      .eq("vendido", false)
-      .not("local", "is", null)
-      .order("local", { ascending: true });
+      .select("id,codigo_frota,placa")
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
 
     if (error) throw error;
-    return [...new Set((data ?? []).map((item) => String(item.local ?? "").trim()).filter(Boolean))];
-  }, []);
+    const rows = data ?? [];
+    for (const vehicle of rows) {
+      if (matchesVehicleSearch(vehicle, search)) ids.push(Number(vehicle.id));
+    }
+    if (rows.length < pageSize) break;
+  }
+
+  return ids.filter(Number.isFinite);
 }
 
 export async function listAdminChecklists(
@@ -323,15 +331,10 @@ export async function listAdminChecklists(
   filters: ChecklistListFilters = {}
 ): Promise<ChecklistListRow[]> {
   return safeSupabase("listagem admin", async () => {
-    let frotaIdsDaRota: number[] | null = null;
-    if (filters.rota) {
-      const { data: veiculosDaRota, error: rotaError } = await supabaseManutencao
-        .from("veiculos")
-        .select("id")
-        .eq("local", filters.rota);
-      if (rotaError) throw rotaError;
-      frotaIdsDaRota = (veiculosDaRota ?? []).map((item) => Number(item.id)).filter(Number.isFinite);
-      if (frotaIdsDaRota.length === 0) return [];
+    let frotaIds: number[] | null = null;
+    if (filters.veiculo) {
+      frotaIds = await findVehicleIdsBySearch(filters.veiculo);
+      if (frotaIds.length === 0) return [];
     }
 
     let query = supabaseManutencao
@@ -342,7 +345,7 @@ export async function listAdminChecklists(
 
     if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
     if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
-    if (frotaIdsDaRota) query = query.in("frota_id", frotaIdsDaRota);
+    if (frotaIds) query = query.in("frota_id", frotaIds);
 
     const { data, error } = await query;
 
