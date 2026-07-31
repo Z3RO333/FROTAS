@@ -37,7 +37,7 @@ export default async function UsuariosPage({
   const usuarios = await listUsuarios({ search: sp.search, perfil, ativo });
 
   return (
-    <div className="min-w-0 max-w-full space-y-6">
+    <div className="space-y-6">
       <PageHeader
         eyebrow="Administração"
         title="Usuários e cargos"
@@ -54,15 +54,12 @@ export default async function UsuariosPage({
       {sp.sucesso ? <Alert tone="success" message={sp.sucesso} /> : null}
       {sp.erro ? <Alert tone="danger" message={sp.erro} /> : null}
 
-      <Card className="min-w-0 max-w-full overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="border-b bg-white">
           <CardTitle className="text-lg">Novo usuário</CardTitle>
         </CardHeader>
         <CardContent className="p-4">
-          <form
-            action={createUsuarioAction}
-            className="grid min-w-0 gap-3 md:grid-cols-2 min-[1800px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_auto] min-[1800px]:items-end [&>*]:min-w-0"
-          >
+          <form action={createUsuarioAction} className="grid gap-3 lg:grid-cols-[1.1fr_1.2fr_.8fr_.8fr_auto] lg:items-end">
             <Field label="Nome">
               <Input name="nome" placeholder="Nome da pessoa" />
             </Field>
@@ -75,7 +72,7 @@ export default async function UsuariosPage({
             <Field label="Cargo">
               <PerfilSelect name="perfil" defaultValue="MOTORISTA" />
             </Field>
-            <div className="flex flex-wrap items-center gap-3 min-[1800px]:flex-nowrap min-[1800px]:pb-0.5">
+            <div className="flex items-center gap-3 lg:pb-0.5">
               <input type="hidden" name="ativo" value="false" />
               <label className="flex h-10 items-center gap-2 rounded-md border bg-white px-3 text-sm">
                 <input type="checkbox" name="ativo" value="true" defaultChecked className="h-4 w-4" />
@@ -87,14 +84,11 @@ export default async function UsuariosPage({
         </CardContent>
       </Card>
 
-      <Card className="min-w-0 max-w-full overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader className="border-b bg-white">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <CardTitle className="text-lg">Usuários cadastrados</CardTitle>
-            <form
-              className="grid min-w-0 gap-2 md:grid-cols-[minmax(220px,1fr)_180px_150px_auto]"
-              action="/administracao/usuarios"
-            >
+            <form className="grid gap-2 sm:grid-cols-[minmax(220px,1fr)_180px_150px_auto]" action="/administracao/usuarios">
               <Input name="search" placeholder="Buscar nome, e-mail ou matrícula" defaultValue={sp.search ?? ""} />
               <PerfilSelect name="perfil" defaultValue={perfil ?? ""} includeAll />
               <select
@@ -112,7 +106,7 @@ export default async function UsuariosPage({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 min-[1900px]:grid min-[1900px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] min-[1900px]:gap-3">
+          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.6fr_.75fr_auto] lg:gap-3">
             <span>Nome</span>
             <span>E-mail</span>
             <span>Matrícula</span>
@@ -156,7 +150,7 @@ function UsuarioRow({
   return (
     <form
       action={updateUsuarioAction}
-      className="grid min-w-0 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 min-[1900px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] min-[1900px]:items-center [&>*]:min-w-0"
+      className="grid gap-3 p-4 lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.6fr_.75fr_auto] lg:items-center"
     >
       <input type="hidden" name="id" value={usuario.id} />
 
@@ -271,7 +265,7 @@ function PerfilSelect({
 }
 
 function MobileLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 min-[1900px]:hidden">{children}</div>;
+  return <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:hidden">{children}</div>;
 }
 
 function Alert({ tone, message }: { tone: "success" | "danger"; message: string }) {
