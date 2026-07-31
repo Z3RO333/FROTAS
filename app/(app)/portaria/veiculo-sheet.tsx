@@ -87,7 +87,7 @@ function FotoPreview({ url, label }: { url: string | null; label: string }) {
           <img
             src={url}
             alt={label}
-            className={cn("max-h-40 w-full object-cover transition-opacity", loaded ? "opacity-100" : "opacity-0")}
+            className={cn("h-auto w-full object-contain transition-opacity", loaded ? "opacity-100" : "opacity-0")}
             loading="lazy"
             onLoad={() => setLoaded(true)}
             onError={() => { setError(true); setLoaded(true); }}
