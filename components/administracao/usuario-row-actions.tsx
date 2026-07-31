@@ -58,7 +58,7 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
   }
 
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
       <UsuarioAuditoriaDialog usuarioId={usuarioId} usuarioLabel={usuarioLabel} />
 
       <Button
