@@ -80,10 +80,11 @@ const LAYOUTS: Record<TipoLayoutPneus, LayoutConfig> = {
     wheel({ id: "td", label: "TD", y: 230, side: "right" }),
     wheel({ id: "estepe", label: "Estepe", y: 160, side: "center", width: 34, height: 34, spare: true }),
   ]),
-  sprinter_6: config(NOME_LAYOUT_PNEUS.sprinter_6, 6, 60, 210, [
+  sprinter_6: config(NOME_LAYOUT_PNEUS.sprinter_6, 7, 60, 210, [
     wheel({ id: "de", label: "DE", y: 80, side: "left" }),
     wheel({ id: "dd", label: "DD", y: 80, side: "right" }),
     ...dualAxle(230, ["t1ei", "t1ee", "t1di", "t1de"]),
+    wheel({ id: "estepe", label: "Estepe", y: 150, side: "center", width: 34, height: 34, spare: true }),
   ]),
   simples_7: config(NOME_LAYOUT_PNEUS.simples_7, 7, 60, 210, [
     wheel({ id: "de", label: "DE", y: 80, side: "left" }),
