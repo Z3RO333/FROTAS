@@ -61,7 +61,7 @@ export default async function UsuariosPage({
         <CardContent className="p-4">
           <form
             action={createUsuarioAction}
-            className="grid min-w-0 gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_auto] 2xl:items-end"
+            className="grid min-w-0 gap-3 md:grid-cols-2 min-[1800px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)_auto] min-[1800px]:items-end [&>*]:min-w-0"
           >
             <Field label="Nome">
               <Input name="nome" placeholder="Nome da pessoa" />
@@ -75,7 +75,7 @@ export default async function UsuariosPage({
             <Field label="Cargo">
               <PerfilSelect name="perfil" defaultValue="MOTORISTA" />
             </Field>
-            <div className="flex flex-wrap items-center gap-3 2xl:flex-nowrap 2xl:pb-0.5">
+            <div className="flex flex-wrap items-center gap-3 min-[1800px]:flex-nowrap min-[1800px]:pb-0.5">
               <input type="hidden" name="ativo" value="false" />
               <label className="flex h-10 items-center gap-2 rounded-md border bg-white px-3 text-sm">
                 <input type="checkbox" name="ativo" value="true" defaultChecked className="h-4 w-4" />
@@ -112,7 +112,7 @@ export default async function UsuariosPage({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 2xl:grid 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] 2xl:gap-3">
+          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 min-[1900px]:grid min-[1900px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] min-[1900px]:gap-3">
             <span>Nome</span>
             <span>E-mail</span>
             <span>Matrícula</span>
@@ -156,7 +156,7 @@ function UsuarioRow({
   return (
     <form
       action={updateUsuarioAction}
-      className="grid min-w-0 gap-3 p-4 md:grid-cols-2 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] 2xl:items-center"
+      className="grid min-w-0 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 min-[1900px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1.3fr)_minmax(0,.7fr)_minmax(0,.75fr)_minmax(0,.6fr)_minmax(0,.75fr)_auto] min-[1900px]:items-center [&>*]:min-w-0"
     >
       <input type="hidden" name="id" value={usuario.id} />
 
@@ -271,7 +271,7 @@ function PerfilSelect({
 }
 
 function MobileLabel({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 2xl:hidden">{children}</div>;
+  return <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 min-[1900px]:hidden">{children}</div>;
 }
 
 function Alert({ tone, message }: { tone: "success" | "danger"; message: string }) {
