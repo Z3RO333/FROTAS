@@ -1,7 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
-import { Loader2, MapPin, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Loader2, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,8 @@ const PERIODOS = [
 
 export function ChecklistFilters({
   basePath = "/checklists",
-  routes = [],
 }: {
   basePath?: string;
-  routes?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,8 +39,15 @@ export function ChecklistFilters({
   const periodo = searchParams.get("periodo") ?? "";
   const dataInicio = searchParams.get("dataInicio") ?? "";
   const dataFim = searchParams.get("dataFim") ?? "";
-  const rota = searchParams.get("rota") ?? "";
-  const temFiltro = Boolean(periodo || dataInicio || dataFim || rota);
+  const veiculo = searchParams.get("veiculo") ?? "";
+  const [veiculoQuery, setVeiculoQuery] = useState(veiculo);
+  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo);
+
+  useEffect(() => setVeiculoQuery(veiculo), [veiculo]);
+
+  function pesquisarVeiculo() {
+    applyChanges({ veiculo: veiculoQuery.trim(), rota: "" });
+  }
 
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm" aria-busy={isPending}>
@@ -52,7 +57,7 @@ export function ChecklistFilters({
             value={periodo || "all"}
             onValueChange={(v) => applyChanges({ periodo: v === "all" ? "" : v, dataInicio: "", dataFim: "" })}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="Filtrar por período">
               <SelectValue>
                 {PERIODOS.find((item) => item.value === periodo)?.label ?? "Todo o período"}
               </SelectValue>
@@ -68,23 +73,34 @@ export function ChecklistFilters({
           </Select>
         </FilterField>
 
-        <FilterField label="Rota / unidade">
-          <Select value={rota || "all"} onValueChange={(v) => applyChanges({ rota: v === "all" ? "" : v })}>
-            <SelectTrigger aria-label="Filtrar por rota ou unidade">
-              <span className="flex min-w-0 items-center gap-2">
-                <MapPin className="h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
-                <SelectValue>{rota || "Todas as rotas"}</SelectValue>
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as rotas</SelectItem>
-              {routes.map((route) => (
-                <SelectItem key={route} value={route}>
-                  {route}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <FilterField label="Frota ou placa">
+          <div className="flex min-w-0">
+            <Input
+              type="search"
+              value={veiculoQuery}
+              onChange={(event) => setVeiculoQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  pesquisarVeiculo();
+                }
+              }}
+              placeholder="Ex.: 280 ou TRZ-8G44"
+              aria-label="Pesquisar por frota ou placa"
+              className="rounded-r-none"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={pesquisarVeiculo}
+              disabled={isPending || veiculoQuery.trim() === veiculo}
+              aria-label="Pesquisar veículo"
+              className="shrink-0 rounded-l-none border-l-0"
+            >
+              {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
+            </Button>
+          </div>
         </FilterField>
 
         <FilterField label="Data inicial">
@@ -106,7 +122,10 @@ export function ChecklistFilters({
 
         <Button
           variant="outline"
-          onClick={() => startTransition(() => router.replace(basePath, { scroll: false }))}
+          onClick={() => {
+            setVeiculoQuery("");
+            startTransition(() => router.replace(basePath, { scroll: false }));
+          }}
           className="w-full gap-1.5 sm:w-auto"
           disabled={!temFiltro || isPending}
         >
@@ -120,9 +139,9 @@ export function ChecklistFilters({
 
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="min-w-0 space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <span className="block text-xs font-semibold text-slate-600">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }

@@ -6,7 +6,6 @@ import { ChecklistFilters } from "@/components/checklists/checklist-filters";
 import {
   checklistDashboardKpis,
   listAdminChecklists,
-  listChecklistRoutes,
   listOpenPendencias,
   periodoParaDatas,
 } from "@/lib/repos/checklists";
@@ -31,13 +30,12 @@ export default async function ChecklistsAdminPage({
       }
     : periodoParaDatas(sp.periodo);
 
-  const filtros = { ...filtroData, rota: sp.rota?.trim() || undefined };
-  const [kpis, checklists, pendencias, vision, routes] = await Promise.all([
+  const filtros = { ...filtroData, veiculo: sp.veiculo?.trim() || undefined };
+  const [kpis, checklists, pendencias, vision] = await Promise.all([
     checklistDashboardKpis(),
     listAdminChecklists(100, filtros),
     listOpenPendencias(5),
     countChecklistImageInspectionsByStatus(),
-    listChecklistRoutes(),
   ]);
 
   return (
@@ -45,7 +43,7 @@ export default async function ChecklistsAdminPage({
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700 sm:text-sm">Administração</p>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Checklists de frotas</h1>
-        <p className="text-sm text-muted-foreground">Acompanhe vistorias, pendências e divergências por período e rota.</p>
+        <p className="text-sm text-muted-foreground">Acompanhe vistorias, pendências e divergências por período, frota ou placa.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -63,7 +61,7 @@ export default async function ChecklistsAdminPage({
         <section className="overflow-hidden rounded-md border bg-white shadow-sm">
           <div className="border-b bg-slate-50 px-4 py-3 font-semibold">Registros recentes</div>
           <div className="p-3">
-            <ChecklistFilters routes={routes} />
+            <ChecklistFilters />
           </div>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
