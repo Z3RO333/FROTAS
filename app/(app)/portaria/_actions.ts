@@ -154,7 +154,7 @@ export async function liberarSaidaForcadaAction(formData: FormData) {
   try {
     const user = await requireAppUser();
     if (!canApprovePortariaExit(user.perfil)) {
-      redirect(`/portaria?erro=${encodeURIComponent("Somente usuários com cargo Aprovador podem aprovar uma saída bloqueada.")}`);
+      redirect(`/portaria?erro=${encodeURIComponent("O cargo Portaria não pode aprovar uma saída bloqueada.")}`);
     }
     const frotaId = Number(formData.get("frota_id"));
     const checklistId = Number(formData.get("checklist_id"));

@@ -16,9 +16,11 @@ describe("permissões do aprovador da portaria", () => {
     expect(canApprovePortariaExit("PORTARIA")).toBe(false);
   });
 
-  it("permite que GESTOR registre movimentações, mas não aprove exceções", () => {
+  it("permite aprovação aos demais cargos autorizados da portaria", () => {
     expect(canAccessPortaria("GESTOR")).toBe(true);
-    expect(canApprovePortariaExit("GESTOR")).toBe(false);
+    expect(canApprovePortariaExit("GESTOR")).toBe(true);
+    expect(canApprovePortariaExit("ADMIN")).toBe(true);
+    expect(canApprovePortariaExit("DEV")).toBe(true);
   });
 
   it("não concede módulos administrativos ao APROVADOR", () => {

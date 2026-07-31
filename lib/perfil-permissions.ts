@@ -11,7 +11,7 @@ export function canAccessPortaria(perfil: PerfilUsuario): boolean {
 }
 
 export function canApprovePortariaExit(perfil: PerfilUsuario): boolean {
-  return perfil === "APROVADOR" || perfil === "ADMIN" || perfil === "DEV";
+  return perfil === "APROVADOR" || perfil === "GESTOR" || perfil === "ADMIN" || perfil === "DEV";
 }
 
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
