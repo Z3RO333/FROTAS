@@ -29,6 +29,7 @@ type Props = {
 
 export function FrotaForm({ initial, action, submitLabel }: Props) {
   const [state, formAction] = useActionState(action, FROTA_ACTION_INITIAL_STATE);
+  const isCreate = !initial?.id;
   const value = (name: string, fallback: React.InputHTMLAttributes<HTMLInputElement>["defaultValue"]) =>
     state.values[name] ?? fallback;
 
@@ -66,11 +67,12 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
       <Field label="Km atual" name="km_atual" type="number" defaultValue={value("km_atual", initial?.km_atual ?? "")} invalid={state.field === "km_atual"} />
 
       <div className="space-y-1.5">
-        <Label htmlFor="qtd_pneus">Quantidade de pneus</Label>
+        <Label htmlFor="qtd_pneus">Quantidade de pneus{isCreate ? " *" : ""}</Label>
         <select
           id="qtd_pneus"
           name="qtd_pneus"
           aria-label="Quantidade de pneus"
+          required={isCreate}
           defaultValue={state.values.qtd_pneus ?? initial?.qtd_pneus ?? ""}
           aria-invalid={state.field === "qtd_pneus" || undefined}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
