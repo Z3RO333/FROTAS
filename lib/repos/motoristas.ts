@@ -13,6 +13,7 @@ export type MotoristaFrotaHistorico = {
   frota_id: number;
   frota_geral: string | null;
   placa: string | null;
+  modelo: string | null;
   qtd_movimentacoes: number;
   ultima_vez: string | null;
 };
@@ -47,10 +48,19 @@ export async function getFrotasDoMotorista(motoristaId: string): Promise<Motoris
     .eq("motorista_id", motoristaId)
     .order("qtd_movimentacoes", { ascending: false });
   if (error) throw new Error(`getFrotasDoMotorista: ${error.message}`);
-  return (data ?? []).map((r) => ({
+  const rows = data ?? [];
+  const frotaIds = rows.map((row) => Number(row.frota_id)).filter(Number.isFinite);
+  const { data: veiculos, error: veiculosError } = frotaIds.length > 0
+    ? await supabaseManutencao.from("veiculos").select("id,modelo").in("id", frotaIds)
+    : { data: [], error: null };
+  if (veiculosError) throw new Error(`getFrotasDoMotorista: ${veiculosError.message}`);
+  const modelos = new Map((veiculos ?? []).map((veiculo) => [Number(veiculo.id), veiculo.modelo as string | null]));
+
+  return rows.map((r) => ({
     frota_id: Number(r.frota_id),
     frota_geral: r.frota_geral ?? null,
     placa: r.placa ?? null,
+    modelo: modelos.get(Number(r.frota_id)) ?? null,
     qtd_movimentacoes: Number(r.qtd_movimentacoes ?? 0),
     ultima_vez: r.ultima_vez ?? null,
   }));
