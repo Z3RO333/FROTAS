@@ -153,8 +153,8 @@ export function ChecklistsListClient({ rows, frotaId }: Props) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={fotoHodometro.signed_url}
-                    alt="Painel"
-                    className="max-h-44 w-full rounded-lg border object-cover"
+                    alt="Foto completa do painel e hodômetro"
+                    className="h-auto w-full rounded-lg border bg-slate-50 object-contain"
                     loading="lazy"
                   />
                 </div>
