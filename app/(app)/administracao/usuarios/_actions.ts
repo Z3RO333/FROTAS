@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { PERFIS_USUARIO, canManageUsers, requireAppUser } from "@/lib/rbac";
 import { createUsuario, getUsuarioById, updateUsuario } from "@/lib/repos/usuarios";
+import { publicActionError } from "@/lib/public-error";
 
 const UsuarioSchema = z.object({
   nome: z.string().trim().optional(),
@@ -54,7 +55,7 @@ export async function createUsuarioAction(formData: FormData) {
     redirectBack("sucesso", "Usuário criado com perfil manual.");
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    redirectBack("erro", error instanceof Error ? error.message : "Não foi possível criar o usuário.");
+    redirectBack("erro", publicActionError(error, "Não foi possível criar o usuário."));
   }
 }
 
@@ -90,7 +91,7 @@ export async function updateUsuarioAction(formData: FormData) {
     redirectBack("sucesso", "Usuário atualizado.");
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    redirectBack("erro", error instanceof Error ? error.message : "Não foi possível atualizar o usuário.");
+    redirectBack("erro", publicActionError(error, "Não foi possível atualizar o usuário."));
   }
 }
 

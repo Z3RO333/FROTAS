@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { listPortariaToday, registrarMovimentacaoFrota } from "@/lib/repos/checklists";
 import { canApprovePortariaExit, requireAppUser, requirePortariaUser } from "@/lib/rbac";
+import { publicActionError } from "@/lib/public-error";
 
 const MovimentoSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
@@ -59,9 +60,7 @@ export async function registrarMovimentacaoPortariaAction(formData: FormData) {
     if (isRedirectError(error)) throw error;
     const msg = error instanceof z.ZodError
       ? error.issues[0]?.message ?? "Dados inválidos."
-      : error instanceof Error
-        ? error.message
-        : "Não foi possível registrar a movimentação.";
+      : publicActionError(error, "Não foi possível registrar a movimentação.");
     redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
   }
 
@@ -101,7 +100,7 @@ export async function bloquearSaidaAction(formData: FormData) {
     });
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const msg = error instanceof Error ? error.message : "Erro ao bloquear saída.";
+    const msg = publicActionError(error, "Erro ao bloquear saída.");
     redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
   }
   revalidatePath("/portaria");
@@ -140,7 +139,7 @@ export async function solicitarCorrecaoAction(formData: FormData) {
     });
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const msg = error instanceof Error ? error.message : "Erro ao solicitar correção.";
+    const msg = publicActionError(error, "Erro ao solicitar correção.");
     redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
   }
   revalidatePath("/portaria");
@@ -184,7 +183,7 @@ export async function liberarSaidaForcadaAction(formData: FormData) {
     });
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    const msg = error instanceof Error ? error.message : "Erro ao registrar liberação forçada.";
+    const msg = publicActionError(error, "Erro ao registrar liberação forçada.");
     redirect(`/portaria?erro=${encodeURIComponent(msg)}`);
   }
   revalidatePath("/portaria");

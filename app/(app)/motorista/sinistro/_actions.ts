@@ -7,13 +7,13 @@ import { sendSinistroNotification, sendSocorroNotification } from "@/lib/email";
 import { getFrota } from "@/lib/repos/frotas";
 import { createSinistro, getSinistroBySubmissionId } from "@/lib/repos/sinistros";
 import {
-  createSignedSinistroImageUrl,
   removeSinistroImages,
   uploadSinistroImage,
 } from "@/lib/repos/sinistro-images";
 import { requireMotoristaUser } from "@/lib/rbac";
-import { fileFromForm } from "@/lib/upload-validation";
+import { fileFromForm, validateAggregateFileSize } from "@/lib/upload-validation";
 import type { SinistroMotoristaActionState } from "./types";
+import { publicActionError } from "@/lib/public-error";
 
 const BoolStringSchema = z.enum(["sim", "nao"]);
 const TipoSinistroSchema = z.enum(["veiculo", "casa", "socorro"]);
@@ -70,6 +70,7 @@ export async function enviarSinistroMotoristaAction(
       .filter((file): file is File => Boolean(file));
 
     if (mediaFiles.length > 8) throw new Error("Envie no máximo 8 arquivos por ocorrência.");
+    validateAggregateFileSize(mediaFiles, 32 * 1024 * 1024, "Ocorrência");
 
     for (const file of mediaFiles.slice(0, 8)) {
       const path = await uploadSinistroImage(file, { ticketNumber });
@@ -170,20 +171,6 @@ export async function enviarSinistroMotoristaAction(
         media_paths: uploadedPaths,
       });
 
-      // 7 dias de validade — tempo suficiente para o e-mail ser aberto bem depois do envio.
-      const SINISTRO_ANEXO_URL_EXPIRES_IN = 60 * 60 * 24 * 7;
-      const anexos = await Promise.all(
-        uploadedPaths.map(async (path, index) => {
-          try {
-            const url = await createSignedSinistroImageUrl(path, SINISTRO_ANEXO_URL_EXPIRES_IN);
-            return { label: `Anexo/Evidência ${index + 1}`, url };
-          } catch (err) {
-            console.warn("[sinistro] falha ao gerar link assinado do anexo", err);
-            return null;
-          }
-        })
-      );
-
       sendSinistroNotification({
         ticketNumber,
         tipoSinistro,
@@ -198,7 +185,8 @@ export async function enviarSinistroMotoristaAction(
         houveFeridos,
         samuBombeirosPresente,
         terceiros,
-        anexos: anexos.filter((item): item is { label: string; url: string } => item !== null),
+        // Evidências permanecem no bucket privado e só são abertas pelo painel autenticado.
+        anexosQuantidade: uploadedPaths.length,
         criadoEm: new Date(),
       }).catch((err) => console.warn("[sinistro] falha ao enviar notificacao por e-mail", err));
     }
@@ -219,6 +207,6 @@ export async function enviarSinistroMotoristaAction(
     if (error instanceof z.ZodError) {
       return { ok: false, error: error.issues[0]?.message ?? "Dados invalidos." };
     }
-    return { ok: false, error: error instanceof Error ? error.message : "Nao foi possivel enviar a solicitacao." };
+    return { ok: false, error: publicActionError(error, "Nao foi possivel enviar a solicitacao.") };
   }
 }

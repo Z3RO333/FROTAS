@@ -27,6 +27,7 @@ const PORTARIA_EMAILS = parseList(process.env.FROTAS_PORTARIA_EMAILS);
 const APPROVER_EMAILS = parseList(process.env.FROTAS_APROVADOR_EMAILS);
 const MAINTENANCE_EMAILS = parseList(process.env.FROTAS_MANUTENCAO_EMAILS);
 const MANAGER_EMAILS = parseList(process.env.FROTAS_GESTOR_EMAILS);
+const AUTO_PROVISION_ACTIVE = process.env.FROTAS_AUTO_PROVISION_ACTIVE === "1";
 
 function parseList(value: string | undefined): Set<string> {
   return new Set(
@@ -66,6 +67,22 @@ export function resolvePerfil(email: string): PerfilUsuario {
   return resolvePerfilFromEnv(email);
 }
 
+function isExplicitlyPreauthorized(email: string): boolean {
+  const normalized = email.toLowerCase();
+  return (
+    AUTO_PROVISION_ACTIVE ||
+    [
+      ADMIN_EMAILS,
+      DEV_EMAILS,
+      DRIVER_EMAILS,
+      PORTARIA_EMAILS,
+      APPROVER_EMAILS,
+      MAINTENANCE_EMAILS,
+      MANAGER_EMAILS,
+    ].some((set) => hasEmail(set, normalized))
+  );
+}
+
 export function canAccessAdmin(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "MANUTENCAO" || perfil === "DEV";
 }
@@ -80,9 +97,13 @@ export function canAccessMotorista(perfil: PerfilUsuario): boolean {
   return perfil === "MOTORISTA" || perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
 }
 
-export const requireAppUser = cache(async (): Promise<AppUser> => {
+export type AppUserResolution =
+  | { ok: true; user: AppUser }
+  | { ok: false; reason: "UNAUTHENTICATED" | "INACTIVE" };
+
+export async function resolveAppUser(): Promise<AppUserResolution> {
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user?.email) return { ok: false, reason: "UNAUTHENTICATED" };
 
   const email = session.user.email.toLowerCase();
   const name = normalizeUserDisplayName(session.user.name, email);
@@ -90,16 +111,29 @@ export const requireAppUser = cache(async (): Promise<AppUser> => {
     email,
     nome: name,
     perfil: resolvePerfilFromEnv(email),
-    ativo: true,
+    // Novas contas ficam bloqueadas por padrão. A ativação automática exige
+    // allowlist explícita por perfil ou opt-in consciente via ambiente.
+    ativo: isExplicitlyPreauthorized(email),
   });
 
-  if (!usuario.ativo) redirect("/acesso-bloqueado");
+  if (!usuario.ativo) return { ok: false, reason: "INACTIVE" };
 
   return {
-    email,
-    name: usuario.nome || name,
-    perfil: usuario.perfil,
+    ok: true,
+    user: {
+      email,
+      name: usuario.nome || name,
+      perfil: usuario.perfil,
+    },
   };
+}
+
+export const requireAppUser = cache(async (): Promise<AppUser> => {
+  const result = await resolveAppUser();
+  if (!result.ok) {
+    redirect(result.reason === "INACTIVE" ? "/acesso-bloqueado" : "/login");
+  }
+  return result.user;
 });
 
 export async function requireAdminUser(): Promise<AppUser> {

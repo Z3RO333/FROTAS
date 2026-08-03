@@ -1,9 +1,10 @@
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-export const MAX_PDF_SIZE = 25 * 1024 * 1024;
+export const MAX_PDF_SIZE = 10 * 1024 * 1024;
+export const MAX_IMAGE_PIXELS = 25_000_000;
 
 export class UploadValidationError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "UploadValidationError";
   }
 }
@@ -46,7 +47,7 @@ export function fileFromForm(value: FormDataEntryValue | null): File | null {
 }
 
 async function checkMagicBytes(file: File): Promise<boolean> {
-  const ab = await file.arrayBuffer();
+  const ab = await file.slice(0, 12).arrayBuffer();
   const buf = new Uint8Array(ab, 0, Math.min(12, ab.byteLength));
   // JPEG: FF D8 FF
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true;
@@ -72,10 +73,66 @@ export async function validateImageFile(file: File | null, label: string): Promi
   if (!validMagic) {
     throw new UploadValidationError(`${label}: arquivo não é uma imagem válida.`);
   }
+
+  try {
+    const sharp = await import("sharp");
+    const metadata = await sharp
+      .default(Buffer.from(await file.arrayBuffer()), {
+        failOn: "warning",
+        limitInputPixels: MAX_IMAGE_PIXELS,
+        pages: 1,
+      })
+      .metadata();
+    if (!metadata.width || !metadata.height || (metadata.pages ?? 1) > 1) {
+      throw new Error("dimensões inválidas");
+    }
+  } catch (error) {
+    throw new UploadValidationError(
+      `${label}: imagem corrompida, animada ou acima do limite de resolução.`,
+      { cause: error }
+    );
+  }
+}
+
+export async function sanitizeImageForStorage(
+  file: File,
+  label: string
+): Promise<{ buffer: Buffer; extension: "jpg"; contentType: "image/jpeg" }> {
+  await validateImageFile(file, label);
+  try {
+    const sharp = await import("sharp");
+    const buffer = await sharp
+      .default(Buffer.from(await file.arrayBuffer()), {
+        failOn: "warning",
+        limitInputPixels: MAX_IMAGE_PIXELS,
+        pages: 1,
+      })
+      .rotate()
+      .resize({ width: 4096, height: 4096, fit: "inside", withoutEnlargement: true })
+      // A recodificação remove EXIF, GPS, perfis e conteúdo extra por padrão.
+      .jpeg({ quality: 88, progressive: true })
+      .toBuffer();
+    return { buffer, extension: "jpg", contentType: "image/jpeg" };
+  } catch (error) {
+    throw new UploadValidationError(`${label}: não foi possível higienizar a imagem.`, {
+      cause: error,
+    });
+  }
+}
+
+export function validateAggregateFileSize(
+  files: Array<File | null | undefined>,
+  maxBytes: number,
+  label: string
+): void {
+  const total = files.reduce((sum, file) => sum + (file?.size ?? 0), 0);
+  if (total > maxBytes) {
+    throw new UploadValidationError(`${label}: total de arquivos acima de ${Math.floor(maxBytes / 1024 / 1024)} MB.`);
+  }
 }
 
 async function checkPdfMagicBytes(file: File): Promise<boolean> {
-  const ab = await file.arrayBuffer();
+  const ab = await file.slice(0, 5).arrayBuffer();
   if (ab.byteLength < 5) return false;
   const buf = new Uint8Array(ab, 0, 5);
   // PDF: %PDF- => 25 50 44 46 2D
@@ -92,7 +149,7 @@ export async function validatePdfFile(file: File | null, label: string): Promise
     throw new UploadValidationError(`${label}: arquivo vazio.`);
   }
   if (file.size > MAX_PDF_SIZE) {
-    throw new UploadValidationError(`${label}: PDF acima de 25 MB.`);
+    throw new UploadValidationError(`${label}: PDF acima de 10 MB.`);
   }
   const mimeOk = file.type === "application/pdf";
   const extOk = file.name.toLowerCase().endsWith(".pdf");
@@ -102,6 +159,18 @@ export async function validatePdfFile(file: File | null, label: string): Promise
   const magicOk = await checkPdfMagicBytes(file);
   if (!magicOk) {
     throw new UploadValidationError(`${label}: arquivo não é um PDF válido.`);
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const tail = bytes.subarray(Math.max(0, bytes.length - 2048)).toString("latin1");
+  if (!tail.includes("%%EOF")) {
+    throw new UploadValidationError(`${label}: PDF incompleto ou corrompido.`);
+  }
+
+  const content = bytes.toString("latin1");
+  const activeTokens = /\/(?:JavaScript|JS|OpenAction|AA|Launch|EmbeddedFile|RichMedia|XFA)\b/i;
+  if (activeTokens.test(content)) {
+    throw new UploadValidationError(`${label}: PDF com conteúdo ativo não é permitido.`);
   }
 }
 

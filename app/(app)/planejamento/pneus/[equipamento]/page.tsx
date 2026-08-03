@@ -5,6 +5,7 @@ import type { PneuRow } from "@/lib/repos/planejamento";
 import { TireMap, TireDetailGrid } from "@/components/pneus/tire-map";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { safePostgrestTerm } from "@/lib/postgrest-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function PneusVeiculoPage({
   params: Promise<{ equipamento: string }>;
 }) {
   const { equipamento } = await params;
-  const key = decodeURIComponent(equipamento);
+  const key = safePostgrestTerm(decodeURIComponent(equipamento));
 
   const { data } = await supabaseManutencao
     .from("fact_pneus")

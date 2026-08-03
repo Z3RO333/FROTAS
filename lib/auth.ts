@@ -12,7 +12,14 @@ function profileEmail(
   const preferredUsername =
     typeof profile?.preferred_username === "string" ? profile.preferred_username : null;
   const email = user?.email ?? (typeof profile?.email === "string" ? profile.email : null) ?? preferredUsername;
-  return email?.toLowerCase() ?? "";
+  return email?.normalize("NFKC").trim().toLowerCase() ?? "";
+}
+
+function isAllowedCorporateEmail(email: string): boolean {
+  const parts = email.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  return Boolean(local && /^[a-z0-9._%+-]+$/.test(local) && domain === allowedDomain);
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -28,7 +35,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, profile }) {
       const email = profileEmail(user, profile);
-      return email.endsWith(`@${allowedDomain}`);
+      return isAllowedCorporateEmail(email);
     },
     async jwt({ token, user, profile }) {
       const email = profileEmail(user, profile);

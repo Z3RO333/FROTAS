@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { imageExtensionFromMime, safeContentTypeFromExtension, validateImageFile } from "@/lib/upload-validation";
+import { sanitizeImageForStorage } from "@/lib/upload-validation";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 export const SINISTRO_MEDIA_BUCKET = "sinistro-media";
 
 export async function uploadSinistroImage(file: File, args: { ticketNumber: string }): Promise<string> {
-  await validateImageFile(file, "Foto do sinistro");
-
-  const extension = imageExtensionFromMime(file.type);
+  const sanitized = await sanitizeImageForStorage(file, "Foto do sinistro");
+  const extension = sanitized.extension;
   const dateSegment = new Date().toISOString().slice(0, 10);
   const path = [
     sanitizeSegment(args.ticketNumber),
@@ -15,10 +14,9 @@ export async function uploadSinistroImage(file: File, args: { ticketNumber: stri
     `sinistro-${Date.now()}-${randomUUID()}.${extension}`,
   ].join("/");
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabaseManutencao.storage.from(SINISTRO_MEDIA_BUCKET).upload(path, buffer, {
+  const { error } = await supabaseManutencao.storage.from(SINISTRO_MEDIA_BUCKET).upload(path, sanitized.buffer, {
     cacheControl: "3600",
-    contentType: safeContentTypeFromExtension(extension),
+    contentType: sanitized.contentType,
     upsert: false,
   });
 

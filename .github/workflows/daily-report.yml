@@ -1,5 +1,8 @@
 name: Relatorio Diario IA
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # 22:00 UTC = 18:00 Manaus (UTC-4, sem horario de verao)
@@ -28,15 +31,11 @@ jobs:
           fi
 
           HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
-            -X GET "$ENDPOINT" \
+            -X POST "$ENDPOINT" \
             -H "x-internal-secret: $SECRET" \
             --max-time 120)
 
           echo "HTTP $HTTP_CODE"
-          echo "--- response ---"
-          cat response.json || true
-          echo "----------------"
-
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::error::Endpoint retornou $HTTP_CODE"
             exit 1
@@ -54,7 +53,7 @@ jobs:
             ERRO=$(jq -r '.erro_envio // .aviso // "envio nao confirmado"' response.json)
             echo "::warning::Relatorio nao foi enviado: $ERRO"
           else
-            DEST=$(jq -r '.destinatarios | join(",")' response.json)
+            DEST_COUNT=$(jq -r '.destinatarios | length' response.json)
             CRITICOS=$(jq -r '.total_criticos // 0' response.json)
-            echo "::notice::Relatorio enviado para $DEST (criticos=$CRITICOS)"
+            echo "::notice::Relatorio enviado (destinatarios=$DEST_COUNT, criticos=$CRITICOS)"
           fi

@@ -20,7 +20,8 @@ import { checklistSubmissionExists, createChecklist } from "@/lib/repos/checklis
 import { getFrota } from "@/lib/repos/frotas";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import { requireMotoristaUser } from "@/lib/rbac";
-import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
+import { fileFromForm, validateAggregateFileSize, validateImageFile } from "@/lib/upload-validation";
+import { publicActionError } from "@/lib/public-error";
 
 // Tipos e constantes movidos para types.ts (arquivos "use server" só exportam funções async)
 export type { ChecklistMotoristaActionState } from "./types";
@@ -153,6 +154,12 @@ export async function enviarChecklistMotoristaAction(
       })
     );
 
+    validateAggregateFileSize(
+      [fotoKm, fotoComprovante, ...itensDraft.map((item) => item.foto)],
+      32 * 1024 * 1024,
+      "Checklist"
+    );
+
     const missingRequired = itensDraft.find(
       (item) => item.catalogItem.obrigatorio && item.status === "NAO_SE_APLICA"
     );
@@ -266,6 +273,5 @@ export async function enviarChecklistMotoristaAction(
 
 function getChecklistActionErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados inválidos no checklist.";
-  if (error instanceof Error) return error.message;
-  return "Não foi possível enviar o checklist.";
+  return publicActionError(error, "Não foi possível enviar o checklist.");
 }

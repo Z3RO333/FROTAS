@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authenticateApiUser } from "@/lib/api-auth";
 import { apiError } from "@/lib/api-error";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+const RATE_LIMIT = 30;
+const RATE_WINDOW_SECONDS = 60;
 
 type NominatimAddress = {
   road?: string;
@@ -38,19 +41,37 @@ type BigDataCloudResponse = {
 };
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return apiError("Nao autenticado.", 401, "AUTH_REQUIRED");
+  const authentication = await authenticateApiUser();
+  if (!authentication.ok) return authentication.response;
+
+  try {
+    const allowed = await consumeRateLimit({
+      key: `reverse-geocode:${authentication.user.email}`,
+      limit: RATE_LIMIT,
+      windowSeconds: RATE_WINDOW_SECONDS,
+    });
+    if (!allowed) return apiError("Muitas requisições.", 429, "RATE_LIMITED");
+  } catch (error) {
+    return apiError(
+      "Serviço temporariamente indisponível.",
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+      error
+    );
   }
 
   const { searchParams } = new URL(request.url);
-  const lat = Number(searchParams.get("lat"));
-  const lon = Number(searchParams.get("lon"));
+  const rawLat = Number(searchParams.get("lat"));
+  const rawLon = Number(searchParams.get("lon"));
   const accuracy = Number(searchParams.get("accuracy"));
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+  if (!Number.isFinite(rawLat) || !Number.isFinite(rawLon) || rawLat < -90 || rawLat > 90 || rawLon < -180 || rawLon > 180) {
     return apiError("Coordenadas invalidas.", 400, "INVALID_COORDINATES");
   }
+
+  // Aproxima para ~11 m: suficiente para endereçamento sem enviar precisão excessiva.
+  const lat = Number(rawLat.toFixed(4));
+  const lon = Number(rawLon.toFixed(4));
 
   try {
     const address = await reverseWithNominatim(lat, lon);

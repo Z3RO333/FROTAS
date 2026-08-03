@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { publicActionError } from "@/lib/public-error";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/rbac";
 import { updateSocorroStatus, type SocorroStatus } from "@/lib/repos/sinistros";
@@ -24,6 +25,6 @@ export async function atualizarStatusSocorroAction(
     if (error instanceof z.ZodError) {
       return { ok: false, error: error.issues[0]?.message ?? "Dados invalidos." };
     }
-    return { ok: false, error: error instanceof Error ? error.message : "Nao foi possivel atualizar o status." };
+    return { ok: false, error: publicActionError(error, "Nao foi possivel atualizar o status.") };
   }
 }

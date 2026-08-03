@@ -11,6 +11,7 @@ import {
 } from "@/lib/repos/email-schedule";
 import { listFrotasForReport } from "@/lib/repos/frotas";
 import { sendRelatorioGeral } from "@/lib/email";
+import { publicActionError } from "@/lib/public-error";
 
 const ALLOWED_EMAIL_DOMAIN = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -39,7 +40,7 @@ export async function enviarRelatorioDisponibilidadeCDAction(
     return result.ok ? { ok: true } : { ok: false, error: (result as { error?: string }).error ?? "Erro ao enviar." };
   } catch (error) {
     if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };
-    return { ok: false, error: error instanceof Error ? error.message : "Erro ao enviar relatório." };
+    return { ok: false, error: publicActionError(error, "Erro ao enviar relatório.") };
   }
 }
 
@@ -109,7 +110,7 @@ export async function createDisponibilidadeScheduleAction(formData: FormData) {
     if (isRedirectError(error)) throw error;
     redirect(
       targetUrl({
-        erro: error instanceof Error ? error.message : "Erro ao criar programação.",
+        erro: publicActionError(error, "Erro ao criar programação."),
       })
     );
   }

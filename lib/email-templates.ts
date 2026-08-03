@@ -518,7 +518,7 @@ export type SinistroNotificationInput = {
   houveFeridos: boolean;
   samuBombeirosPresente: boolean | null;
   terceiros: SinistroTerceiroInfo[];
-  anexos: { label: string; url: string }[];
+  anexosQuantidade: number;
   criadoEm: Date;
   logoImageSrc?: string;
 };
@@ -528,6 +528,14 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
   const GREEN = "#22c55e";
   const dataHora = input.criadoEm.toLocaleString("pt-BR", { timeZone: "America/Manaus" });
   const tipoLabel = input.tipoSinistro === "veiculo" ? "Veiculo" : "Casa";
+  const maskCpf = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    return digits.length >= 2 ? `***.***.***-${digits.slice(-2)}` : "***";
+  };
+  const maskPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    return digits.length >= 4 ? `******${digits.slice(-4)}` : "***";
+  };
 
   const mapsLink =
     input.latitude != null && input.longitude != null
@@ -552,35 +560,17 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
           <div style="font-size:12px;font-weight:700;color:${BLUE};margin-bottom:6px;">Terceiro ${index + 1}</div>
           <div style="font-size:13px;line-height:1.6;">
             <strong>Nome:</strong> ${escapeHtml(terceiro.nome)}<br>
-            <strong>CPF:</strong> ${escapeHtml(terceiro.cpf)}<br>
-            <strong>Telefone:</strong> ${escapeHtml(terceiro.telefone)}
+            <strong>CPF:</strong> ${escapeHtml(maskCpf(terceiro.cpf))}<br>
+            <strong>Telefone:</strong> ${escapeHtml(maskPhone(terceiro.telefone))}
           </div>
         </div>`
           )
           .join("")
       : `<div style="font-size:13px;color:${MUTED};">Nenhum terceiro informado.</div>`;
 
-  function anexoCell(anexo: { label: string; url: string }): string {
-    // object-fit nao e suportado no Outlook (motor Word) — so largura fixa com altura
-    // automatica preserva a proporcao real da foto em qualquer cliente, sem cortar nem distorcer.
-    return `
-      <td style="vertical-align:top;padding:0 8px 8px 0;width:160px;">
-        <a href="${anexo.url}" style="display:block;text-decoration:none;">
-          <img src="${anexo.url}" width="160" alt="${escapeHtml(anexo.label)}" style="display:block;width:160px;max-width:160px;height:auto;border-radius:8px;border:1px solid ${BORDER};">
-          <div style="margin-top:4px;font-size:11px;color:${BLUE_2};font-weight:600;text-align:center;">${escapeHtml(anexo.label)}</div>
-        </a>
-      </td>`;
-  }
-
-  const ANEXOS_POR_LINHA = 4;
   const anexosBlock =
-    input.anexos.length > 0
-      ? `<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:4px;">
-          ${Array.from({ length: Math.ceil(input.anexos.length / ANEXOS_POR_LINHA) }, (_, row) => {
-            const linha = input.anexos.slice(row * ANEXOS_POR_LINHA, row * ANEXOS_POR_LINHA + ANEXOS_POR_LINHA);
-            return `<tr>${linha.map(anexoCell).join("")}</tr>`;
-          }).join("")}
-        </table>`
+    input.anexosQuantidade > 0
+      ? `<div style="font-size:13px;color:${MUTED};">${input.anexosQuantidade} evidência(s) disponível(is) somente no painel autenticado.</div>`
       : `<div style="font-size:13px;color:${MUTED};">Nenhum anexo enviado.</div>`;
 
   const body = `

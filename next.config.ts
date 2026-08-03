@@ -24,10 +24,9 @@ const config: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      // Limite total coerente com 8 imagens de sinistro, fotos do checklist e
-      // dois PDFs validados no servidor. Em evolução futura, mover para upload
-      // direto assinado para não manter arquivos grandes na Server Action.
-      bodySizeLimit: "90mb",
+      // Defesa global; cada fluxo ainda aplica um limite agregado mais baixo.
+      // Uploads maiores devem usar URL assinada e processamento assíncrono.
+      bodySizeLimit: "45mb",
       ...(ALLOWED_ORIGINS.length > 0 ? { allowedOrigins: ALLOWED_ORIGINS } : {}),
     },
   },

@@ -153,11 +153,13 @@ async function createSignedDocumentUrl(pathOrUrl: string | null | undefined): Pr
   if (!pathOrUrl) return null;
 
   const path = normalizeDocumentStoragePath(pathOrUrl);
-  if (!path) return isHttpUrl(pathOrUrl) ? pathOrUrl : null;
+  if (!path) return null;
 
   const { data, error } = await supabaseManutencao.storage
     .from(DOCUMENTS_BUCKET)
-    .createSignedUrl(path, SIGNED_URL_EXPIRES_IN_SECONDS);
+    .createSignedUrl(path, SIGNED_URL_EXPIRES_IN_SECONDS, {
+      download: path.split("/").at(-1) ?? "documento.pdf",
+    });
 
   if (error) return null;
   return data?.signedUrl ?? null;

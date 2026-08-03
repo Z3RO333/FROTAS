@@ -3,9 +3,11 @@ import { UploadValidationError, validateImageFile, validatePdfFile } from "./upl
 
 describe("upload validation", () => {
   it("aceita PNG com assinatura válida", async () => {
-    const file = new File([
-      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    ], "painel.png", { type: "image/png" });
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64"
+    );
+    const file = new File([png], "painel.png", { type: "image/png" });
     await expect(validateImageFile(file, "Foto")).resolves.toBeUndefined();
   });
 
@@ -20,8 +22,16 @@ describe("upload validation", () => {
   });
 
   it("aceita PDF com magic bytes", async () => {
-    const file = new File(["%PDF-1.7\n"], "documento.pdf", { type: "application/pdf" });
+    const file = new File(["%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n"], "documento.pdf", { type: "application/pdf" });
     await expect(validatePdfFile(file, "Documento")).resolves.toBeUndefined();
   });
-});
 
+  it("rejeita PDF com JavaScript", async () => {
+    const file = new File(
+      ["%PDF-1.7\n1 0 obj<</OpenAction<</S/JavaScript/JS(alert(1))>>>>endobj\n%%EOF\n"],
+      "documento.pdf",
+      { type: "application/pdf" }
+    );
+    await expect(validatePdfFile(file, "Documento")).rejects.toThrow("conteúdo ativo");
+  });
+});

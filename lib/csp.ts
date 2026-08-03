@@ -38,7 +38,7 @@ export function buildContentSecurityPolicy(nonce: string, options: CspOptions = 
     ["style-src-elem", "'self'", `'nonce-${nonce}'`],
     [
       "style-src-attr",
-      options.allowInlineStyleAttributes === false ? "'none'" : "'unsafe-inline'",
+      options.allowInlineStyleAttributes === true ? "'unsafe-inline'" : "'none'",
     ],
     ["img-src", "'self'", "data:", "blob:", ...(supabaseOrigin ? [supabaseOrigin] : [])],
     ["font-src", "'self'"],
@@ -66,4 +66,3 @@ export function buildContentSecurityPolicy(nonce: string, options: CspOptions = 
 
   return directives.map((directive) => directive.join(" ")).join("; ");
 }
-
