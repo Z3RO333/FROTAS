@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -133,16 +134,12 @@ export default async function PneusPage() {
                   </div>
                 </div>
 
-                {/* Barra de progresso */}
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={cn(
-                      "h-full transition-all duration-300",
-                      pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500"
-                    )}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  className="mt-3"
+                  value={pct}
+                  tone={pct === 100 ? "emerald" : pct >= 50 ? "amber" : "red"}
+                  label={`Pneus marcados da frota ${v.frota_numero ?? "sem número"}: ${pct}%`}
+                />
               </Link>
             );
           })}

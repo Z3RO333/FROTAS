@@ -14,6 +14,7 @@ import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 type ChecklistItemStatus = "APTO" | "NAO_APTO" | "NAO_SE_APLICA";
 
@@ -334,12 +335,11 @@ export function DriverChecklistForm({
             </span>
           ))}
         </div>
-        <div className="mt-2 h-1.5 rounded-full bg-slate-100">
-          <div
-            className="h-1.5 rounded-full bg-blue-600 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <ProgressBar
+          className="mt-2"
+          value={progress}
+          label={`Progresso do checklist: ${Math.round(progress)}%`}
+        />
       </div>
 
       <section hidden={step !== 0} className="space-y-4">

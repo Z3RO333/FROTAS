@@ -2,6 +2,7 @@ import { BarChart2 } from "lucide-react";
 import { requireManutencaoUser } from "@/lib/rbac";
 import { getCustosPorPeriodo, getCustosTotais } from "@/lib/repos/custos";
 import { PageHeader } from "@/components/ui/page-header";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +46,11 @@ export default async function CustosPage() {
               <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
                 {p.data_periodo}
               </span>
-              <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-3 rounded-full bg-blue-400 transition-all"
-                  style={{ width: `${(p.valor_total / maiorValor) * 100}%` }}
+              <div className="flex-1">
+                <ProgressBar
+                  className="h-3"
+                  value={(p.valor_total / maiorValor) * 100}
+                  label={`Custo relativo do período ${p.data_periodo}`}
                 />
               </div>
               <span className="w-32 shrink-0 text-right text-xs font-medium tabular-nums">

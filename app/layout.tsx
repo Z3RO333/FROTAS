@@ -3,6 +3,9 @@ import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { PwaRegister } from "@/components/pwa-register";
 
+// Nonces CSP são exclusivos por requisição e exigem renderização dinâmica.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Frotas Bemol",
   description: "Sistema de gestão de frotas Bemol",

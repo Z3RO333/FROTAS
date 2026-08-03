@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { FilterBar, FilterSearch, FilterChip } from "@/components/ui/filter-bar";
 import {
   Table,
@@ -266,8 +267,7 @@ function CompletudeBar({ doc }: { doc: DocumentRecordWithSignedUrls }) {
   const has = (doc.dut_url ? 1 : 0) + (doc.crlv_url ? 1 : 0);
   const pct = (has / 2) * 100;
   const status = statusDoDoc(doc);
-  const barColor =
-    status === "COMPLETO" ? "bg-emerald-500" : status === "PARCIAL" ? "bg-amber-500" : "bg-red-500";
+  const barTone = status === "COMPLETO" ? "emerald" : status === "PARCIAL" ? "amber" : "red";
   const label =
     status === "COMPLETO" ? "Completo" : status === "PARCIAL" ? "Parcial" : "Pendente";
   const labelColor =
@@ -278,9 +278,7 @@ function CompletudeBar({ doc }: { doc: DocumentRecordWithSignedUrls }) {
         <span className={labelColor}>{label}</span>
         <span className="tabular-nums text-slate-500">{has}/2</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div className={cn("h-full transition-all duration-300", barColor)} style={{ width: `${pct}%` }} />
-      </div>
+      <ProgressBar value={pct} tone={barTone} label={`Completude dos documentos: ${pct}%`} />
     </div>
   );
 }

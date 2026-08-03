@@ -2,6 +2,7 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const COLORS: Record<string, string> = {
   disponivel: "hsl(158 64% 40%)",
@@ -11,6 +12,16 @@ const COLORS: Record<string, string> = {
   normal: "hsl(158 64% 40%)",
   atencao: "hsl(28 92% 55%)",
   critico: "hsl(0 84% 60%)",
+};
+
+const DOT_CLASSES: Record<string, string> = {
+  disponivel: "bg-emerald-600",
+  manutencao: "bg-amber-500",
+  indisponivel: "bg-red-500",
+  baixado: "bg-slate-500",
+  normal: "bg-emerald-600",
+  atencao: "bg-orange-500",
+  critico: "bg-red-500",
 };
 
 const LABELS: Record<string, string> = {
@@ -61,8 +72,10 @@ export function StatusDonut({ data, title }: Props) {
             <div key={item.status} className="flex items-center justify-between gap-3 text-sm">
               <span className="flex min-w-0 items-center gap-2">
                 <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: COLORS[item.status] || "hsl(215 16% 47%)" }}
+                  className={cn(
+                    "h-2.5 w-2.5 rounded-full",
+                    DOT_CLASSES[item.status] ?? "bg-slate-500"
+                  )}
                 />
                 <span className="truncate text-muted-foreground">{LABELS[item.status] ?? item.status}</span>
               </span>

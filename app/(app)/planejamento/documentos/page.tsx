@@ -3,6 +3,7 @@ import { getDocumentos, type DocumentoRow } from "@/lib/repos/planejamento";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -110,14 +111,12 @@ export default async function DocumentosPage() {
                   <div className="text-[10px] text-muted-foreground">conformidade</div>
                 </div>
               </div>
-              <div className="mt-3 h-1.5 rounded-full bg-slate-100">
-                <div
-                  className={`h-1.5 rounded-full transition-all ${
-                    pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-red-500"
-                  }`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              <ProgressBar
+                className="mt-3"
+                value={pct}
+                tone={pct >= 80 ? "emerald" : pct >= 50 ? "amber" : "red"}
+                label={`Conformidade de ${tipo}: ${pct}%`}
+              />
             </div>
           );
         })}

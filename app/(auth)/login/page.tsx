@@ -1,10 +1,13 @@
 import Image from "next/image";
+import { headers } from "next/headers";
 import { signIn } from "@/lib/auth";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <main className="login-stage">
-      <style>{`
+      <style nonce={nonce}>{`
         * { box-sizing: border-box; }
 
         .login-stage {
@@ -226,7 +229,7 @@ export default function LoginPage() {
             alt=""
             width={24}
             height={24}
-            style={{ objectFit: "contain" }}
+            className="object-contain"
           />
           <span>Manutenção</span>
           <span className="sep" />
