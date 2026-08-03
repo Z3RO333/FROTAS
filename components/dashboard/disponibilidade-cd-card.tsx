@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { DisponibilidadeCD, DisponibilidadeGeral } from "@/lib/repos/disponibilidade";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -13,7 +14,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 export function DisponibilidadeCDCard({ cd }: { cd: DisponibilidadeCD }) {
   const pct = cd.percentual_disponibilidade;
   const cor = pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-600" : "text-red-600";
-  const barCor = pct >= 80 ? "bg-emerald-400" : pct >= 60 ? "bg-amber-400" : "bg-red-400";
+  const barTone = pct >= 80 ? "emerald" : pct >= 60 ? "amber" : "red";
 
   return (
     <div className="rounded-xl border bg-white p-4 shadow-sm">
@@ -31,12 +32,12 @@ export function DisponibilidadeCDCard({ cd }: { cd: DisponibilidadeCD }) {
         </div>
       </div>
 
-      <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100">
-        <div
-          className={cn("h-1.5 rounded-full transition-all", barCor)}
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-      </div>
+      <ProgressBar
+        className="mt-3"
+        value={pct}
+        tone={barTone}
+        label={`Disponibilidade de ${cd.cd_nome}: ${pct}%`}
+      />
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <Stat label="Disponíveis" value={cd.disponiveis} color="text-emerald-600" />
