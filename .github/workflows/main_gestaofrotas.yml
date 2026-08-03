@@ -36,10 +36,10 @@ jobs:
       CHECKLIST_VISION_SECRET: build-validation-vision-secret
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Node.js version
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22.x'
           cache: npm
@@ -63,7 +63,7 @@ jobs:
         run: npm run build
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: node-app
           path: |
@@ -85,12 +85,12 @@ jobs:
 
     steps:
       - name: Download artifact from build job
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: node-app
 
       - name: Login to Azure
-        uses: azure/login@1384c340ab2dda50fed2bee3041d1d87018aa5e8 # v2
+        uses: azure/login@2dd0bbf4064d5a1812889dc200bb8eed2597f82a # v3
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_82331B84C41D4FE09F124159695BA0BC }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E312B6B2EEAD4A0D9A75B694A78BD382 }}
