@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const secret = process.env.CHECKLIST_VISION_SECRET?.trim();
   if (!secret) {
-    return apiError("CHECKLIST_VISION_SECRET nao configurado.", 503, "VISION_NOT_CONFIGURED");
+    return apiError("Serviço de visão não configurado.", 503, "VISION_NOT_CONFIGURED");
   }
 
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
       await markChecklistImageInspectionProcessed(inspection.id, yoloResult);
       results.push({ id: inspection.id, status: "processed" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha inesperada na analise YOLO.";
+      console.error(`[vision] falha inspection_id=${inspection.id}`, error);
+      const message = "Falha no processamento da imagem.";
       await markChecklistImageInspectionFailed(inspection.id, message);
       results.push({ id: inspection.id, status: "failed", error: message });
     }

@@ -29,6 +29,7 @@ describe("Content-Security-Policy", () => {
       "style-src-elem 'self' 'nonce-abc123'"
     );
     expect(directive(policy, "script-src-attr")).toBe("script-src-attr 'none'");
+    expect(directive(policy, "style-src-attr")).toBe("style-src-attr 'none'");
   });
 
   it("permite testar atributos de estilo em modo estrito", () => {
@@ -37,6 +38,13 @@ describe("Content-Security-Policy", () => {
     });
 
     expect(directive(policy, "style-src-attr")).toBe("style-src-attr 'none'");
+  });
+
+  it("exige opt-out explícito para atributos de estilo inline", () => {
+    const policy = buildContentSecurityPolicy("abc123", {
+      allowInlineStyleAttributes: true,
+    });
+    expect(directive(policy, "style-src-attr")).toBe("style-src-attr 'unsafe-inline'");
   });
 
   it("aceita somente uma origem web válida do Supabase", () => {

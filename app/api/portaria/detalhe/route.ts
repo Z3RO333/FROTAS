@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAppUser, canAccessPortaria } from "@/lib/rbac";
+import { authenticateApiUser } from "@/lib/api-auth";
+import { canAccessPortaria } from "@/lib/rbac";
 import { getChecklistDetalhePortaria } from "@/lib/repos/portaria-detail";
 import { apiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   // Verifica perfil — motoristas não devem ver checklist de outros via API
-  const user = await requireAppUser().catch(() => null);
-  if (!user) {
-    return apiError("Não autenticado.", 401, "AUTH_REQUIRED");
-  }
-  if (!canAccessPortaria(user.perfil)) {
+  const authentication = await authenticateApiUser();
+  if (!authentication.ok) return authentication.response;
+  if (!canAccessPortaria(authentication.user.perfil)) {
     return apiError("Acesso negado.", 403, "FORBIDDEN");
   }
 
@@ -27,6 +26,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erro ao buscar detalhe.";
     const status = /não encontrado|nao encontrado/i.test(msg) ? 404 : 500;
-    return apiError(msg, status, status === 404 ? "NOT_FOUND" : "PORTARIA_DETAIL_FAILED", error);
+    return apiError(
+      status === 404 ? "Checklist não encontrado." : "Erro ao buscar detalhe.",
+      status,
+      status === 404 ? "NOT_FOUND" : "PORTARIA_DETAIL_FAILED",
+      error
+    );
   }
 }

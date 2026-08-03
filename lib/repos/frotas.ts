@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
+import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
@@ -345,10 +346,12 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   if (f.status) next = next.eq("status", f.status);
   if (f.semKm) next = next.is("km_atual", null);
   if (f.search) {
-    const s = f.search.replace(/[%_]/g, "\\$&"); // escapa wildcards SQL
-    next = next.or(
-      `codigo_frota.ilike.%${s}%,placa.ilike.%${s}%,modelo.ilike.%${s}%,chassi.ilike.%${s}%,local.ilike.%${s}%`
-    );
+    const s = safePostgrestTerm(f.search);
+    if (s) {
+      next = next.or(
+        `codigo_frota.ilike.%${s}%,placa.ilike.%${s}%,modelo.ilike.%${s}%,chassi.ilike.%${s}%,local.ilike.%${s}%`
+      );
+    }
   }
   return next;
 }

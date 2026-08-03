@@ -1,6 +1,7 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { Veiculo, ServicoApp, TrocaPneuApp } from "./types";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
+import { safePostgrestTerm } from "@/lib/postgrest-filter";
 
 // Colunas usadas pelo PneusWorkspace — evita transferir os 8 campos de intervalo
 // que não são consumidos por essa tela.
@@ -9,8 +10,11 @@ const VEICULO_PNEUS_COLS = "id,codigo_frota,placa,modelo,qtd_pneus,local";
 export async function listVeiculos(search?: string): Promise<Veiculo[]> {
   let q = supabaseManutencao.from("veiculos").select(VEICULO_PNEUS_COLS).order("codigo_frota");
   if (search) {
-    const s = `%${search.toLowerCase()}%`;
-    q = q.or(`codigo_frota.ilike.${s},placa.ilike.${s},modelo.ilike.${s}`);
+    const term = safePostgrestTerm(search.toLowerCase());
+    if (term) {
+      const s = `%${term}%`;
+      q = q.or(`codigo_frota.ilike.${s},placa.ilike.${s},modelo.ilike.${s}`);
+    }
   }
   const { data, error } = await q;
   if (error) throw new Error(`listVeiculos: ${error.message}`);

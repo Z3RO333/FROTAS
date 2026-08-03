@@ -19,36 +19,78 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # Valores sem privilégio usados somente para validar o bundle. Os segredos reais
+      # permanecem nas configurações do Azure App Service.
+      AZURE_AD_CLIENT_ID: build-validation
+      AZURE_AD_CLIENT_SECRET: build-validation
+      AZURE_AD_TENANT: build-validation
+      NEXTAUTH_SECRET: build-validation-secret-at-least-32-characters
+      NEXTAUTH_URL: https://build.invalid
+      FROTAS_APP_URL: https://build.invalid
+      NEXT_PUBLIC_APP_URL: https://build.invalid
+      SUPABASE_MANUTENCAO_URL: https://build.supabase.invalid
+      NEXT_PUBLIC_SUPABASE_MANUTENCAO_URL: https://build.supabase.invalid
+      SUPABASE_MANUTENCAO_SERVICE_ROLE_KEY: build-validation
+      FROTAS_INTERNAL_SECRET: build-validation-internal-secret
+      CHECKLIST_VISION_SECRET: build-validation-vision-secret
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js version
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22.x'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
 
       - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: node-app
-          path: .
+          path: |
+            .
+            !node_modules
+            !.next
+            !.git
+            !.env
+            !.env.*
+            !coverage
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    environment: Production
     permissions:
       id-token: write
       contents: read
 
     steps:
       - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: node-app
 
       - name: Login to Azure
-        uses: azure/login@v2
+        uses: azure/login@1384c340ab2dda50fed2bee3041d1d87018aa5e8 # v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_82331B84C41D4FE09F124159695BA0BC }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_E312B6B2EEAD4A0D9A75B694A78BD382 }}
@@ -56,7 +98,7 @@ jobs:
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
+        uses: azure/webapps-deploy@b686016b4de8820a23519503685d8d03fbfa03a6 # v3
         with:
           app-name: 'GestaoFrotas'
           slot-name: 'Production'

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
-import { imageExtensionFromMime, safeContentTypeFromExtension, validateImageFile } from "@/lib/upload-validation";
+import { sanitizeImageForStorage } from "@/lib/upload-validation";
 
 export const CHECKLIST_IMAGES_BUCKET = "checklist-images";
 
@@ -45,9 +45,8 @@ export async function uploadChecklistImage(
     itemCodigo?: string | null;
   }
 ): Promise<string> {
-  await validateImageFile(file, labelFromSource(args.sourceType));
-
-  const extension = imageExtensionFromMime(file.type);
+  const sanitized = await sanitizeImageForStorage(file, labelFromSource(args.sourceType));
+  const extension = sanitized.extension;
   const dateSegment = new Date().toISOString().slice(0, 10);
   const itemSegment = args.itemCodigo ? `-${sanitizeSegment(args.itemCodigo)}` : "";
   const path = [
@@ -56,10 +55,9 @@ export async function uploadChecklistImage(
     `${args.sourceType}${itemSegment}-${Date.now()}-${randomUUID()}.${extension}`,
   ].join("/");
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabaseManutencao.storage.from(CHECKLIST_IMAGES_BUCKET).upload(path, buffer, {
+  const { error } = await supabaseManutencao.storage.from(CHECKLIST_IMAGES_BUCKET).upload(path, sanitized.buffer, {
     cacheControl: "3600",
-    contentType: safeContentTypeFromExtension(extension),
+    contentType: sanitized.contentType,
     upsert: false,
   });
 

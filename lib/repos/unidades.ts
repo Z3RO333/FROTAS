@@ -1,5 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { Frota } from "@/lib/repos/frotas";
+import { safePostgrestTerm } from "@/lib/postgrest-filter";
 
 export type UnidadeOperacional = {
   id: number;
@@ -31,7 +32,7 @@ async function safeSupabase<T>(label: string, cb: () => Promise<T>, fallback: T)
 
 export async function listUnidades(search?: string, limit = 200): Promise<UnidadeOperacional[]> {
   return safeSupabase("listagem", async () => {
-    const q = search?.trim();
+    const q = search ? safePostgrestTerm(search) : "";
     let request = supabaseManutencao
       .from("unidades_operacionais")
       .select("*")
@@ -40,7 +41,7 @@ export async function listUnidades(search?: string, limit = 200): Promise<Unidad
       .limit(limit);
 
     if (q) {
-      const pattern = `%${q.replace(/[%_]/g, "\\$&")}%`;
+      const pattern = `%${q}%`;
       request = request.or([
         `loja.ilike.${pattern}`,
         `negocio.ilike.${pattern}`,
@@ -76,14 +77,16 @@ export async function findUnidadeForFrota(frota: Frota): Promise<UnidadeOperacio
   if (keys.length === 0) return null;
 
   for (const key of keys) {
+    const safeKey = safePostgrestTerm(key);
+    if (!safeKey) continue;
     const exact = await safeSupabase("busca exata", async () => {
       const { data, error } = await supabaseManutencao
         .from("unidades_operacionais")
         .select("*")
         .or([
-          `loja.eq.${key}`,
-          `centro.eq.${key}`,
-          `local_negocio.eq.${key}`,
+          `loja.eq.${safeKey}`,
+          `centro.eq.${safeKey}`,
+          `local_negocio.eq.${safeKey}`,
         ].join(","))
         .limit(1);
 
@@ -94,7 +97,7 @@ export async function findUnidadeForFrota(frota: Frota): Promise<UnidadeOperacio
     if (exact) return exact;
 
     const fuzzy = await safeSupabase("busca aproximada", async () => {
-      const pattern = `%${key.replace(/[%_]/g, "\\$&")}%`;
+      const pattern = `%${safeKey}%`;
       const { data, error } = await supabaseManutencao
         .from("unidades_operacionais")
         .select("*")

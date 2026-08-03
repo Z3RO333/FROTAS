@@ -1,4 +1,5 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
+import { safePostgrestTerm } from "@/lib/postgrest-filter";
 
 export type PlanejamentoOverview = {
   docs_vencidos: number;
@@ -381,8 +382,8 @@ export async function getParadas(): Promise<ParadaRow[]> {
     .map(paradaManual);
 
   // Lookup veiculo_id for imported rows via frota_numero/placa
-  const frotaNums = importadas.map((r) => r.frota_numero).filter(Boolean) as string[];
-  const placas = importadas.map((r) => r.placa).filter(Boolean) as string[];
+  const frotaNums = importadas.map((r) => safePostgrestTerm(r.frota_numero ?? "")).filter(Boolean);
+  const placas = importadas.map((r) => safePostgrestTerm(r.placa ?? "")).filter(Boolean);
   const veiculoMap = new Map<string, number>();
   if (frotaNums.length > 0 || placas.length > 0) {
     const { data: veiculos, error: veiculosError } = await supabaseManutencao

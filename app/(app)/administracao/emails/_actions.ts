@@ -9,6 +9,7 @@ import {
   toggleEmailSchedule,
   deleteEmailSchedule,
 } from "@/lib/repos/email-schedule";
+import { publicActionError } from "@/lib/public-error";
 
 const ScheduleSchema = z.object({
   nome: z.string().trim().min(1, "Nome obrigatório").max(120),
@@ -81,7 +82,7 @@ export async function createScheduleAction(formData: FormData) {
     if (isRedirectError(error)) throw error;
     redirect(
       `/administracao/emails?erro=${encodeURIComponent(
-        error instanceof Error ? error.message : "Erro ao criar programação"
+        publicActionError(error, "Erro ao criar programação")
       )}`
     );
   }

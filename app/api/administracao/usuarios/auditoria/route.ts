@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { canManageUsers, requireAppUser } from "@/lib/rbac";
+import { authenticateApiUser } from "@/lib/api-auth";
+import { canManageUsers } from "@/lib/rbac";
 import { listUsuarioAuditoria } from "@/lib/repos/usuarios";
 import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const user = await requireAppUser().catch(() => null);
-  if (!user) return apiError("Não autenticado.", 401, "AUTH_REQUIRED");
-  if (!canManageUsers(user.perfil)) {
+  const authentication = await authenticateApiUser();
+  if (!authentication.ok) return authentication.response;
+  if (!canManageUsers(authentication.user.perfil)) {
     return apiError("Acesso negado.", 403, "FORBIDDEN");
   }
 

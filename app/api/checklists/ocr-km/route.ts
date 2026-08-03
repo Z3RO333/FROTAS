@@ -1,23 +1,27 @@
 import { NextResponse } from "next/server";
 import { analyzeOdometerImage, calcStatusLeitura } from "@/lib/ai/odometer";
-import { auth } from "@/lib/auth";
+import { authenticateApiUser } from "@/lib/api-auth";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { apiError } from "@/lib/api-error";
 import { fileFromForm, UploadValidationError, validateImageFile } from "@/lib/upload-validation";
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_SECONDS = 60;
+const MAX_REQUEST_BYTES = 6 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return apiError("Não autenticado.", 401, "AUTH_REQUIRED");
+  const authentication = await authenticateApiUser();
+  if (!authentication.ok) return authentication.response;
+
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+    return apiError("Requisição acima de 6 MB.", 413, "REQUEST_TOO_LARGE");
   }
 
   let allowed: boolean;
   try {
     allowed = await consumeRateLimit({
-      key: `ocr-km:${session.user.email.toLowerCase()}`,
+      key: `ocr-km:${authentication.user.email}`,
       limit: RATE_LIMIT,
       windowSeconds: RATE_WINDOW_SECONDS,
     });

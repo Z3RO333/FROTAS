@@ -13,7 +13,8 @@ import {
   updateDocument,
   uploadDocumentFile,
 } from "@/lib/repos/manutencao/documents";
-import { validatePdfFile } from "@/lib/upload-validation";
+import { validateAggregateFileSize, validatePdfFile } from "@/lib/upload-validation";
+import { publicActionError } from "@/lib/public-error";
 
 const DocumentSchema = z.object({
   frota: z.string().trim().min(1, "Frota obrigatória"),
@@ -38,6 +39,7 @@ export async function createDocumentAction(formData: FormData): Promise<Document
 
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
+    validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
     const uploadedPaths: string[] = [];
     try {
@@ -84,6 +86,7 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
 
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
+    validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
     const placa = input.placa ?? current.placa;
 
@@ -147,6 +150,5 @@ function normalizePlate(value: string): string {
 
 function getActionErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Dados inválidos.";
-  if (error instanceof Error) return error.message;
-  return "Erro inesperado ao processar documento.";
+  return publicActionError(error, "Erro inesperado ao processar documento.");
 }
