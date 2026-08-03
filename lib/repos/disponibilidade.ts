@@ -1,7 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 export { normalizeCdNome } from "@/lib/cd-utils";
 import { normalizeCdNome } from "@/lib/cd-utils";
-import { frotaEstaFora } from "@/lib/frota-derived";
 
 const VEICULOS_DISPONIBILIDADE_SELECT =
   "id,codigo_frota,placa,modelo,local,status,status_operacional,ativo,vendido,km_atualizado_em,ultimo_checklist_em,ultimo_motorista_nome,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_iniciado_por,manutencao_prev_retorno";
@@ -86,8 +85,7 @@ function isIndisponivel(row: VeiculoDisponibilidadeRow): boolean {
   return (
     row.status === "critico" ||
     row.status === "indisponivel" ||
-    row.status_operacional === "BLOQUEADA_CHECKLIST" ||
-    frotaEstaFora(row.status_operacional)
+    row.status_operacional === "BLOQUEADA_CHECKLIST"
   );
 }
 
@@ -100,7 +98,7 @@ function isDisponivel(row: VeiculoDisponibilidadeRow): boolean {
 }
 
 function isEmOperacao(row: VeiculoDisponibilidadeRow): boolean {
-  return frotaEstaFora(row.status_operacional);
+  return row.status_operacional === "EM_USO";
 }
 
 function diasDesde(value: string | null, agora = Date.now()): number | null {

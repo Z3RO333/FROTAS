@@ -16,9 +16,9 @@ import {
   uploadChecklistImage,
   type ChecklistImageInspectionInput,
 } from "@/lib/repos/checklist-images";
-import { createChecklist } from "@/lib/repos/checklists";
+import { checklistSubmissionExists, createChecklist } from "@/lib/repos/checklists";
 import { getFrota } from "@/lib/repos/frotas";
-import { frotaEstaFora } from "@/lib/frota-derived";
+import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import { requireMotoristaUser } from "@/lib/rbac";
 import { fileFromForm, validateImageFile } from "@/lib/upload-validation";
 
@@ -80,6 +80,14 @@ export async function enviarChecklistMotoristaAction(
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
 
+    const frota = await getFrota(frotaId);
+    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
+    const bloqueioRestante = bloqueioChecklistRestanteMs(frota.ultimo_checklist_em);
+    if (bloqueioRestante > 0 && !(await checklistSubmissionExists(submissionId))) {
+      const minutos = Math.ceil(bloqueioRestante / 60_000);
+      throw new Error(`Aguarde ${minutos} minuto(s) para fazer outro checklist nesta frota.`);
+    }
+
     const fotoKm = await validateImage(fileFromForm(formData.get("foto_km")), "Foto do hodômetro");
     if (!fotoKm) {
       throw new Error("A foto do hodômetro é obrigatória para comprovar o KM.");
@@ -88,12 +96,6 @@ export async function enviarChecklistMotoristaAction(
     // A leitura persistida é calculada novamente a partir da própria foto
     // recebida pela Server Action. Valores enviados pelo navegador são ignorados.
     const leituraKm = await analyzeOdometerImage(fotoKm);
-
-    const frota = await getFrota(frotaId);
-    if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");
-    if (frotaEstaFora(frota.status_operacional)) {
-      throw new Error("Esta frota está fora da base. Registre a entrada na portaria antes de fazer outro checklist.");
-    }
 
     const statusLeituraServidor = calcStatusLeitura(leituraKm, frota.km_atual);
 

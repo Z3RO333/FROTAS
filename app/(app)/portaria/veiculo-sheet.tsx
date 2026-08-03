@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  AlertTriangle, CheckCircle2, Clock, Gauge, LogIn, LogOut,
+  AlertTriangle, CheckCircle2, Clock, Gauge, LogOut,
   Lock, MessageSquare, RefreshCw, Truck, User, ChevronRight, XCircle, ImageOff,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -121,7 +121,6 @@ export function VeiculoSheet({
   const [showCorrecaoForm, setShowCorrecaoForm] = useState(false);
 
   const canLiberar = statusPortaria === "LIBERADA_SAIDA";
-  const canEntrada = statusPortaria === "SAIDA_REGISTRADA";
   // A portaria registra a movimentação física; apenas aprovadores autorizam exceções.
   const canBloquear = statusPortaria === "LIBERADA_SAIDA";
   const canCorrecao = statusPortaria === "BLOQUEADA_CHECKLIST" || statusPortaria === "CHECKLIST_REALIZADO";
@@ -338,17 +337,6 @@ export function VeiculoSheet({
                 </form>
               )}
 
-              {canEntrada && (
-                <form action={withToast(registrarMovimentacaoPortariaAction, "Entrada registrada com sucesso!")}>
-                  <input type="hidden" name="frota_id" value={detalhe.frota_id} />
-                  <input type="hidden" name="checklist_id" value={detalhe.checklist_id} />
-                  <input type="hidden" name="tipo_movimentacao" value="ENTRADA" />
-                  <PortariaSubmitButton variant="outline" loadingText="Registrando entrada...">
-                    <LogIn className="mr-2 h-4 w-4" /> Registrar entrada
-                  </PortariaSubmitButton>
-                </form>
-              )}
-
               {canBloquear && !showBloqueioForm && (
                 <Button type="button" variant="outline" className="w-full border-red-200 text-red-700 hover:bg-red-50"
                   onClick={() => { setShowBloqueioForm(true); setShowCorrecaoForm(false); }}>
@@ -427,7 +415,7 @@ export function VeiculoSheet({
                 </form>
               )}
 
-              {!canLiberar && !canEntrada && !canBloquear && !canCorrecao && !canLiberarForcado && (
+              {!canLiberar && !canBloquear && !canCorrecao && !canLiberarForcado && (
                 <p className="text-center text-sm text-muted-foreground">Nenhuma ação disponível para este status.</p>
               )}
             </div>

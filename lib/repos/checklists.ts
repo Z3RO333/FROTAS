@@ -10,7 +10,7 @@ const COLS_CHECKLIST_LIST =
 const COLS_PENDENCIA_LIST =
   "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
 import { getFrota } from "@/lib/repos/frotas";
-import { frotaEstaFora } from "@/lib/frota-derived";
+import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import {
   countPendingKmValidations,
   type KmOrigem,
@@ -615,6 +615,18 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
 /** Alias para compatibilidade com código existente que importa listPortariaToday */
 export const listPortariaToday = () => listPortariaForDate();
 
+export async function checklistSubmissionExists(submissionId: string): Promise<boolean> {
+  const { data, error } = await supabaseManutencao
+    .from("checklists_frota")
+    .select("id")
+    .eq("submission_id", submissionId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(`checklistSubmissionExists: ${error.message}`, { cause: error });
+  return Boolean(data);
+}
+
 async function fetchPendenciasCriticasByChecklistIds(ids: number[]): Promise<Map<number, string>> {
   const uniqueIds = [...new Set(ids.filter(Boolean))];
   if (uniqueIds.length === 0) return new Map();
@@ -713,8 +725,12 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   const frotaAtual = await getFrota(input.frota_id);
   if (!frotaAtual) throw new Error(`Frota ${input.frota_id} nao encontrada`);
 
-  if (frotaEstaFora(frotaAtual.status_operacional)) {
-    throw new Error("Frota fora da base. Registre a entrada na portaria antes de criar outro checklist.");
+  const bloqueioRestante = bloqueioChecklistRestanteMs(frotaAtual.ultimo_checklist_em);
+  if (bloqueioRestante > 0 && !(await checklistSubmissionExists(input.submission_id))) {
+    const minutos = Math.ceil(bloqueioRestante / 60_000);
+    throw new Error(
+      `Esta frota recebeu um checklist recentemente. Aguarde ${minutos} minuto(s) para fazer outro.`
+    );
   }
 
   // Bloqueio operacional: frota em manutenção não pode receber checklist
