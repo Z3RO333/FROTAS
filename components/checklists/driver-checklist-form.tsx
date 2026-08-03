@@ -147,13 +147,11 @@ export function DriverChecklistForm({
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
     const p = placaQuery.trim().toLowerCase();
-    return frotas
-      .filter((f) => {
-        if (q && !String(f.frota_geral ?? "").toLowerCase().includes(q)) return false;
-        if (p && !String(f.placa ?? "").toLowerCase().includes(p)) return false;
-        return true;
-      })
-      .slice(0, 50);
+    return frotas.filter((f) => {
+      if (q && !String(f.frota_geral ?? "").toLowerCase().includes(q)) return false;
+      if (p && !String(f.placa ?? "").toLowerCase().includes(p)) return false;
+      return true;
+    });
   }, [frotaQuery, placaQuery, frotas]);
 
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
