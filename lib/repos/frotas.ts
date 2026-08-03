@@ -3,7 +3,6 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
-import { frotaEstaFora } from "@/lib/frota-derived";
 
 export type Frota = {
   id: number;
@@ -270,7 +269,7 @@ function condition(frota: Frota): "normal" | "atencao" | "critico" {
 function operacional(frota: Frota): "disponivel" | "manutencao" | "indisponivel" | "baixado" {
   if (frota.vendido || frota.status === "vendido") return "baixado";
   if (frota.status === "manutencao") return "manutencao";
-  if (frota.status === "critico" || frotaEstaFora(frota.status_operacional)) return "indisponivel";
+  if (frota.status === "critico") return "indisponivel";
   return "disponivel";
 }
 
@@ -287,11 +286,11 @@ function analyticsCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Pr
 
 // Colunas mínimas para cálculos derivados (condition/operacional/cadastroIncompleto)
 const COLS_MINIMAL =
-  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,ultimo_checklist_em,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
 
 // Colunas para listagem (inclui campos exibidos na tabela, exclui combustivel/arla/km_meta)
 const COLS_LIST =
-  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,status_operacional,vendido,ativo,updated_at,atualizado_por,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_bloqueia_checklist,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_iniciado_por";
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,status_operacional,vendido,ativo,updated_at,atualizado_por,ultimo_checklist_em,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_bloqueia_checklist,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_iniciado_por";
 
 // Mantida para compatibilidade com kpis() e funções de analytics internas
 async function allFrotas(): Promise<Frota[]> {
@@ -438,13 +437,12 @@ export async function getKpisPorFiltro(localizacao: string): Promise<KpisFiltro>
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao)
-      .not("status", "in", '("manutencao","critico")')
-      .or("status_operacional.is.null,status_operacional.neq.SAIDA_REGISTRADA"),
+      .not("status", "in", '("manutencao","critico")'),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao).eq("status", "manutencao"),
     supabaseManutencao.from("veiculos").select("id", { count: "exact", head: true })
       .eq("ativo", true).eq("vendido", false).eq("local", localizacao)
-      .or("status.eq.critico,status_operacional.eq.SAIDA_REGISTRADA"),
+      .eq("status", "critico"),
   ]);
   return {
     total: total.count ?? 0,

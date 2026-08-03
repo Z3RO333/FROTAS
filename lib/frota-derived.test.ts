@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { frotaEstaFora, statusOperacional } from "@/lib/frota-derived";
+import {
+  bloqueioChecklistRestanteMs,
+  frotaEmBloqueioChecklist,
+  statusOperacional,
+} from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 
 function frota(overrides: Partial<Frota> = {}): Frota {
@@ -50,18 +54,34 @@ function frota(overrides: Partial<Frota> = {}): Frota {
   };
 }
 
-describe("estado de saída da frota", () => {
-  it("considera SAIDA_REGISTRADA como fora da base e indisponível", () => {
+describe("estado operacional da frota", () => {
+  it("não exige entrada depois de uma saída registrada", () => {
     const atual = frota({ status_operacional: "SAIDA_REGISTRADA" });
 
-    expect(frotaEstaFora(atual.status_operacional)).toBe(true);
-    expect(statusOperacional(atual)).toBe("indisponivel");
+    expect(statusOperacional(atual)).toBe("disponivel");
   });
 
   it("mantém uma frota liberada como disponível", () => {
     const atual = frota({ status_operacional: "LIBERADA" });
 
-    expect(frotaEstaFora(atual.status_operacional)).toBe(false);
     expect(statusOperacional(atual)).toBe("disponivel");
+  });
+});
+
+describe("bloqueio temporário após checklist", () => {
+  const agora = Date.parse("2026-08-03T12:00:00.000Z");
+
+  it("bloqueia durante os 30 minutos seguintes", () => {
+    const checklistEm = "2026-08-03T11:45:00.000Z";
+
+    expect(frotaEmBloqueioChecklist(checklistEm, agora)).toBe(true);
+    expect(bloqueioChecklistRestanteMs(checklistEm, agora)).toBe(15 * 60 * 1000);
+  });
+
+  it("desbloqueia exatamente depois de 30 minutos", () => {
+    const checklistEm = "2026-08-03T11:30:00.000Z";
+
+    expect(frotaEmBloqueioChecklist(checklistEm, agora)).toBe(false);
+    expect(bloqueioChecklistRestanteMs(checklistEm, agora)).toBe(0);
   });
 });

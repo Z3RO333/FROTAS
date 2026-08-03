@@ -9,7 +9,7 @@ import { canApprovePortariaExit, requireAppUser, requirePortariaUser } from "@/l
 const MovimentoSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
   checklist_id: z.coerce.number().int().positive(),
-  tipo_movimentacao: z.enum(["SAIDA", "ENTRADA"]),
+  tipo_movimentacao: z.literal("SAIDA"),
   observacao: z.string().trim().optional().nullable(),
 });
 
@@ -43,12 +43,8 @@ export async function registrarMovimentacaoPortariaAction(formData: FormData) {
       redirect(`/portaria?erro=${encodeURIComponent("Checklist válido de hoje não encontrado para esta frota.")}`);
     }
 
-    if (parsed.tipo_movimentacao === "SAIDA" && row.status_portaria !== "LIBERADA_SAIDA") {
+    if (row.status_portaria !== "LIBERADA_SAIDA") {
       redirect(`/portaria?erro=${encodeURIComponent("Saída bloqueada: a frota não está liberada pela regra da portaria.")}`);
-    }
-
-    if (parsed.tipo_movimentacao === "ENTRADA" && row.status_portaria !== "SAIDA_REGISTRADA") {
-      redirect(`/portaria?erro=${encodeURIComponent("Entrada permitida somente depois de uma saída registrada.")}`);
     }
 
     await registrarMovimentacaoFrota({

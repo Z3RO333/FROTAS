@@ -4,10 +4,23 @@ import { THRESHOLDS, calcularIdade } from "@/lib/rules";
 export type CondicaoFrota = "normal" | "atencao" | "critico";
 export type StatusOperacional = "disponivel" | "manutencao" | "indisponivel" | "baixado";
 
-export const STATUS_OPERACIONAL_FORA = "SAIDA_REGISTRADA";
+export const CHECKLIST_COOLDOWN_MS = 30 * 60 * 1000;
 
-export function frotaEstaFora(statusOperacional: string | null | undefined): boolean {
-  return statusOperacional === STATUS_OPERACIONAL_FORA;
+export function bloqueioChecklistRestanteMs(
+  ultimoChecklistEm: string | null | undefined,
+  agora = Date.now()
+): number {
+  if (!ultimoChecklistEm) return 0;
+  const checklistEm = new Date(ultimoChecklistEm).getTime();
+  if (!Number.isFinite(checklistEm)) return 0;
+  return Math.max(0, checklistEm + CHECKLIST_COOLDOWN_MS - agora);
+}
+
+export function frotaEmBloqueioChecklist(
+  ultimoChecklistEm: string | null | undefined,
+  agora = Date.now()
+): boolean {
+  return bloqueioChecklistRestanteMs(ultimoChecklistEm, agora) > 0;
 }
 
 export const CONDICAO_LABELS: Record<CondicaoFrota, string> = {
@@ -34,7 +47,7 @@ export function cadastroIncompleto(frota: Frota): boolean {
 export function statusOperacional(frota: Frota): StatusOperacional {
   if (!frota.ativo || frota.vendido || frota.status === "vendido") return "baixado";
   if (frota.status === "manutencao") return "manutencao";
-  if (frota.status === "critico" || frotaEstaFora(frota.status_operacional)) return "indisponivel";
+  if (frota.status === "critico") return "indisponivel";
   return "disponivel";
 }
 

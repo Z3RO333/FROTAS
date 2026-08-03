@@ -8,7 +8,7 @@ import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Searc
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
-import { frotaEstaFora } from "@/lib/frota-derived";
+import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,13 @@ async function comprimirImagemParaOcr(file: File, maxPx = 1280, qualidade = 0.88
   }
 }
 
-export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
+export function DriverChecklistForm({
+  frotas,
+  agoraInicial,
+}: {
+  frotas: Frota[];
+  agoraInicial: number;
+}) {
   const router = useRouter();
   const fotoKmFileRef = useRef<File | null>(null);
   const submissionIdRef = useRef<string | null>(null);
@@ -115,6 +121,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   );
   const [itemFotoNomes, setItemFotoNomes] = useState<Record<string, string>>({});
   const [fotoKmPreview, setFotoKmPreview] = useState<string | null>(null);
+  const [agora, setAgora] = useState(agoraInicial);
 
   const selected = useMemo(
     () => frotas.find((f) => String(f.id) === frotaId) ?? null,
@@ -124,6 +131,11 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
   useEffect(() => {
     if (actionState.ok) router.push(actionState.redirectTo);
   }, [actionState, router]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setAgora(Date.now()), 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   // Revoga blob URL quando trocar de foto ou desmontar o componente — evita memory leak
   useEffect(() => {
@@ -338,7 +350,7 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
           <div>
             <p className="font-medium">Selecione o veículo que você vai utilizar.</p>
             <p className="mt-0.5 text-xs opacity-80">
-              Veículos em manutenção ou indisponíveis ficam em cinza e não podem receber checklist.
+              Veículos em manutenção ou com checklist feito há menos de 30 minutos ficam em cinza.
               Use os filtros por número de frota ou placa para encontrar o seu rapidamente.
             </p>
           </div>
@@ -410,8 +422,10 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                   const bloqueada =
                     frota.status === "manutencao" && fAny.manutencao_bloqueia_checklist !== false;
                   const bloqueadaVenda = frota.vendido || !frota.ativo;
-                  const foraDaBase = frotaEstaFora(frota.status_operacional);
-                  const indisponivel = bloqueada || bloqueadaVenda || foraDaBase;
+                  const bloqueioRestante = bloqueioChecklistRestanteMs(frota.ultimo_checklist_em, agora);
+                  const bloqueadaChecklist = bloqueioRestante > 0;
+                  const minutosRestantes = Math.ceil(bloqueioRestante / 60_000);
+                  const indisponivel = bloqueada || bloqueadaVenda || bloqueadaChecklist;
 
                   return (
                     <tr
@@ -430,8 +444,8 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                           ? `Em manutenção: ${fAny.manutencao_motivo ?? "sem motivo"}`
                           : bloqueadaVenda
                             ? "Frota indisponível"
-                            : foraDaBase
-                              ? "Frota fora da base (saída registrada)"
+                            : bloqueadaChecklist
+                              ? `Novo checklist liberado em ${minutosRestantes} minuto(s)`
                               : undefined
                       }
                     >
@@ -464,9 +478,9 @@ export function DriverChecklistForm({ frotas }: { frotas: Frota[] }) {
                               INDISPONÍVEL
                             </span>
                           )}
-                          {foraDaBase && (
-                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
-                              FORA DA BASE
+                          {bloqueadaChecklist && (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">
+                              AGUARDE {minutosRestantes} MIN
                             </span>
                           )}
                         </div>

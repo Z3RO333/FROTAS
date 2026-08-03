@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
 export default async function FazerChecklistPage() {
   await requireAppUser();
   const frotas = await listFrotasForOperationalForms();
-  return <DriverChecklistForm frotas={frotas} />;
+  return <DriverChecklistForm frotas={frotas} agoraInicial={Date.now()} />;
 }
