@@ -1,5 +1,5 @@
 -- Remove a dependência de ENTRADA para liberar a frota e impede checklists
--- repetidos na mesma frota durante 30 minutos.
+-- repetidos na mesma frota durante 15 minutos.
 begin;
 
 create or replace function public.registrar_movimentacao_idempotente(
@@ -83,10 +83,10 @@ begin
   from public.checklists_frota
   where frota_id = new.frota_id;
 
-  if v_ultimo_checklist_em > now() - interval '30 minutes' then
+  if v_ultimo_checklist_em > now() - interval '15 minutes' then
     v_minutos_restantes := greatest(
       1,
-      ceil(extract(epoch from (v_ultimo_checklist_em + interval '30 minutes' - now())) / 60)::integer
+      ceil(extract(epoch from (v_ultimo_checklist_em + interval '15 minutes' - now())) / 60)::integer
     );
     raise exception 'Aguarde % minuto(s) para fazer outro checklist nesta frota.', v_minutos_restantes
       using errcode = 'P0002';
