@@ -27,7 +27,6 @@ const PORTARIA_EMAILS = parseList(process.env.FROTAS_PORTARIA_EMAILS);
 const APPROVER_EMAILS = parseList(process.env.FROTAS_APROVADOR_EMAILS);
 const MAINTENANCE_EMAILS = parseList(process.env.FROTAS_MANUTENCAO_EMAILS);
 const MANAGER_EMAILS = parseList(process.env.FROTAS_GESTOR_EMAILS);
-const AUTO_PROVISION_ACTIVE = process.env.FROTAS_AUTO_PROVISION_ACTIVE === "1";
 
 function parseList(value: string | undefined): Set<string> {
   return new Set(
@@ -67,22 +66,6 @@ export function resolvePerfil(email: string): PerfilUsuario {
   return resolvePerfilFromEnv(email);
 }
 
-function isExplicitlyPreauthorized(email: string): boolean {
-  const normalized = email.toLowerCase();
-  return (
-    AUTO_PROVISION_ACTIVE ||
-    [
-      ADMIN_EMAILS,
-      DEV_EMAILS,
-      DRIVER_EMAILS,
-      PORTARIA_EMAILS,
-      APPROVER_EMAILS,
-      MAINTENANCE_EMAILS,
-      MANAGER_EMAILS,
-    ].some((set) => hasEmail(set, normalized))
-  );
-}
-
 export function canAccessAdmin(perfil: PerfilUsuario): boolean {
   return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "MANUTENCAO" || perfil === "DEV";
 }
@@ -111,9 +94,11 @@ export async function resolveAppUser(): Promise<AppUserResolution> {
     email,
     nome: name,
     perfil: resolvePerfilFromEnv(email),
-    // Novas contas ficam bloqueadas por padrão. A ativação automática exige
-    // allowlist explícita por perfil ou opt-in consciente via ambiente.
-    ativo: isExplicitlyPreauthorized(email),
+    // O signIn callback (lib/auth.ts) já restringe o login ao domínio corporativo
+    // via Entra ID, então toda conta que chega aqui já é legítima. Perfil cai em
+    // MOTORISTA por padrão (resolvePerfilFromEnv) e o gestor promove depois pela
+    // tela de administração de usuários.
+    ativo: true,
   });
 
   if (!usuario.ativo) return { ok: false, reason: "INACTIVE" };
