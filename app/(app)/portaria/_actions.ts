@@ -3,9 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { listPortariaToday, registrarMovimentacaoFrota } from "@/lib/repos/checklists";
+import { listPortariaToday, registrarMovimentacaoFrota, type StatusPortaria } from "@/lib/repos/checklists";
 import { canApprovePortariaExit, requireAppUser, requirePortariaUser } from "@/lib/rbac";
 import { publicActionError } from "@/lib/public-error";
+
+// Checklist pendente/crítico não bloqueia mais a saída — vira só um indicador visual pra portaria.
+// Só bloqueia mesmo quando a frota está em manutenção ou já teve movimentação registrada hoje.
+const NAO_LIBERA_SAIDA: readonly StatusPortaria[] = ["BLOQUEADA_MANUTENCAO", "SAIDA_REGISTRADA", "ENTRADA_REGISTRADA"];
 
 const MovimentoSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
@@ -44,8 +48,8 @@ export async function registrarMovimentacaoPortariaAction(formData: FormData) {
       redirect(`/portaria?erro=${encodeURIComponent("Checklist válido de hoje não encontrado para esta frota.")}`);
     }
 
-    if (row.status_portaria !== "LIBERADA_SAIDA") {
-      redirect(`/portaria?erro=${encodeURIComponent("Saída bloqueada: a frota não está liberada pela regra da portaria.")}`);
+    if (NAO_LIBERA_SAIDA.includes(row.status_portaria)) {
+      redirect(`/portaria?erro=${encodeURIComponent("Saída bloqueada: frota em manutenção ou já com movimentação registrada hoje.")}`);
     }
 
     await registrarMovimentacaoFrota({
@@ -84,8 +88,8 @@ export async function bloquearSaidaAction(formData: FormData) {
     if (!row || !row.motorista_id) {
       redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
     }
-    if (row.status_portaria !== "LIBERADA_SAIDA") {
-      redirect(`/portaria?erro=${encodeURIComponent("O bloqueio só pode ser registrado para uma frota liberada para saída.")}`);
+    if (NAO_LIBERA_SAIDA.includes(row.status_portaria)) {
+      redirect(`/portaria?erro=${encodeURIComponent("O bloqueio manual só pode ser registrado para uma frota que poderia sair.")}`);
     }
 
     await registrarMovimentacaoFrota({

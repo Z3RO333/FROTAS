@@ -120,12 +120,14 @@ export function VeiculoSheet({
   const [showBloqueioForm, setShowBloqueioForm] = useState(false);
   const [showCorrecaoForm, setShowCorrecaoForm] = useState(false);
 
-  const canLiberar = statusPortaria === "LIBERADA_SAIDA";
-  // A portaria registra a movimentação física; apenas aprovadores autorizam exceções.
-  const canBloquear = statusPortaria === "LIBERADA_SAIDA";
+  // Checklist pendente/crítico não bloqueia mais a saída — a portaria só registra e visualiza.
+  // Só impede a saída quando a frota está em manutenção ou já tem movimentação registrada hoje.
+  const NAO_LIBERA: StatusPortaria[] = ["BLOQUEADA_MANUTENCAO", "SAIDA_REGISTRADA", "ENTRADA_REGISTRADA"];
+  const canLiberar = statusPortaria != null && !NAO_LIBERA.includes(statusPortaria);
+  const canBloquear = canLiberar;
   const canCorrecao = statusPortaria === "BLOQUEADA_CHECKLIST" || statusPortaria === "CHECKLIST_REALIZADO";
-  // Liberação forçada com justificativa quando houver itens obrigatórios inconforme
-  const canLiberarForcado = canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST";
+  // Liberação forçada: mantida só como caminho legado — sem sentido agora que o checklist não bloqueia mais.
+  const canLiberarForcado = canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST" && !canLiberar;
 
   const itensProblema = detalhe?.itens.filter((i) => i.status === "NAO_APTO") ?? [];
   const itensObrigatoriosInconformes = itensProblema.filter((i) => i.obrigatorio);
@@ -168,7 +170,7 @@ export function VeiculoSheet({
               {itensObrigatoriosInconformes.length > 0 && (
                 <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                   <XCircle className="h-3 w-3" />
-                  {itensObrigatoriosInconformes.length} obrigatório(s) inconforme(s) — bloqueado
+                  {itensObrigatoriosInconformes.length} obrigatório(s) inconforme(s) — requer atenção
                 </span>
               )}
               {itensNaoObrigatoriosInconformes.length > 0 && itensObrigatoriosInconformes.length === 0 && (
@@ -214,7 +216,7 @@ export function VeiculoSheet({
             {itensObrigatoriosInconformes.length > 0 && (
               <div className="space-y-2">
                 <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                  <XCircle className="h-3 w-3" /> Itens obrigatórios inconforme — impedem liberação ({itensObrigatoriosInconformes.length})
+                  <XCircle className="h-3 w-3" /> Itens obrigatórios inconforme ({itensObrigatoriosInconformes.length})
                 </p>
                 {itensObrigatoriosInconformes.map((item) => {
                   const fotoItem = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
@@ -362,12 +364,6 @@ export function VeiculoSheet({
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
                   <p className="font-semibold">Veículo bloqueado por itens obrigatórios inconforme.</p>
                   <p className="mt-0.5">Para liberar mesmo assim, registre uma justificativa.</p>
-                </div>
-              )}
-              {!canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST" && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
-                  <p className="font-semibold">Aguardando decisão de um aprovador.</p>
-                  <p className="mt-0.5">A portaria não pode aprovar ou liberar uma saída bloqueada.</p>
                 </div>
               )}
               {canLiberarForcado && !showCorrecaoForm && (
