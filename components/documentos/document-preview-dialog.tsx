@@ -13,9 +13,11 @@ import {
 
 export function DocumentPreviewDialog({
   signedUrl,
+  downloadUrl,
   label,
 }: {
   signedUrl: string;
+  downloadUrl: string;
   label: string;
 }) {
   return (
@@ -61,7 +63,7 @@ export function DocumentPreviewDialog({
               </a>
             </Button>
             <Button variant="outline" size="sm" asChild>
-              <a href={signedUrl} download aria-label={`Baixar ${label}`}>
+              <a href={downloadUrl} download aria-label={`Baixar ${label}`}>
                 <Download className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Baixar</span>
               </a>

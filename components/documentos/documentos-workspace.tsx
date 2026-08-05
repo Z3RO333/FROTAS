@@ -217,10 +217,10 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                   <CompletudeBar doc={doc} />
                 </TableCell>
                 <TableCell>
-                  <DocumentActions signedUrl={doc.dut_signed_url} label="DUT" />
+                  <DocumentActions signedUrl={doc.dut_signed_url} downloadUrl={doc.dut_download_url} label="DUT" />
                 </TableCell>
                 <TableCell>
-                  <DocumentActions signedUrl={doc.crlv_signed_url} label="CRLV" />
+                  <DocumentActions signedUrl={doc.crlv_signed_url} downloadUrl={doc.crlv_download_url} label="CRLV" />
                 </TableCell>
                 <TableCell className="text-xs tabular-nums text-slate-500">
                   {formatDate(doc.updated_at ?? doc.created_at)}
@@ -376,6 +376,14 @@ function DocumentEditDialog({ document }: { document: DocumentRecordWithSignedUr
           <div className="sm:col-span-2">
             <Field name="modelo" label="Modelo" defaultValue={document.modelo} required />
           </div>
+          <div className="space-y-1.5">
+            <Label>DUT atual</Label>
+            <DocumentActions signedUrl={document.dut_signed_url} downloadUrl={document.dut_download_url} label="DUT" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>CRLV atual</Label>
+            <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
+          </div>
           <FileField name="dut_file" label="Substituir DUT" />
           <FileField name="crlv_file" label="Substituir CRLV" />
           <DialogFooter className="sm:col-span-2">
@@ -476,8 +484,8 @@ function DocumentMobileCard({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <DocumentActions signedUrl={document.dut_signed_url} label="DUT" />
-        <DocumentActions signedUrl={document.crlv_signed_url} label="CRLV" />
+        <DocumentActions signedUrl={document.dut_signed_url} downloadUrl={document.dut_download_url} label="DUT" />
+        <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
       </div>
       <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
         Atualizado em {formatDate(document.updated_at ?? document.created_at)}
@@ -492,8 +500,16 @@ function DocumentMobileCard({
   );
 }
 
-function DocumentActions({ signedUrl, label }: { signedUrl: string | null; label: string }) {
-  if (!signedUrl) {
+function DocumentActions({
+  signedUrl,
+  downloadUrl,
+  label,
+}: {
+  signedUrl: string | null;
+  downloadUrl: string | null;
+  label: string;
+}) {
+  if (!signedUrl || !downloadUrl) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-400 ring-1 ring-inset ring-slate-200">
         <FileX2 className="h-3 w-3" aria-hidden="true" />
@@ -504,9 +520,9 @@ function DocumentActions({ signedUrl, label }: { signedUrl: string | null; label
 
   return (
     <div className="inline-flex items-center gap-0.5 rounded-lg bg-blue-50/60 p-0.5 ring-1 ring-inset ring-blue-100">
-      <DocumentPreviewDialog signedUrl={signedUrl} label={label} />
+      <DocumentPreviewDialog signedUrl={signedUrl} downloadUrl={downloadUrl} label={label} />
       <a
-        href={signedUrl}
+        href={downloadUrl}
         download
         aria-label={`Baixar ${label}`}
         className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-700 transition-colors hover:bg-white"

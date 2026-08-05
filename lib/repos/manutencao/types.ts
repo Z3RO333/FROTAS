@@ -88,6 +88,8 @@ export interface DocumentRecord {
 export interface DocumentRecordWithSignedUrls extends DocumentRecord {
   dut_signed_url: string | null;
   crlv_signed_url: string | null;
+  dut_download_url: string | null;
+  crlv_download_url: string | null;
 }
 
 export interface DemandaApp {
