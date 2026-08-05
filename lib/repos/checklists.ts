@@ -6,6 +6,10 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 const COLS_CHECKLIST_LIST =
   "id,frota_id,motorista_id,motorista_nome,data_checklist,km_informado,status_geral,criado_em";
 
+// A visão administrativa também exibe a observação informada pelo motorista.
+const COLS_CHECKLIST_ADMIN_LIST =
+  `${COLS_CHECKLIST_LIST},observacao_original,observacao_corrigida_ia`;
+
 // Colunas de pendências para listagem
 const COLS_PENDENCIA_LIST =
   "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
@@ -339,7 +343,7 @@ export async function listAdminChecklists(
 
     let query = supabaseManutencao
       .from("checklists_frota")
-      .select(COLS_CHECKLIST_LIST)
+      .select(COLS_CHECKLIST_ADMIN_LIST)
       .order("criado_em", { ascending: false })
       .limit(limit);
 
