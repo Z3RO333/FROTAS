@@ -93,6 +93,20 @@ export async function getDocumentById(id: string): Promise<DocumentRecord | null
   return (data as DocumentRecord | null) ?? null;
 }
 
+// frota+placa (já normalizada, ver normalizePlate em app/(app)/documentos/_actions.ts) já tem
+// registro? Usado no "Enviar PDFs" pra atualizar em vez de duplicar (era o bug que gerava
+// linhas repetidas na Central de Documentos — mesma frota com CRLV numa linha e DUT noutra).
+export async function getDocumentByFrotaPlaca(frota: string, placaNormalizada: string): Promise<DocumentRecord | null> {
+  const { data, error } = await supabaseManutencao
+    .from(T)
+    .select("*")
+    .eq("frota", frota)
+    .eq("placa", placaNormalizada)
+    .maybeSingle();
+  if (error) throw new Error(`getDocumentByFrotaPlaca: ${error.message}`);
+  return (data as DocumentRecord | null) ?? null;
+}
+
 export async function uploadDocumentFile(file: File, placa: string, kind: "dut" | "crlv"): Promise<string> {
   await validatePdfFile(file, kind.toUpperCase());
 
