@@ -63,7 +63,7 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
         defaultValue={value("ano_fabricacao", initial?.ano_fabricacao ?? "")}
         invalid={state.field === "ano_fabricacao"}
       />
-      <Field label="Localização" name="localizacao" defaultValue={value("localizacao", initial?.localizacao ?? "")} invalid={state.field === "localizacao"} />
+      <Field label="Localização/Setor" name="localizacao" defaultValue={value("localizacao", initial?.localizacao ?? "")} invalid={state.field === "localizacao"} />
       <Field label="Km atual" name="km_atual" type="number" defaultValue={value("km_atual", initial?.km_atual ?? "")} invalid={state.field === "km_atual"} />
 
       <div className="space-y-1.5">

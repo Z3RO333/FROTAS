@@ -17,8 +17,10 @@ const PERIODOS = [
 
 export function ChecklistFilters({
   basePath = "/checklists",
+  localizacoes = [],
 }: {
   basePath?: string;
+  localizacoes?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,8 +42,9 @@ export function ChecklistFilters({
   const dataInicio = searchParams.get("dataInicio") ?? "";
   const dataFim = searchParams.get("dataFim") ?? "";
   const veiculo = searchParams.get("veiculo") ?? "";
+  const localizacao = searchParams.get("localizacao") ?? "";
   const [veiculoQuery, setVeiculoQuery] = useState(veiculo);
-  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo);
+  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo || localizacao);
 
   useEffect(() => setVeiculoQuery(veiculo), [veiculo]);
 
@@ -51,7 +54,7 @@ export function ChecklistFilters({
 
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm" aria-busy={isPending}>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(170px,0.8fr)_minmax(220px,1.3fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] xl:items-end">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(170px,0.8fr)_minmax(220px,1.3fr)_minmax(170px,0.9fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] xl:items-end">
         <FilterField label="Período">
           <Select
             value={periodo || "all"}
@@ -101,6 +104,25 @@ export function ChecklistFilters({
               {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
             </Button>
           </div>
+        </FilterField>
+
+        <FilterField label="Localização">
+          <Select
+            value={localizacao || "all"}
+            onValueChange={(v) => applyChanges({ localizacao: v === "all" ? "" : v })}
+          >
+            <SelectTrigger aria-label="Filtrar por localização">
+              <SelectValue>{localizacao || "Todas as localizações"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as localizações</SelectItem>
+              {localizacoes.map((loc) => (
+                <SelectItem key={loc} value={loc}>
+                  {loc}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FilterField>
 
         <FilterField label="Data inicial">

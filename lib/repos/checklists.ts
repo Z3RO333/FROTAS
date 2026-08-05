@@ -306,6 +306,8 @@ export type ChecklistListFilters = {
   dataFim?: string;
   // Pesquisa parcial pelo código da frota ou placa do veículo.
   veiculo?: string;
+  // Localização/setor do veículo (coluna "local" em veiculos), ex.: "RO - ARIQUEMES".
+  localizacao?: string;
 };
 
 async function findVehicleIdsBySearch(search: string): Promise<number[]> {
@@ -330,6 +332,16 @@ async function findVehicleIdsBySearch(search: string): Promise<number[]> {
   return ids.filter(Number.isFinite);
 }
 
+async function findVehicleIdsByLocalizacao(localizacao: string): Promise<number[]> {
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("id")
+    .eq("local", localizacao);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => Number(row.id)).filter(Number.isFinite);
+}
+
 export async function listAdminChecklists(
   limit = 100,
   filters: ChecklistListFilters = {}
@@ -338,6 +350,11 @@ export async function listAdminChecklists(
     let frotaIds: number[] | null = null;
     if (filters.veiculo) {
       frotaIds = await findVehicleIdsBySearch(filters.veiculo);
+      if (frotaIds.length === 0) return [];
+    }
+    if (filters.localizacao) {
+      const porLocalizacao = new Set(await findVehicleIdsByLocalizacao(filters.localizacao));
+      frotaIds = frotaIds ? frotaIds.filter((id) => porLocalizacao.has(id)) : [...porLocalizacao];
       if (frotaIds.length === 0) return [];
     }
 
