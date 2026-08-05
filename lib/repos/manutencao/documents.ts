@@ -172,19 +172,30 @@ export async function removeDocumentFiles(paths: Array<string | null | undefined
 }
 
 async function withSignedUrls(doc: DocumentRecord): Promise<DocumentRecordWithSignedUrls> {
-  const [dutSignedUrl, crlvSignedUrl] = await Promise.all([
+  const [dutSignedUrl, dutDownloadUrl, crlvSignedUrl, crlvDownloadUrl] = await Promise.all([
     createSignedDocumentUrl(doc.dut_url),
+    createSignedDocumentUrl(doc.dut_url, { forceDownload: true }),
     createSignedDocumentUrl(doc.crlv_url),
+    createSignedDocumentUrl(doc.crlv_url, { forceDownload: true }),
   ]);
 
   return {
     ...doc,
     dut_signed_url: dutSignedUrl,
+    dut_download_url: dutDownloadUrl,
     crlv_signed_url: crlvSignedUrl,
+    crlv_download_url: crlvDownloadUrl,
   };
 }
 
-async function createSignedDocumentUrl(pathOrUrl: string | null | undefined): Promise<string | null> {
+// Sem forceDownload: URL "inline" (sem Content-Disposition: attachment) — necessária pro PDF
+// renderizar dentro do <iframe> de pré-visualização. Antes, a mesma URL assinada era usada
+// pra tudo com `download` sempre setado, então o navegador tentava baixar o arquivo em vez
+// de exibi-lo, deixando a pré-visualização em branco.
+async function createSignedDocumentUrl(
+  pathOrUrl: string | null | undefined,
+  options: { forceDownload?: boolean } = {}
+): Promise<string | null> {
   if (!pathOrUrl) return null;
 
   const path = normalizeDocumentStoragePath(pathOrUrl);
@@ -192,9 +203,11 @@ async function createSignedDocumentUrl(pathOrUrl: string | null | undefined): Pr
 
   const { data, error } = await supabaseManutencao.storage
     .from(DOCUMENTS_BUCKET)
-    .createSignedUrl(path, SIGNED_URL_EXPIRES_IN_SECONDS, {
-      download: path.split("/").at(-1) ?? "documento.pdf",
-    });
+    .createSignedUrl(
+      path,
+      SIGNED_URL_EXPIRES_IN_SECONDS,
+      options.forceDownload ? { download: path.split("/").at(-1) ?? "documento.pdf" } : undefined
+    );
 
   if (error) return null;
   return data?.signedUrl ?? null;
