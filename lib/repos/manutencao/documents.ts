@@ -34,6 +34,27 @@ export async function listDocuments(filters: {
   return { rows, total: count ?? 0 };
 }
 
+// A tela de Documentos (components/documentos/documentos-workspace.tsx) filtra e
+// soma os contadores (completos/parciais/sem DUT/sem CRLV) em memória sobre todo
+// o conjunto — não tem paginação na UI —, então precisa de todas as linhas, não
+// só a primeira página.
+export async function listAllDocuments(): Promise<DocumentRecordWithSignedUrls[]> {
+  const rows: DocumentRecord[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from(T)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`listAllDocuments: ${error.message}`);
+    const chunk = (data ?? []) as DocumentRecord[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
+  return Promise.all(rows.map(withSignedUrls));
+}
+
 export async function createDocument(
   input: DocumentUpsertInput,
   createdBy: string
