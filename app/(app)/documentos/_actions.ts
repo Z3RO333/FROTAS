@@ -7,6 +7,7 @@ import { canWriteDocumentos, requireAppUser } from "@/lib/rbac";
 import {
   createDocument,
   deleteDocument,
+  getDocumentByFrotaPlaca,
   getDocumentById,
   removeDocumentFiles,
   replaceDocumentFiles,
@@ -41,18 +42,46 @@ export async function createDocumentAction(formData: FormData): Promise<Document
     await validatePdfFile(crlvFile, "CRLV");
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
+    const placa = normalizePlate(input.placa);
+
+    // Já existe documento pra essa frota/placa? Atualiza em vez de duplicar
+    // (era assim que a Central de Documentos acumulava linhas repetidas —
+    // CRLV numa linha, DUT numa segunda linha da mesma frota).
+    const existing = await getDocumentByFrotaPlaca(input.frota, placa);
+    if (existing) {
+      const replacement = await replaceDocumentFiles(existing, { dut: dutFile, crlv: crlvFile }, placa);
+      try {
+        await updateDocument(existing.id, {
+          modelo: input.modelo,
+          placa,
+          dut_url: replacement.dut_url,
+          crlv_url: replacement.crlv_url,
+        });
+      } catch (error) {
+        await removeDocumentFiles(replacement.uploadedPaths).catch((cleanupError) => {
+          console.error("[documents] falha ao limpar arquivos após erro de atualização", cleanupError);
+        });
+        throw error;
+      }
+      await removeDocumentFiles(replacement.oldPaths).catch((cleanupError) => {
+        console.error("[documents] documento atualizado, mas arquivo antigo ficou órfão", cleanupError);
+      });
+      revalidatePath("/documentos");
+      return { ok: true };
+    }
+
     const uploadedPaths: string[] = [];
     try {
-      const dutPath = dutFile ? await uploadDocumentFile(dutFile, input.placa, "dut") : null;
+      const dutPath = dutFile ? await uploadDocumentFile(dutFile, placa, "dut") : null;
       if (dutPath) uploadedPaths.push(dutPath);
 
-      const crlvPath = crlvFile ? await uploadDocumentFile(crlvFile, input.placa, "crlv") : null;
+      const crlvPath = crlvFile ? await uploadDocumentFile(crlvFile, placa, "crlv") : null;
       if (crlvPath) uploadedPaths.push(crlvPath);
 
       await createDocument(
         {
           ...input,
-          placa: normalizePlate(input.placa),
+          placa,
           dut_url: dutPath,
           crlv_url: crlvPath,
         },
