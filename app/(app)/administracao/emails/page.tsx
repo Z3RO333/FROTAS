@@ -1,15 +1,16 @@
 import { FileText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
-import { listEmailSchedules } from "@/lib/repos/email-schedule";
+import { getEmailSchedule, listEmailSchedules } from "@/lib/repos/email-schedule";
 import {
   createScheduleAction,
+  updateScheduleAction,
   toggleScheduleAction,
   deleteScheduleAction,
+  triggerScheduleNowAction,
 } from "./_actions";
+import { ScheduleForm } from "./ScheduleForm";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -37,6 +38,9 @@ export default async function EmailsPage({
   const sp = await searchParams;
   const schedules = await listEmailSchedules();
 
+  const editingId = sp.editar ? Number(sp.editar) : null;
+  const editingSchedule = editingId ? await getEmailSchedule(editingId) : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -58,73 +62,10 @@ export default async function EmailsPage({
         </div>
       )}
 
-      {/* Form nova programação */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold">Nova programação</h2>
-        <form action={createScheduleAction} className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="nome">Nome</Label>
-            <Input id="nome" name="nome" placeholder="Ex: Relatório semanal de disponibilidade" required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="tipo">Tipo de relatório</Label>
-            <select
-              id="tipo"
-              name="tipo"
-              required
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              {Object.entries(TIPO_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="destinatarios">Destinatários (separados por vírgula)</Label>
-            <Input
-              id="destinatarios"
-              name="destinatarios"
-              placeholder="email1@bemol.com.br, email2@bemol.com.br"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="frequencia">Frequência</Label>
-            <select
-              id="frequencia"
-              name="frequencia"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              <option value="DIARIO">Diário</option>
-              <option value="SEMANAL">Semanal</option>
-              <option value="QUINZENAL">Quinzenal</option>
-              <option value="MENSAL">Mensal</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="hora_envio">Horário</Label>
-            <Input id="hora_envio" name="hora_envio" type="time" defaultValue="07:00" required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="dia_semana">Dia da semana (agenda semanal)</Label>
-            <select id="dia_semana" name="dia_semana" defaultValue="1" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm">
-              <option value="0">Domingo</option><option value="1">Segunda-feira</option><option value="2">Terça-feira</option>
-              <option value="3">Quarta-feira</option><option value="4">Quinta-feira</option><option value="5">Sexta-feira</option><option value="6">Sábado</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="dia_mes">Dia do mês (agenda mensal)</Label>
-            <Input id="dia_mes" name="dia_mes" type="number" min={1} max={31} defaultValue={1} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cds_incluidos">CDs incluídos (vazio = todos)</Label>
-            <Input id="cds_incluidos" name="cds_incluidos" placeholder="CD Manaus, CD Boa Vista" />
-          </div>
-          <div className="sm:col-span-2">
-            <Button type="submit">Criar programação</Button>
-          </div>
-        </form>
-      </div>
+      <ScheduleForm
+        schedule={editingSchedule ?? undefined}
+        action={editingSchedule ? updateScheduleAction : createScheduleAction}
+      />
 
       {/* Lista */}
       <div className="space-y-3">
@@ -158,7 +99,18 @@ export default async function EmailsPage({
                   : ""}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <a href={`/administracao/emails?editar=${s.id}`}>
+                <Button type="button" variant="outline" size="sm">
+                  Editar
+                </Button>
+              </a>
+              <form action={triggerScheduleNowAction}>
+                <input type="hidden" name="id" value={s.id} />
+                <Button type="submit" variant="outline" size="sm">
+                  Disparar agora
+                </Button>
+              </form>
               <form action={toggleScheduleAction}>
                 <input type="hidden" name="id" value={s.id} />
                 <input type="hidden" name="ativo" value={String(s.ativo)} />
