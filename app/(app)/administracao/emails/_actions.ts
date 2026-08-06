@@ -12,6 +12,22 @@ import {
   deleteEmailSchedule,
 } from "@/lib/repos/email-schedule";
 import { publicActionError } from "@/lib/public-error";
+import {
+  getSgMail,
+  buildDisponibilidadeEmail,
+  buildOperationalEmail,
+  buildRelatorioDiarioIaEmail,
+} from "@/lib/services/scheduled-report-senders";
+import { sendRelatorioDiarioIa, sendRelatorioOperacionalDiario } from "@/lib/email";
+import {
+  getChecklistsRealizadosNoDia,
+  getFrotasComSemChecklistNoDia,
+  getPendenciasCriadasNoDiaPorFrota,
+} from "@/lib/repos/relatorios";
+import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
+import { logEmail } from "@/lib/repos/email-logs";
+import { getEmailFrom } from "@/lib/email-from";
+import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
 
 const ScheduleSchema = z.object({
   nome: z.string().trim().min(1, "Nome obrigatório").max(120),
@@ -120,6 +136,138 @@ export async function updateScheduleAction(formData: FormData) {
     redirect(
       `/administracao/emails?erro=${encodeURIComponent(
         publicActionError(error, "Erro ao atualizar programação")
+      )}`
+    );
+  }
+}
+
+export async function triggerScheduleNowAction(formData: FormData) {
+  const user = await requireAppUser();
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
+
+  const id = Number(formData.get("id"));
+
+  try {
+    const schedule = await getEmailSchedule(id);
+    if (!schedule) throw new Error("Programação não encontrada.");
+
+    const agora = new Date();
+    const fromEmail = getEmailFrom();
+
+    if (schedule.tipo === "RELATORIO_DIARIO_IA") {
+      const hoje = reportCalendarDate();
+      const { html } = await buildRelatorioDiarioIaEmail(hoje);
+      const assunto = `[Frotas] Relatório IA — ${hoje}`;
+      const result = await sendRelatorioDiarioIa({
+        destinatarios: schedule.destinatarios,
+        html,
+        assunto,
+        enviadoPor: user.email,
+      });
+      if (!result.ok) throw new Error(result.error);
+    } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
+      const ontem = shiftCalendarDate(reportCalendarDate(), -1);
+      const dataRef = new Date(reportDayUtcRange(ontem).start);
+      const [totalChecklists, frotasChecklist, pendenciasPorFrota] = await Promise.all([
+        getChecklistsRealizadosNoDia(ontem),
+        getFrotasComSemChecklistNoDia(ontem),
+        getPendenciasCriadasNoDiaPorFrota(ontem),
+      ]);
+      const totalApontamentos = pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0);
+      const result = await sendRelatorioOperacionalDiario({
+        destinatarios: schedule.destinatarios,
+        dataRef,
+        enviadoPor: user.email,
+        input: {
+          totalChecklists,
+          totalApontamentos,
+          frotasFizeram: frotasChecklist.fizeram,
+          frotasNaoFizeram: frotasChecklist.naoFizeram,
+          pendenciasPorFrota,
+        },
+      });
+      if (!result.ok) throw new Error(result.error);
+    } else if (schedule.tipo === "DISPONIBILIDADE") {
+      const sgMail = await getSgMail();
+      const cdsAlvo = schedule.cds_incluidos.length > 0 ? schedule.cds_incluidos : await listCDsDisponibilidade();
+      const falhas: string[] = [];
+
+      for (const cdNome of cdsAlvo) {
+        const { html, resumo } = await buildDisponibilidadeEmail(cdNome, agora);
+        const assunto = `[FROTAS] Disponibilidade ${cdNome} - ${agora.toLocaleDateString("pt-BR")}`;
+        const destinatariosStr = schedule.destinatarios.join(",");
+        try {
+          await sgMail.send({ to: schedule.destinatarios, from: fromEmail, subject: assunto, html });
+          await logEmail({
+            tipo: "disponibilidade_cd",
+            cdNome,
+            destinatarios: destinatariosStr,
+            assunto,
+            enviadoPor: user.email,
+            status: "enviado",
+            resumo,
+            conteudoHtml: html,
+            scheduleId: schedule.id,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          await logEmail({
+            tipo: "disponibilidade_cd",
+            cdNome,
+            destinatarios: destinatariosStr,
+            assunto,
+            enviadoPor: user.email,
+            status: "erro",
+            erroMsg: message,
+            resumo,
+            conteudoHtml: html,
+            scheduleId: schedule.id,
+          });
+          falhas.push(cdNome);
+        }
+      }
+      if (falhas.length > 0) throw new Error(`Falha ao enviar para: ${falhas.join(", ")}`);
+    } else {
+      const sgMail = await getSgMail();
+      const { html: corpo, resumo } = await buildOperationalEmail(schedule.tipo, agora);
+      const assunto = `[FROTAS] ${schedule.nome} - ${agora.toLocaleDateString("pt-BR")}`;
+      const destinatariosStr = schedule.destinatarios.join(",");
+      try {
+        await sgMail.send({ to: schedule.destinatarios, from: fromEmail, subject: assunto, html: corpo });
+        await logEmail({
+          tipo: schedule.tipo.toLowerCase(),
+          destinatarios: destinatariosStr,
+          assunto,
+          enviadoPor: user.email,
+          status: "enviado",
+          resumo,
+          conteudoHtml: corpo,
+          scheduleId: schedule.id,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await logEmail({
+          tipo: schedule.tipo.toLowerCase(),
+          destinatarios: destinatariosStr,
+          assunto,
+          enviadoPor: user.email,
+          status: "erro",
+          erroMsg: message,
+          resumo,
+          conteudoHtml: corpo,
+          scheduleId: schedule.id,
+        });
+        throw err;
+      }
+    }
+
+    revalidatePath("/administracao/emails");
+    redirect(`/administracao/emails?sucesso=${encodeURIComponent(`"${schedule.nome}" disparada agora`)}`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    redirect(
+      `/administracao/emails?erro=${encodeURIComponent(
+        publicActionError(error, "Erro ao disparar programação")
       )}`
     );
   }
