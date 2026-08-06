@@ -151,6 +151,10 @@ export async function triggerScheduleNowAction(formData: FormData) {
     const schedule = await getEmailSchedule(id);
     if (!schedule) throw new Error("Programação não encontrada.");
 
+    const destinatarios = Array.from(
+      new Set(schedule.destinatarios.map((e) => e.trim().toLowerCase()).filter(Boolean))
+    );
+
     const agora = new Date();
     const fromEmail = getEmailFrom();
 
@@ -159,10 +163,11 @@ export async function triggerScheduleNowAction(formData: FormData) {
       const { html } = await buildRelatorioDiarioIaEmail(hoje);
       const assunto = `[Frotas] Relatório IA — ${hoje}`;
       const result = await sendRelatorioDiarioIa({
-        destinatarios: schedule.destinatarios,
+        destinatarios,
         html,
         assunto,
         enviadoPor: user.email,
+        scheduleId: schedule.id,
       });
       if (!result.ok) throw new Error(result.error);
     } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
@@ -175,9 +180,10 @@ export async function triggerScheduleNowAction(formData: FormData) {
       ]);
       const totalApontamentos = pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0);
       const result = await sendRelatorioOperacionalDiario({
-        destinatarios: schedule.destinatarios,
+        destinatarios,
         dataRef,
         enviadoPor: user.email,
+        scheduleId: schedule.id,
         input: {
           totalChecklists,
           totalApontamentos,
@@ -195,9 +201,9 @@ export async function triggerScheduleNowAction(formData: FormData) {
       for (const cdNome of cdsAlvo) {
         const { html, resumo } = await buildDisponibilidadeEmail(cdNome, agora);
         const assunto = `[FROTAS] Disponibilidade ${cdNome} - ${agora.toLocaleDateString("pt-BR")}`;
-        const destinatariosStr = schedule.destinatarios.join(",");
+        const destinatariosStr = destinatarios.join(",");
         try {
-          await sgMail.send({ to: schedule.destinatarios, from: fromEmail, subject: assunto, html });
+          await sgMail.send({ to: destinatarios, from: fromEmail, subject: assunto, html });
           await logEmail({
             tipo: "disponibilidade_cd",
             cdNome,
@@ -231,9 +237,9 @@ export async function triggerScheduleNowAction(formData: FormData) {
       const sgMail = await getSgMail();
       const { html: corpo, resumo } = await buildOperationalEmail(schedule.tipo, agora);
       const assunto = `[FROTAS] ${schedule.nome} - ${agora.toLocaleDateString("pt-BR")}`;
-      const destinatariosStr = schedule.destinatarios.join(",");
+      const destinatariosStr = destinatarios.join(",");
       try {
-        await sgMail.send({ to: schedule.destinatarios, from: fromEmail, subject: assunto, html: corpo });
+        await sgMail.send({ to: destinatarios, from: fromEmail, subject: assunto, html: corpo });
         await logEmail({
           tipo: schedule.tipo.toLowerCase(),
           destinatarios: destinatariosStr,
