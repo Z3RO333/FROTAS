@@ -569,7 +569,7 @@ export function renderRelatorioOperacionalDiario(
       return `<tr style="background:${bg};">
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${first ? display(grupo.frota_geral ?? grupo.frota_id) : ""}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(obs.motorista_nome)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(obs.observacao)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;white-space:pre-wrap;">${display(obs.observacao)}</td>
       </tr>`;
     })
     .join("");
@@ -580,7 +580,7 @@ export function renderRelatorioOperacionalDiario(
   return shell(`
     ${header(
       "Relatório operacional diário",
-      `${formatReportDate(dataRef)} · checklists e pendências do dia`,
+      `${formatReportDate(dataRef)} · checklists, pendências e observações do dia`,
       options
     )}
     <tr>

@@ -6,7 +6,12 @@ vi.mock("@/lib/supabase-manutencao", () => ({
 }));
 
 import { describe, expect, it } from "vitest";
-import { agruparObservacoesPorFrota, agruparPendenciasPorFrota, splitFrotasPorChecklist } from "@/lib/repos/relatorios";
+import {
+  agruparObservacoesPorFrota,
+  agruparPendenciasPorFrota,
+  extrairObservacoesValidas,
+  splitFrotasPorChecklist,
+} from "@/lib/repos/relatorios";
 
 describe("splitFrotasPorChecklist", () => {
   it("separates active fleets into fizeram/naoFizeram based on checklist frota ids", () => {
@@ -91,5 +96,37 @@ describe("agruparObservacoesPorFrota", () => {
 
   it("returns an empty array for no observacoes", () => {
     expect(agruparObservacoesPorFrota([])).toEqual([]);
+  });
+});
+
+describe("extrairObservacoesValidas", () => {
+  it("prefers observacao_corrigida_ia over observacao_original when both are present", () => {
+    const rows = [
+      { frota_id: 1, motorista_nome: "Bruno", observacao_original: "texto original", observacao_corrigida_ia: "texto corrigido" },
+    ];
+    expect(extrairObservacoesValidas(rows)).toEqual([
+      { frota_id: 1, motorista_nome: "Bruno", observacao: "texto corrigido" },
+    ]);
+  });
+
+  it("falls back to observacao_original when observacao_corrigida_ia is null", () => {
+    const rows = [
+      { frota_id: 1, motorista_nome: "Bruno", observacao_original: "texto original", observacao_corrigida_ia: null },
+    ];
+    expect(extrairObservacoesValidas(rows)).toEqual([
+      { frota_id: 1, motorista_nome: "Bruno", observacao: "texto original" },
+    ]);
+  });
+
+  it("filters out rows where both fields are null, empty, or whitespace-only", () => {
+    const rows = [
+      { frota_id: 1, motorista_nome: "Bruno", observacao_original: null, observacao_corrigida_ia: null },
+      { frota_id: 2, motorista_nome: "Carlos", observacao_original: "", observacao_corrigida_ia: "" },
+      { frota_id: 3, motorista_nome: "Diego", observacao_original: "   ", observacao_corrigida_ia: "   " },
+      { frota_id: 4, motorista_nome: "Elias", observacao_original: "válida", observacao_corrigida_ia: null },
+    ];
+    expect(extrairObservacoesValidas(rows)).toEqual([
+      { frota_id: 4, motorista_nome: "Elias", observacao: "válida" },
+    ]);
   });
 });
