@@ -22,6 +22,7 @@ const ScheduleSchema = z.object({
     "CUSTOS",
     "ALERTAS",
     "RELATORIO_DIARIO_IA",
+    "RELATORIO_OPERACIONAL_DIARIO",
   ]),
   destinatarios: z
     .string()
