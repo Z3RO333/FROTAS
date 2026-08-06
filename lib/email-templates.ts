@@ -484,6 +484,112 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
     </tr>`);
 }
 
+export type RelatorioOperacionalDiarioInput = {
+  totalChecklists: number;
+  totalApontamentos: number;
+  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null }[];
+  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null }[];
+  pendenciasPorFrota: {
+    frota_id: number;
+    frota_geral: string | null;
+    placa: string | null;
+    itens: { item_nome: string; gravidade: string }[];
+  }[];
+};
+
+function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string; border: string } {
+  const g = gravidade.toUpperCase();
+  if (g === "CRITICA") return { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+  if (g === "ALTA") return { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+  return { bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" };
+}
+
+function frotasChecklistTable(
+  titulo: string,
+  frotas: { frota_id: number; frota_geral: string | null; placa: string | null }[],
+  vazioMsg: string
+): string {
+  const linhas = frotas
+    .map((f, index) => {
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.frota_id)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
+      </tr>`;
+    })
+    .join("");
+  const corpo =
+    linhas ||
+    `<tr><td colspan="2" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
+
+  return `
+    <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 8px;">${escapeHtml(titulo)} (${frotas.length})</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+      <thead><tr style="background:${BLUE};color:#ffffff;">
+        <th style="padding:10px 8px;text-align:left;">Frota</th>
+        <th style="padding:10px 8px;text-align:left;">Placa</th>
+      </tr></thead>
+      <tbody>${corpo}</tbody>
+    </table>`;
+}
+
+export function renderRelatorioOperacionalDiario(
+  input: RelatorioOperacionalDiarioInput,
+  dataRef: Date,
+  options: ReportOptions = {}
+): string {
+  const totalFrotas = input.frotasFizeram.length + input.frotasNaoFizeram.length;
+  const pctEmDia = percent(input.frotasFizeram.length, totalFrotas);
+
+  const pendenciasLinhas = input.pendenciasPorFrota
+    .flatMap((grupo) => grupo.itens.map((item, index) => ({ grupo, item, first: index === 0 })))
+    .map(({ grupo, item, first }, rowIndex) => {
+      const bg = rowIndex % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${first ? display(grupo.frota_geral ?? grupo.frota_id) : ""}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(item.item_nome)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${badge(item.gravidade, pendenciaGravidadeTone(item.gravidade))}</td>
+      </tr>`;
+    })
+    .join("");
+  const pendenciasCorpo =
+    pendenciasLinhas ||
+    `<tr><td colspan="3" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma pendência criada no dia.</td></tr>`;
+
+  return shell(`
+    ${header(
+      "Relatório operacional diário",
+      `${formatReportDate(dataRef)} · checklists e pendências do dia`,
+      options
+    )}
+    <tr>
+      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
+          <tr>
+            ${summaryCell("Checklists realizados", formatNumber(input.totalChecklists), BLUE)}
+            ${summaryCell("Apontamentos", formatNumber(input.totalApontamentos), "#dc2626")}
+            ${summaryCell("Frotas em dia", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia)}
+          </tr>
+        </table>
+        ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.")}
+        ${frotasChecklistTable("🚫 Frotas que não fizeram checklist", input.frotasNaoFizeram, "Todas as frotas fizeram checklist hoje.")}
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Pendências do dia por frota</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Frota</th>
+            <th style="padding:10px 8px;text-align:left;">Item</th>
+            <th style="padding:10px 8px;text-align:left;">Gravidade</th>
+          </tr></thead>
+          <tbody>${pendenciasCorpo}</tbody>
+        </table>
+      </td>
+    </tr>`);
+}
+
 export type SocorroNotificationInput = {
   ticketNumber: string;
   solicitanteNome: string;
