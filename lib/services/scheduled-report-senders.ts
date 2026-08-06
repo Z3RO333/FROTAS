@@ -9,6 +9,9 @@ import { getLavagem, getManutencao, getParadas } from "@/lib/repos/planejamento"
 import { getCustosPorPeriodo } from "@/lib/repos/custos";
 import { listAlertasAbertos } from "@/lib/repos/alertas";
 import { listTacografoPorFrota } from "@/lib/repos/tacografo";
+import { getRelatorioKpis, getRankingFrotas } from "@/lib/repos/relatorios";
+import { listAnalisesDia } from "@/lib/repos/analises-ia";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function getSgMail() {
   const sgMail = await import("@sendgrid/mail");
@@ -24,6 +27,10 @@ function esc(value: string | number | null | undefined): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function escInternal(s: string | null | undefined): string {
+  return (s ?? "—").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function formatDateTime(date: Date): string {
@@ -238,4 +245,81 @@ export async function buildOperationalEmail(tipo: string, generatedAt: Date): Pr
     return buildTable("Alertas operacionais", rows, generatedAt);
   }
   throw new Error(`Tipo de agenda não suportado neste endpoint: ${tipo}`);
+}
+
+export async function buildRelatorioDiarioIaEmail(hoje: string) {
+  const [kpis, alertas, rankingFrotas, analises] = await Promise.all([
+    getRelatorioKpis(hoje),
+    listAlertasAbertos(10),
+    getRankingFrotas(hoje, 5),
+    listAnalisesDia(hoje),
+  ]);
+
+  const criticos = analises.filter((a) =>
+    ["CRITICO", "BLOQUEIO_SUGERIDO"].includes(a.criticidade_revisada ?? a.criticidade)
+  );
+
+  const appUrl = getAppUrl();
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><style>
+body { font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; margin: 0; padding: 0; }
+.container { max-width: 600px; margin: 0 auto; background: #fff; padding: 24px; }
+h1 { color: #1d4ed8; font-size: 20px; }
+h2 { font-size: 15px; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+.kpi-grid { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+.kpi { background: #f1f5f9; border-radius: 8px; padding: 12px 16px; min-width: 100px; }
+.kpi-value { font-size: 24px; font-weight: bold; }
+.kpi-label { font-size: 12px; color: #64748b; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.badge-critico { background: #fee2e2; color: #991b1b; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px; background: #f1f5f9; }
+td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+.footer { margin-top: 32px; font-size: 12px; color: #94a3b8; }
+</style></head>
+<body><div class="container">
+  <h1>Frotas Bemol — Relatório IA ${hoje}</h1>
+
+  <h2>Resumo do dia</h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-value">${kpis.total_checklists}</div><div class="kpi-label">Checklists</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:#059669">${kpis.ok}</div><div class="kpi-label">OK</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:#d97706">${kpis.atencao}</div><div class="kpi-label">Atenção</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:#dc2626">${kpis.critico}</div><div class="kpi-label">Crítico</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:#ea580c">${kpis.manutencao}</div><div class="kpi-label">Manutenção</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:#b91c1c">${kpis.bloqueio_sugerido}</div><div class="kpi-label">Bloqueio</div></div>
+  </div>
+
+  ${criticos.length > 0 ? `
+  <h2>Problemas críticos (${criticos.length})</h2>
+  <table><tr><th>Frota</th><th>Criticidade</th><th>Resumo</th><th>Ação</th></tr>
+  ${criticos.map((a) => `
+  <tr>
+    <td>${a.frota_id}</td>
+    <td><span class="badge badge-critico">${escInternal((a.criticidade_revisada ?? a.criticidade).replace("_", " "))}</span></td>
+    <td>${escInternal(a.resumo_ia)}</td>
+    <td>${escInternal(a.acao_recomendada)}</td>
+  </tr>`).join("")}
+  </table>` : "<p>Nenhum problema crítico hoje.</p>"}
+
+  ${rankingFrotas.length > 0 ? `
+  <h2>Frotas com mais problemas</h2>
+  <table><tr><th>Frota</th><th>Placa</th><th>Problemas</th></tr>
+  ${rankingFrotas.map((f) => `<tr><td>${escInternal(f.frota_geral) !== "—" ? escInternal(f.frota_geral) : f.frota_id}</td><td>${escInternal(f.placa)}</td><td>${f.total_problemas}</td></tr>`).join("")}
+  </table>` : ""}
+
+  ${alertas.length > 0 ? `
+  <h2>Alertas abertos (${alertas.length})</h2>
+  <table><tr><th>Tipo</th><th>Frota</th><th>Descrição</th></tr>
+  ${alertas.map((a) => `<tr><td>${escInternal(a.tipo)}</td><td>${escInternal(a.frota_geral) !== "—" ? escInternal(a.frota_geral) : a.frota_id}</td><td>${escInternal(a.descricao)}</td></tr>`).join("")}
+  </table>` : ""}
+
+  <p><a href="${appUrl}/relatorios/checklists">Ver painel completo →</a></p>
+
+  <div class="footer">Frotas Bemol · Plataforma Operacional · ${hoje}</div>
+</div></body></html>`;
+
+  return { html, kpis, alertas, rankingFrotas, criticos };
 }
