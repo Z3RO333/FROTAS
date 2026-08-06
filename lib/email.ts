@@ -2,10 +2,12 @@ import sg from "@sendgrid/mail";
 import {
   renderRelatorioGeral,
   renderRelatorioIndividual,
+  renderRelatorioOperacionalDiario,
   renderRelatorioPainelExecutivo,
   renderSinistroNotification,
   renderSocorroNotification,
   type DashboardReportInput,
+  type RelatorioOperacionalDiarioInput,
   type SinistroNotificationInput,
   type SocorroNotificationInput,
 } from "@/lib/email-templates";
@@ -187,6 +189,47 @@ export async function sendRelatorioDiarioIa(args: {
       tipo: "diario_ia",
       destinatarios,
       assunto: args.assunto,
+      enviadoPor,
+      status: "erro",
+      erroMsg: msg,
+    });
+    return { ok: false, error: publicEmailErrorMessage(msg) };
+  }
+}
+
+export async function sendRelatorioOperacionalDiario(args: {
+  destinatarios: string[];
+  input: RelatorioOperacionalDiarioInput;
+  dataRef: Date;
+  enviadoPor?: string;
+}): Promise<SendResult> {
+  const assunto = `[Frotas] Relatório operacional — ${formatReportDate(args.dataRef)}`;
+  const html = renderRelatorioOperacionalDiario(args.input, args.dataRef, { logoImageSrc: EMAIL_LOGO_URL });
+  const destinatarios = args.destinatarios.join(",");
+  const enviadoPor = args.enviadoPor ?? "sistema";
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: args.destinatarios,
+      subject: assunto,
+      html,
+    });
+    await safeLogEmail({
+      tipo: "operacional_diario",
+      destinatarios,
+      assunto,
+      enviadoPor,
+      status: "enviado",
+    });
+    return { ok: true };
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("Erro no envio do relatório operacional diário", msg);
+    await safeLogEmail({
+      tipo: "operacional_diario",
+      destinatarios,
+      assunto,
       enviadoPor,
       status: "erro",
       erroMsg: msg,
