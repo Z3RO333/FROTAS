@@ -1,0 +1,59 @@
+name: Relatorio Operacional Diario
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # 11:00 UTC = 07:00 Manaus (UTC-4, sem horario de verao)
+    # GitHub Actions cron pode atrasar ate ~15min, suficiente pra relatorio diario.
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    # Permite disparar manualmente em Actions > Relatorio Operacional Diario > Run workflow
+
+concurrency:
+  group: daily-report-operacional
+  cancel-in-progress: false
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar /api/relatorios/operacional-diario
+        env:
+          ENDPOINT: https://gestaofrotas.azurewebsites.net/api/relatorios/operacional-diario
+          SECRET: ${{ secrets.FROTAS_INTERNAL_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::error::Secret FROTAS_INTERNAL_SECRET nao configurado no repo (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "$ENDPOINT" \
+            -H "x-internal-secret: $SECRET" \
+            --max-time 120)
+
+          echo "HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Endpoint retornou $HTTP_CODE"
+            exit 1
+          fi
+
+          ENVIADO=$(jq -r '.enviado // false' response.json)
+          AVISO=$(jq -r '.aviso // empty' response.json)
+
+          if [ -n "$AVISO" ]; then
+            echo "::warning::$AVISO"
+          fi
+
+          if [ "$ENVIADO" != "true" ]; then
+            ERRO=$(jq -r '.erro_envio // .aviso // "envio nao confirmado"' response.json)
+            echo "::warning::Relatorio nao foi enviado: $ERRO"
+          else
+            DEST_COUNT=$(jq -r '.destinatarios | length' response.json)
+            CHECKLISTS=$(jq -r '.total_checklists // 0' response.json)
+            APONTAMENTOS=$(jq -r '.total_apontamentos // 0' response.json)
+            echo "::notice::Relatorio enviado (destinatarios=$DEST_COUNT, checklists=$CHECKLISTS, apontamentos=$APONTAMENTOS)"
+          fi
