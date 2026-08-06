@@ -43,13 +43,16 @@ Reaproveita a infraestrutura existente de relatórios/e-mail em vez de criar um 
 
 ## Template de e-mail
 
-Novo template HTML, seguindo o estilo visual de `buildEmailHtml` em `daily/route.ts` (mesmo CSS inline, `.kpi-grid`, tabelas):
+**Importante:** o e-mail de `daily/route.ts` (`buildEmailHtml`, CSS inline solto, `.kpi-grid`) é uma exceção no projeto — não é o padrão a seguir. O design system real e compartilhado do produto vive em `lib/email-templates.ts` (`shell()`, `header()`, `summaryCell()`, `badge()`, tabelas com cabeçalho azul, paleta `BLUE`/`BLUE_2`/`INK`/`MUTED`/`BORDER`/`SURFACE`, logo via `emailLogo()`) e é o que `renderRelatorioGeral`, `renderRelatorioIndividual`, `renderSinistroNotification` e `renderSocorroNotification` já usam. O novo template segue esse padrão:
 
-- KPIs no topo: total de checklists, total de apontamentos, % de frotas em dia (fizeram / total ativas).
-- Tabela "✅ Frotas que fizeram checklist".
-- Tabela "🚫 Frotas que não fizeram checklist".
-- Tabela "Pendências do dia por frota" (frota, item, gravidade).
-- Link para o painel (`appUrl`), no rodapé.
+- Nova função `renderRelatorioOperacionalDiario(input, dataRef, options)` em `lib/email-templates.ts`, montada com `shell(...)` envolvendo:
+  - `header("Relatório operacional diário", "<data> · checklists e pendências do dia", options)` — mesmo cabeçalho azul com logo dos outros relatórios.
+  - Linha de KPIs com `summaryCell(...)`: total de checklists, total de apontamentos, % de frotas em dia (fizeram / total ativas) — mesmo componente usado em `renderRelatorioGeral`.
+  - Tabela "✅ Frotas que fizeram checklist" — mesmo estilo de tabela de `tabelaFrotasEmManutencao` (cabeçalho `${BLUE}` com texto branco, linhas zebradas, borda `${BORDER}`).
+  - Tabela "🚫 Frotas que não fizeram checklist" — mesmo estilo de tabela.
+  - Tabela "Pendências do dia por frota" (frota, item, gravidade) — `badge()` para gravidade, reaproveitando os tons já definidos (`statusTone`/`conditionTone` como referência de padrão de cores por severidade).
+  - Estado vazio ("Nenhuma pendência hoje." / "Todas as frotas fizeram checklist.") segue o padrão já usado em `tabelaFrotasEmManutencao` (linha única cinza centralizada) em vez de esconder a seção.
+- O endpoint (`app/api/relatorios/operacional-diario/route.ts`) chama `renderRelatorioOperacionalDiario(...)` em vez de montar HTML ad-hoc como `daily/route.ts` faz hoje.
 
 ## Tratamento de erros
 
