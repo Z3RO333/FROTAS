@@ -29,6 +29,16 @@ export async function listEmailSchedules(): Promise<EmailSchedule[]> {
   return (data ?? []) as EmailSchedule[];
 }
 
+export async function getEmailSchedule(id: number): Promise<EmailSchedule | null> {
+  const { data, error } = await supabaseManutencao
+    .from("email_schedules")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`getEmailSchedule: ${error.message}`);
+  return (data ?? null) as EmailSchedule | null;
+}
+
 export async function createEmailSchedule(
   input: Omit<EmailSchedule, "id" | "ultimo_envio" | "proximo_envio" | "criado_em" | "processing_token" | "processing_started_at">
 ): Promise<void> {
@@ -37,6 +47,24 @@ export async function createEmailSchedule(
     proximo_envio: nextScheduleRun(input, new Date()).toISOString(),
   });
   if (error) throw new Error(`createEmailSchedule: ${error.message}`);
+}
+
+export async function updateEmailSchedule(
+  id: number,
+  input: Pick<
+    EmailSchedule,
+    "nome" | "tipo" | "destinatarios" | "frequencia" | "dia_semana" | "dia_mes" | "hora_envio" | "cds_incluidos" | "ativo"
+  >
+): Promise<void> {
+  const { error } = await supabaseManutencao
+    .from("email_schedules")
+    .update({
+      ...input,
+      atualizado_em: new Date().toISOString(),
+      proximo_envio: input.ativo ? nextScheduleRun(input, new Date()).toISOString() : null,
+    })
+    .eq("id", id);
+  if (error) throw new Error(`updateEmailSchedule: ${error.message}`);
 }
 
 export async function claimDueEmailSchedules(args: {
