@@ -6,6 +6,8 @@ import { z } from "zod";
 import { requireAppUser, canManageEmailSchedules } from "@/lib/rbac";
 import {
   createEmailSchedule,
+  getEmailSchedule,
+  updateEmailSchedule,
   toggleEmailSchedule,
   deleteEmailSchedule,
 } from "@/lib/repos/email-schedule";
@@ -84,6 +86,40 @@ export async function createScheduleAction(formData: FormData) {
     redirect(
       `/administracao/emails?erro=${encodeURIComponent(
         publicActionError(error, "Erro ao criar programação")
+      )}`
+    );
+  }
+}
+
+export async function updateScheduleAction(formData: FormData) {
+  const user = await requireAppUser();
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
+
+  const id = Number(formData.get("id"));
+
+  try {
+    const current = await getEmailSchedule(id);
+    if (!current) throw new Error("Programação não encontrada.");
+
+    const raw = {
+      nome: formData.get("nome"),
+      tipo: formData.get("tipo"),
+      destinatarios: formData.get("destinatarios"),
+      frequencia: formData.get("frequencia"),
+      dia_semana: formData.get("dia_semana") || null,
+      dia_mes: formData.get("dia_mes") || null,
+      hora_envio: formData.get("hora_envio"),
+      cds_incluidos: formData.get("cds_incluidos") ?? "",
+    };
+    const parsed = ScheduleSchema.parse(raw);
+    await updateEmailSchedule(id, { ...parsed, ativo: current.ativo });
+    revalidatePath("/administracao/emails");
+    redirect("/administracao/emails?sucesso=Programação+atualizada");
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    redirect(
+      `/administracao/emails?erro=${encodeURIComponent(
+        publicActionError(error, "Erro ao atualizar programação")
       )}`
     );
   }
