@@ -270,6 +270,10 @@ export async function POST(req: NextRequest) {
     const failureCountBefore = falhas.length;
 
     try {
+      if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
+        await releaseEmailScheduleClaim(schedule);
+        continue;
+      }
       if (schedule.tipo !== "DISPONIBILIDADE") {
         const { html: corpo, resumo } = await buildOperationalEmail(schedule.tipo, agora);
         const assunto = `[FROTAS] ${schedule.nome} - ${agora.toLocaleDateString("pt-BR")}`;
