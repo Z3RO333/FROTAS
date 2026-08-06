@@ -159,6 +159,23 @@ export function agruparObservacoesPorFrota(observacoes: ObservacaoComFrota[]): O
   return [...map.values()].sort((a, b) => compareFrotaKeys(frotaSortKey(a), frotaSortKey(b)));
 }
 
+export function extrairObservacoesValidas(
+  rows: {
+    frota_id: number;
+    motorista_nome: string | null;
+    observacao_original: string | null;
+    observacao_corrigida_ia: string | null;
+  }[]
+): { frota_id: number; motorista_nome: string | null; observacao: string }[] {
+  return rows
+    .map((r) => ({
+      frota_id: r.frota_id,
+      motorista_nome: r.motorista_nome,
+      observacao: r.observacao_corrigida_ia?.trim() || r.observacao_original?.trim() || "",
+    }))
+    .filter((r) => r.observacao.length > 0);
+}
+
 export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
   const { start, end } = reportDayUtcRange(date);
 
@@ -402,13 +419,7 @@ export async function getObservacoesCriadasNoDiaPorFrota(date: string): Promise<
     if (chunk.length < chunkSize) break;
   }
 
-  const comObservacao = rows
-    .map((r) => ({
-      frota_id: r.frota_id,
-      motorista_nome: r.motorista_nome,
-      observacao: r.observacao_corrigida_ia?.trim() || r.observacao_original?.trim() || "",
-    }))
-    .filter((r) => r.observacao.length > 0);
+  const comObservacao = extrairObservacoesValidas(rows);
 
   const frotaIds = [...new Set(comObservacao.map((r) => r.frota_id))];
   if (frotaIds.length === 0) return [];
