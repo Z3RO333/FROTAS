@@ -163,6 +163,7 @@ export async function sendRelatorioDiarioIa(args: {
   html: string;
   assunto: string;
   enviadoPor?: string;
+  scheduleId?: number | null;
 }): Promise<SendResult> {
   const destinatarios = args.destinatarios.join(",");
   const enviadoPor = args.enviadoPor ?? "sistema";
@@ -180,6 +181,7 @@ export async function sendRelatorioDiarioIa(args: {
       assunto: args.assunto,
       enviadoPor,
       status: "enviado",
+      scheduleId: args.scheduleId ?? null,
     });
     return { ok: true };
   } catch (e) {
@@ -192,6 +194,7 @@ export async function sendRelatorioDiarioIa(args: {
       enviadoPor,
       status: "erro",
       erroMsg: msg,
+      scheduleId: args.scheduleId ?? null,
     });
     return { ok: false, error: publicEmailErrorMessage(msg) };
   }
@@ -202,6 +205,7 @@ export async function sendRelatorioOperacionalDiario(args: {
   input: RelatorioOperacionalDiarioInput;
   dataRef: Date;
   enviadoPor?: string;
+  scheduleId?: number | null;
 }): Promise<SendResult> {
   const assunto = `[Frotas] Relatório operacional — ${formatReportDate(args.dataRef)}`;
   const html = renderRelatorioOperacionalDiario(args.input, args.dataRef, { logoImageSrc: EMAIL_LOGO_URL });
@@ -221,6 +225,7 @@ export async function sendRelatorioOperacionalDiario(args: {
       assunto,
       enviadoPor,
       status: "enviado",
+      scheduleId: args.scheduleId ?? null,
     });
     return { ok: true };
   } catch (e) {
@@ -233,6 +238,7 @@ export async function sendRelatorioOperacionalDiario(args: {
       enviadoPor,
       status: "erro",
       erroMsg: msg,
+      scheduleId: args.scheduleId ?? null,
     });
     return { ok: false, error: publicEmailErrorMessage(msg) };
   }
