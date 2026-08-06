@@ -156,7 +156,7 @@ export async function buildDisponibilidadeEmail(cdNome: string, generatedAt: Dat
 
 type ReportRow = Record<string, string | number | null | undefined>;
 
-function buildTable(title: string, rows: ReportRow[], generatedAt: Date): { html: string; resumo: string } {
+export function buildTable(title: string, rows: ReportRow[], generatedAt: Date): { html: string; resumo: string } {
   const visibleRows = rows.slice(0, 100);
   const columns = visibleRows.length > 0 ? Object.keys(visibleRows[0]) : [];
   const table = visibleRows.length === 0
@@ -244,7 +244,7 @@ export async function buildOperationalEmail(tipo: string, generatedAt: Date): Pr
     }));
     return buildTable("Alertas operacionais", rows, generatedAt);
   }
-  throw new Error(`Tipo de agenda não suportado neste endpoint: ${tipo}`);
+  throw new Error(`Tipo de agenda não suportado: ${tipo}`);
 }
 
 export async function buildRelatorioDiarioIaEmail(hoje: string) {
