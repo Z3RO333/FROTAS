@@ -24,6 +24,7 @@ const TIPO_LABELS: Record<string, string> = {
   CUSTOS: "Custos",
   ALERTAS: "Alertas operacionais",
   RELATORIO_DIARIO_IA: "Relatório diário IA",
+  RELATORIO_OPERACIONAL_DIARIO: "Relatório operacional diário",
 };
 
 export default async function EmailsPage({
