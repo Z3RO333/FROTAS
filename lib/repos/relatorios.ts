@@ -270,22 +270,28 @@ export async function getFrotasComSemChecklistNoDia(
 ): Promise<{ fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] }> {
   const { start, end } = reportDayUtcRange(date);
 
-  const [frotasAtivas, checklistRows] = await Promise.all([
-    listFrotasForReport(),
-    supabaseManutencao
-      .from("checklists_frota")
-      .select("frota_id")
-      .gte("data_checklist", start)
-      .lt("data_checklist", end),
-  ]);
-
-  if (checklistRows.error) {
-    throw new Error(`getFrotasComSemChecklistNoDia: ${checklistRows.error.message}`);
+  async function fetchAllChecklistFrotaIds(): Promise<number[]> {
+    const rows: { frota_id: number }[] = [];
+    const chunkSize = 1000;
+    for (let from = 0; ; from += chunkSize) {
+      const { data, error } = await supabaseManutencao
+        .from("checklists_frota")
+        .select("frota_id")
+        .gte("data_checklist", start)
+        .lt("data_checklist", end)
+        .range(from, from + chunkSize - 1);
+      if (error) throw new Error(`getFrotasComSemChecklistNoDia: ${error.message}`);
+      const chunk = (data ?? []) as { frota_id: number }[];
+      rows.push(...chunk);
+      if (chunk.length < chunkSize) break;
+    }
+    return rows.map((r) => Number(r.frota_id));
   }
 
-  const frotaIdsComChecklist = (checklistRows.data ?? []).map((r) =>
-    Number((r as { frota_id: number }).frota_id)
-  );
+  const [frotasAtivas, frotaIdsComChecklist] = await Promise.all([
+    listFrotasForReport(),
+    fetchAllChecklistFrotaIds(),
+  ]);
 
   return splitFrotasPorChecklist(
     frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa })),
@@ -296,15 +302,21 @@ export async function getFrotasComSemChecklistNoDia(
 export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<PendenciaGrupoFrota[]> {
   const { start, end } = reportDayUtcRange(date);
 
-  const { data, error } = await supabaseManutencao
-    .from("pendencias_frota")
-    .select("frota_id,item_nome,gravidade,criado_em")
-    .gte("criado_em", start)
-    .lt("criado_em", end);
+  const rows: { frota_id: number; item_nome: string; gravidade: string }[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("pendencias_frota")
+      .select("frota_id,item_nome,gravidade")
+      .gte("criado_em", start)
+      .lt("criado_em", end)
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`getPendenciasCriadasNoDiaPorFrota: ${error.message}`);
+    const chunk = (data ?? []) as { frota_id: number; item_nome: string; gravidade: string }[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
 
-  if (error) throw new Error(`getPendenciasCriadasNoDiaPorFrota: ${error.message}`);
-
-  const rows = (data ?? []) as { frota_id: number; item_nome: string; gravidade: string }[];
   const frotaIds = [...new Set(rows.map((r) => r.frota_id))];
   if (frotaIds.length === 0) return [];
 
