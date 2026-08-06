@@ -23,6 +23,7 @@ import {
   getChecklistsRealizadosNoDia,
   getFrotasComSemChecklistNoDia,
   getPendenciasCriadasNoDiaPorFrota,
+  getObservacoesCriadasNoDiaPorFrota,
 } from "@/lib/repos/relatorios";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { logEmail } from "@/lib/repos/email-logs";
@@ -179,12 +180,15 @@ export async function triggerScheduleNowAction(formData: FormData) {
     } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
       const ontem = shiftCalendarDate(reportCalendarDate(), -1);
       const dataRef = new Date(reportDayUtcRange(ontem).start);
-      const [totalChecklists, frotasChecklist, pendenciasPorFrota] = await Promise.all([
+      const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
         getChecklistsRealizadosNoDia(ontem),
         getFrotasComSemChecklistNoDia(ontem),
         getPendenciasCriadasNoDiaPorFrota(ontem),
+        getObservacoesCriadasNoDiaPorFrota(ontem),
       ]);
-      const totalApontamentos = pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0);
+      const totalApontamentos =
+        pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
+        observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
       const result = await sendRelatorioOperacionalDiario({
         destinatarios,
         dataRef,
@@ -196,6 +200,7 @@ export async function triggerScheduleNowAction(formData: FormData) {
           frotasFizeram: frotasChecklist.fizeram,
           frotasNaoFizeram: frotasChecklist.naoFizeram,
           pendenciasPorFrota,
+          observacoesPorFrota,
         },
       });
       if (!result.ok) throw new Error(result.error);
