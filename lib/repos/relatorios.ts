@@ -279,6 +279,7 @@ export async function getFrotasComSemChecklistNoDia(
         .select("frota_id")
         .gte("data_checklist", start)
         .lt("data_checklist", end)
+        .order("id", { ascending: true })
         .range(from, from + chunkSize - 1);
       if (error) throw new Error(`getFrotasComSemChecklistNoDia: ${error.message}`);
       const chunk = (data ?? []) as { frota_id: number }[];
@@ -310,6 +311,7 @@ export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<P
       .select("frota_id,item_nome,gravidade")
       .gte("criado_em", start)
       .lt("criado_em", end)
+      .order("id", { ascending: true })
       .range(from, from + chunkSize - 1);
     if (error) throw new Error(`getPendenciasCriadasNoDiaPorFrota: ${error.message}`);
     const chunk = (data ?? []) as { frota_id: number; item_nome: string; gravidade: string }[];
