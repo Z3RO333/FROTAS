@@ -39,6 +39,90 @@ export type EvolucaoDiaria = {
   critico: number;
 };
 
+export type FrotaResumoChecklist = {
+  frota_id: number;
+  frota_geral: string | null;
+  placa: string | null;
+};
+
+function frotaSortKey(f: { frota_geral: string | null; placa: string | null; frota_id: number }): [string, string] {
+  const key = f.frota_geral ?? f.placa ?? String(f.frota_id);
+  const numKey = Number(key);
+  const isNumeric = !isNaN(numKey) && key.trim() !== "";
+  return [isNumeric ? "0" : "1", key];
+}
+
+function compareFrotaKeys(a: [string, string], b: [string, string]): number {
+  if (a[0] !== b[0]) {
+    return a[0].localeCompare(b[0]);
+  }
+  const numA = Number(a[1]);
+  const numB = Number(b[1]);
+  if (!isNaN(numA) && !isNaN(numB)) {
+    return numA - numB;
+  }
+  return a[1].localeCompare(b[1]);
+}
+
+export function splitFrotasPorChecklist(
+  frotasAtivas: { id: number; frota_geral: string | null; placa: string | null }[],
+  frotaIdsComChecklist: number[]
+): { fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] } {
+  const comChecklist = new Set(frotaIdsComChecklist);
+  const fizeram: FrotaResumoChecklist[] = [];
+  const naoFizeram: FrotaResumoChecklist[] = [];
+
+  for (const frota of frotasAtivas) {
+    const resumo: FrotaResumoChecklist = {
+      frota_id: frota.id,
+      frota_geral: frota.frota_geral,
+      placa: frota.placa,
+    };
+    if (comChecklist.has(frota.id)) fizeram.push(resumo);
+    else naoFizeram.push(resumo);
+  }
+
+  const bySortKey = (a: FrotaResumoChecklist, b: FrotaResumoChecklist) =>
+    compareFrotaKeys(frotaSortKey(a), frotaSortKey(b));
+
+  return { fizeram: fizeram.sort(bySortKey), naoFizeram: naoFizeram.sort(bySortKey) };
+}
+
+export type PendenciaComFrota = {
+  frota_id: number;
+  frota_geral: string | null;
+  placa: string | null;
+  item_nome: string;
+  gravidade: string;
+};
+
+export type PendenciaGrupoFrota = {
+  frota_id: number;
+  frota_geral: string | null;
+  placa: string | null;
+  itens: { item_nome: string; gravidade: string }[];
+};
+
+export function agruparPendenciasPorFrota(pendencias: PendenciaComFrota[]): PendenciaGrupoFrota[] {
+  const map = new Map<number, PendenciaGrupoFrota>();
+
+  for (const p of pendencias) {
+    const existing = map.get(p.frota_id);
+    if (existing) {
+      existing.itens.push({ item_nome: p.item_nome, gravidade: p.gravidade });
+    } else {
+      map.set(p.frota_id, {
+        frota_id: p.frota_id,
+        frota_geral: p.frota_geral,
+        placa: p.placa,
+        itens: [{ item_nome: p.item_nome, gravidade: p.gravidade }],
+      });
+    }
+  }
+
+  return [...map.values()].sort((a, b) => compareFrotaKeys(frotaSortKey(a), frotaSortKey(b)));
+}
+
 export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
   const { start, end } = reportDayUtcRange(date);
 
