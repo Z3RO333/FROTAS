@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
 import { getEmailSchedule, listEmailSchedules } from "@/lib/repos/email-schedule";
@@ -10,7 +11,7 @@ import {
   triggerScheduleNowAction,
 } from "./_actions";
 import { ScheduleForm } from "./ScheduleForm";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -63,6 +64,7 @@ export default async function EmailsPage({
       )}
 
       <ScheduleForm
+        key={editingSchedule?.id ?? "novo"}
         schedule={editingSchedule ?? undefined}
         action={editingSchedule ? updateScheduleAction : createScheduleAction}
       />
@@ -100,11 +102,12 @@ export default async function EmailsPage({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <a href={`/administracao/emails?editar=${s.id}`}>
-                <Button type="button" variant="outline" size="sm">
-                  Editar
-                </Button>
-              </a>
+              <Link
+                href={`/administracao/emails?editar=${s.id}`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Editar
+              </Link>
               <form action={triggerScheduleNowAction}>
                 <input type="hidden" name="id" value={s.id} />
                 <Button type="submit" variant="outline" size="sm">

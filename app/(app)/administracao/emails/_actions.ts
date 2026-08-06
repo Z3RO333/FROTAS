@@ -155,6 +155,12 @@ export async function triggerScheduleNowAction(formData: FormData) {
       new Set(schedule.destinatarios.map((e) => e.trim().toLowerCase()).filter(Boolean))
     );
 
+    if (destinatarios.length === 0) {
+      redirect(
+        `/administracao/emails?erro=${encodeURIComponent("Programação sem destinatários válidos.")}`
+      );
+    }
+
     const agora = new Date();
     const fromEmail = getEmailFrom();
 
@@ -196,6 +202,7 @@ export async function triggerScheduleNowAction(formData: FormData) {
     } else if (schedule.tipo === "DISPONIBILIDADE") {
       const sgMail = await getSgMail();
       const cdsAlvo = schedule.cds_incluidos.length > 0 ? schedule.cds_incluidos : await listCDsDisponibilidade();
+      const enviados: string[] = [];
       const falhas: string[] = [];
 
       for (const cdNome of cdsAlvo) {
@@ -215,6 +222,7 @@ export async function triggerScheduleNowAction(formData: FormData) {
             conteudoHtml: html,
             scheduleId: schedule.id,
           });
+          enviados.push(cdNome);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           await logEmail({
@@ -232,7 +240,17 @@ export async function triggerScheduleNowAction(formData: FormData) {
           falhas.push(cdNome);
         }
       }
-      if (falhas.length > 0) throw new Error(`Falha ao enviar para: ${falhas.join(", ")}`);
+      if (falhas.length > 0 && enviados.length === 0) {
+        throw new Error(`Falha ao enviar para: ${falhas.join(", ")}`);
+      }
+      if (falhas.length > 0 && enviados.length > 0) {
+        revalidatePath("/administracao/emails");
+        redirect(
+          `/administracao/emails?erro=${encodeURIComponent(
+            `"${schedule.nome}" disparada parcialmente — sucesso: ${enviados.join(", ")}; falha: ${falhas.join(", ")}`
+          )}`
+        );
+      }
     } else {
       const sgMail = await getSgMail();
       const { html: corpo, resumo } = await buildOperationalEmail(schedule.tipo, agora);
