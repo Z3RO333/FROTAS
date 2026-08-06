@@ -6,7 +6,7 @@ vi.mock("@/lib/supabase-manutencao", () => ({
 }));
 
 import { describe, expect, it } from "vitest";
-import { agruparPendenciasPorFrota, splitFrotasPorChecklist } from "@/lib/repos/relatorios";
+import { agruparObservacoesPorFrota, agruparPendenciasPorFrota, splitFrotasPorChecklist } from "@/lib/repos/relatorios";
 
 describe("splitFrotasPorChecklist", () => {
   it("separates active fleets into fizeram/naoFizeram based on checklist frota ids", () => {
@@ -66,5 +66,30 @@ describe("agruparPendenciasPorFrota", () => {
 
   it("returns an empty array for no pendencias", () => {
     expect(agruparPendenciasPorFrota([])).toEqual([]);
+  });
+});
+
+describe("agruparObservacoesPorFrota", () => {
+  it("groups observacoes by frota_id preserving item order", () => {
+    const observacoes = [
+      { frota_id: 1, frota_geral: "10", placa: "AAA-0001", motorista_nome: "Bruno", observacao: "Levando para revisão" },
+      { frota_id: 1, frota_geral: "10", placa: "AAA-0001", motorista_nome: "Bruno", observacao: "Pouco óleo nos freios" },
+      { frota_id: 2, frota_geral: "5", placa: "BBB-0002", motorista_nome: "Carlos", observacao: "Farol queimado" },
+    ];
+
+    const result = agruparObservacoesPorFrota(observacoes);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].frota_id).toBe(2);
+    expect(result[0].observacoes).toEqual([{ motorista_nome: "Carlos", observacao: "Farol queimado" }]);
+    expect(result[1].frota_id).toBe(1);
+    expect(result[1].observacoes).toEqual([
+      { motorista_nome: "Bruno", observacao: "Levando para revisão" },
+      { motorista_nome: "Bruno", observacao: "Pouco óleo nos freios" },
+    ]);
+  });
+
+  it("returns an empty array for no observacoes", () => {
+    expect(agruparObservacoesPorFrota([])).toEqual([]);
   });
 });
