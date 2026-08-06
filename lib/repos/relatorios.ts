@@ -1,5 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
+import { listFrotasForReport } from "@/lib/repos/frotas";
 
 const SEVERITY_ORDER = ["OK", "ATENCAO", "CRITICO", "MANUTENCAO", "BLOQUEIO_SUGERIDO"];
 function worstCriticidade(a: string, b: string): string {
@@ -249,4 +250,81 @@ export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
   });
 
   return Promise.all(promises);
+}
+
+export async function getChecklistsRealizadosNoDia(date: string): Promise<number> {
+  const { start, end } = reportDayUtcRange(date);
+
+  const { count, error } = await supabaseManutencao
+    .from("checklists_frota")
+    .select("id", { count: "exact", head: true })
+    .gte("data_checklist", start)
+    .lt("data_checklist", end);
+
+  if (error) throw new Error(`getChecklistsRealizadosNoDia: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function getFrotasComSemChecklistNoDia(
+  date: string
+): Promise<{ fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] }> {
+  const { start, end } = reportDayUtcRange(date);
+
+  const [frotasAtivas, checklistRows] = await Promise.all([
+    listFrotasForReport(),
+    supabaseManutencao
+      .from("checklists_frota")
+      .select("frota_id")
+      .gte("data_checklist", start)
+      .lt("data_checklist", end),
+  ]);
+
+  if (checklistRows.error) {
+    throw new Error(`getFrotasComSemChecklistNoDia: ${checklistRows.error.message}`);
+  }
+
+  const frotaIdsComChecklist = (checklistRows.data ?? []).map((r) =>
+    Number((r as { frota_id: number }).frota_id)
+  );
+
+  return splitFrotasPorChecklist(
+    frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa })),
+    frotaIdsComChecklist
+  );
+}
+
+export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<PendenciaGrupoFrota[]> {
+  const { start, end } = reportDayUtcRange(date);
+
+  const { data, error } = await supabaseManutencao
+    .from("pendencias_frota")
+    .select("frota_id,item_nome,gravidade,criado_em")
+    .gte("criado_em", start)
+    .lt("criado_em", end);
+
+  if (error) throw new Error(`getPendenciasCriadasNoDiaPorFrota: ${error.message}`);
+
+  const rows = (data ?? []) as { frota_id: number; item_nome: string; gravidade: string }[];
+  const frotaIds = [...new Set(rows.map((r) => r.frota_id))];
+  if (frotaIds.length === 0) return [];
+
+  const { data: veiculos, error: veiculosError } = await supabaseManutencao
+    .from("veiculos")
+    .select("id,codigo_frota,placa")
+    .in("id", frotaIds);
+  if (veiculosError) throw new Error(`getPendenciasCriadasNoDiaPorFrota veiculos: ${veiculosError.message}`);
+
+  const veiculoMap = new Map(
+    (veiculos ?? []).map((v) => [Number(v.id), v as { id: number; codigo_frota: string | null; placa: string | null }])
+  );
+
+  const pendenciasComFrota: PendenciaComFrota[] = rows.map((r) => ({
+    frota_id: r.frota_id,
+    frota_geral: veiculoMap.get(r.frota_id)?.codigo_frota ?? null,
+    placa: veiculoMap.get(r.frota_id)?.placa ?? null,
+    item_nome: r.item_nome,
+    gravidade: r.gravidade,
+  }));
+
+  return agruparPendenciasPorFrota(pendenciasComFrota);
 }
