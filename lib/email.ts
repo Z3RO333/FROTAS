@@ -15,6 +15,7 @@ import type { Frota } from "@/lib/repos/frotas";
 import { logEmail } from "@/lib/repos/email-logs";
 import { formatReportDate } from "@/lib/report-date";
 import { getEmailFrom } from "@/lib/email-from";
+import { buildRelatorioOperacionalResumoPdf } from "@/lib/relatorio-pdf";
 
 const FROM = getEmailFrom();
 // Outlook (motor Word) renderiza mal imagens embutidas via cid/attachment — usamos URL publica hospedada.
@@ -206,11 +207,31 @@ export async function sendRelatorioOperacionalDiario(args: {
   dataRef: Date;
   enviadoPor?: string;
   scheduleId?: number | null;
+  anexarResumoPdf?: boolean;
 }): Promise<SendResult> {
   const assunto = `[Frotas] Relatório Checklist Diário — ${formatReportDate(args.dataRef)}`;
   const html = renderRelatorioOperacionalDiario(args.input, args.dataRef, { logoImageSrc: EMAIL_LOGO_URL });
   const destinatarios = args.destinatarios.join(",");
   const enviadoPor = args.enviadoPor ?? "sistema";
+
+  const attachments = args.anexarResumoPdf
+    ? [
+        {
+          content: (
+            await buildRelatorioOperacionalResumoPdf({
+              dataRef: args.dataRef,
+              totalChecklists: args.input.totalChecklists,
+              totalApontamentos: args.input.totalApontamentos,
+              frotasFizeram: args.input.frotasFizeram,
+              frotasNaoFizeram: args.input.frotasNaoFizeram,
+            })
+          ).toString("base64"),
+          filename: `resumo-checklist-diario-${formatReportDate(args.dataRef).replace(/\//g, "-")}.pdf`,
+          type: "application/pdf",
+          disposition: "attachment",
+        },
+      ]
+    : undefined;
 
   try {
     await mailClient().send({
@@ -218,6 +239,7 @@ export async function sendRelatorioOperacionalDiario(args: {
       to: args.destinatarios,
       subject: assunto,
       html,
+      attachments,
     });
     await safeLogEmail({
       tipo: "operacional_diario",

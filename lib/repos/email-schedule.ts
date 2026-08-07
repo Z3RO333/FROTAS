@@ -11,6 +11,7 @@ export type EmailSchedule = {
   dia_mes: number | null;
   hora_envio: string;
   cds_incluidos: string[];
+  setores_incluidos: string[];
   ativo: boolean;
   ultimo_envio: string | null;
   proximo_envio: string | null;
@@ -53,7 +54,7 @@ export async function updateEmailSchedule(
   id: number,
   input: Pick<
     EmailSchedule,
-    "nome" | "tipo" | "destinatarios" | "frequencia" | "dia_semana" | "dia_mes" | "hora_envio" | "cds_incluidos" | "ativo"
+    "nome" | "tipo" | "destinatarios" | "frequencia" | "dia_semana" | "dia_mes" | "hora_envio" | "cds_incluidos" | "setores_incluidos" | "ativo"
   >
 ): Promise<void> {
   const { error } = await supabaseManutencao

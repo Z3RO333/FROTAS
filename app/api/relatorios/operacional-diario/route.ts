@@ -28,66 +28,77 @@ export async function POST(req: NextRequest) {
   const ontem = shiftCalendarDate(reportCalendarDate(), -1);
   const dataRef = new Date(reportDayUtcRange(ontem).start);
 
-  const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
-    getChecklistsRealizadosNoDia(ontem),
-    getFrotasComSemChecklistNoDia(ontem),
-    getPendenciasCriadasNoDiaPorFrota(ontem),
-    getObservacoesCriadasNoDiaPorFrota(ontem),
-  ]);
-
-  const totalApontamentos =
-    pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
-    observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
-
   const schedules = await claimDueEmailSchedules({ limit: 25, tipo: "RELATORIO_OPERACIONAL_DIARIO" });
 
-  const destinatarios = Array.from(
-    new Set(
-      schedules
-        .flatMap((s) => s.destinatarios ?? [])
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-
-  if (destinatarios.length === 0) {
-    await Promise.all(schedules.map((schedule) => releaseEmailScheduleClaim(schedule)));
+  if (schedules.length === 0) {
     return NextResponse.json({
       aviso: "Nenhuma agenda ativa do tipo RELATORIO_OPERACIONAL_DIARIO. Cadastre em /administracao/emails.",
       data: ontem,
     });
   }
 
-  const sendResult = await sendRelatorioOperacionalDiario({
-    destinatarios,
-    dataRef,
-    input: {
-      totalChecklists,
-      totalApontamentos,
-      frotasFizeram: frotasChecklist.fizeram,
-      frotasNaoFizeram: frotasChecklist.naoFizeram,
-      pendenciasPorFrota,
-      observacoesPorFrota,
-    },
-  });
+  // Cada agenda pode ter seu proprio recorte de setores (setores_incluidos) — o relatorio e
+  // montado e enviado individualmente por agenda, nao mais combinado num unico e-mail.
+  const resultados = await Promise.all(
+    schedules.map(async (schedule) => {
+      const destinatarios = Array.from(
+        new Set((schedule.destinatarios ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean))
+      );
 
-  if (sendResult.ok) {
-    await Promise.all(schedules.map((schedule) => completeEmailSchedule(schedule, new Date())));
-  } else {
-    await Promise.all(schedules.map((schedule) => releaseEmailScheduleClaim(schedule)));
-  }
+      if (destinatarios.length === 0) {
+        await releaseEmailScheduleClaim(schedule);
+        return { schedule: schedule.nome, enviado: false, erro: "Agenda sem destinatários válidos." };
+      }
 
-  return NextResponse.json(
-    {
-      data: ontem,
-      total_checklists: totalChecklists,
-      total_apontamentos: totalApontamentos,
-      frotas_fizeram: frotasChecklist.fizeram.length,
-      frotas_nao_fizeram: frotasChecklist.naoFizeram.length,
-      destinatarios,
-      enviado: sendResult.ok,
-      erro_envio: sendResult.ok ? null : sendResult.error,
-    },
-    { status: sendResult.ok ? 200 : 502 }
+      const setores = schedule.setores_incluidos.length > 0 ? schedule.setores_incluidos : undefined;
+
+      const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
+        getChecklistsRealizadosNoDia(ontem, setores),
+        getFrotasComSemChecklistNoDia(ontem, setores),
+        getPendenciasCriadasNoDiaPorFrota(ontem, setores),
+        getObservacoesCriadasNoDiaPorFrota(ontem, setores),
+      ]);
+
+      const totalApontamentos =
+        pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
+        observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
+
+      const sendResult = await sendRelatorioOperacionalDiario({
+        destinatarios,
+        dataRef,
+        scheduleId: schedule.id,
+        anexarResumoPdf: !setores,
+        input: {
+          totalChecklists,
+          totalApontamentos,
+          frotasFizeram: frotasChecklist.fizeram,
+          frotasNaoFizeram: frotasChecklist.naoFizeram,
+          pendenciasPorFrota,
+          observacoesPorFrota,
+        },
+      });
+
+      if (sendResult.ok) {
+        await completeEmailSchedule(schedule, new Date());
+      } else {
+        await releaseEmailScheduleClaim(schedule);
+      }
+
+      return {
+        schedule: schedule.nome,
+        setores_incluidos: schedule.setores_incluidos,
+        total_checklists: totalChecklists,
+        total_apontamentos: totalApontamentos,
+        frotas_fizeram: frotasChecklist.fizeram.length,
+        frotas_nao_fizeram: frotasChecklist.naoFizeram.length,
+        destinatarios,
+        enviado: sendResult.ok,
+        erro: sendResult.ok ? null : sendResult.error,
+      };
+    })
   );
+
+  const algumaFalha = resultados.some((r) => !r.enviado);
+
+  return NextResponse.json({ data: ontem, resultados }, { status: algumaFalha ? 502 : 200 });
 }

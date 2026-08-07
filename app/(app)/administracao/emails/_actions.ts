@@ -64,6 +64,10 @@ const ScheduleSchema = z.object({
     .string()
     .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
     .pipe(z.array(z.string().max(120)).max(100)),
+  setores_incluidos: z
+    .string()
+    .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
+    .pipe(z.array(z.string().max(120)).max(100)),
 });
 
 function isRedirectError(error: unknown): boolean {
@@ -89,6 +93,7 @@ export async function createScheduleAction(formData: FormData) {
       dia_mes: formData.get("dia_mes") || null,
       hora_envio: formData.get("hora_envio"),
       cds_incluidos: formData.get("cds_incluidos") ?? "",
+      setores_incluidos: formData.get("setores_incluidos") ?? "",
     };
     const parsed = ScheduleSchema.parse(raw);
     await createEmailSchedule({
@@ -129,6 +134,7 @@ export async function updateScheduleAction(formData: FormData): Promise<ActionRe
       dia_mes: formData.get("dia_mes") || null,
       hora_envio: formData.get("hora_envio"),
       cds_incluidos: formData.get("cds_incluidos") ?? "",
+      setores_incluidos: formData.get("setores_incluidos") ?? "",
     };
     const parsed = ScheduleSchema.parse(raw);
     await updateEmailSchedule(id, { ...parsed, ativo: current.ativo });
@@ -173,11 +179,12 @@ export async function triggerScheduleNowAction(id: number): Promise<ActionResult
     } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
       const ontem = shiftCalendarDate(reportCalendarDate(), -1);
       const dataRef = new Date(reportDayUtcRange(ontem).start);
+      const setores = schedule.setores_incluidos.length > 0 ? schedule.setores_incluidos : undefined;
       const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
-        getChecklistsRealizadosNoDia(ontem),
-        getFrotasComSemChecklistNoDia(ontem),
-        getPendenciasCriadasNoDiaPorFrota(ontem),
-        getObservacoesCriadasNoDiaPorFrota(ontem),
+        getChecklistsRealizadosNoDia(ontem, setores),
+        getFrotasComSemChecklistNoDia(ontem, setores),
+        getPendenciasCriadasNoDiaPorFrota(ontem, setores),
+        getObservacoesCriadasNoDiaPorFrota(ontem, setores),
       ]);
       const totalApontamentos =
         pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
@@ -187,6 +194,7 @@ export async function triggerScheduleNowAction(id: number): Promise<ActionResult
         dataRef,
         enviadoPor: user.email,
         scheduleId: schedule.id,
+        anexarResumoPdf: !setores,
         input: {
           totalChecklists,
           totalApontamentos,
