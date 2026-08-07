@@ -13,6 +13,7 @@ import type { Kpis } from "@/lib/repos/frotas";
 import type { PlanejamentoOverview } from "@/lib/repos/planejamento";
 import { formatReportDate } from "@/lib/report-date";
 import { calcularIdade } from "@/lib/rules";
+import { normalizeCdNome } from "@/lib/cd-utils";
 
 type ReportOptions = {
   logoImageSrc?: string;
@@ -487,8 +488,8 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
 export type RelatorioOperacionalDiarioInput = {
   totalChecklists: number;
   totalApontamentos: number;
-  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null }[];
-  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null }[];
+  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[];
+  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[];
   pendenciasPorFrota: {
     frota_id: number;
     frota_geral: string | null;
@@ -512,7 +513,7 @@ function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string;
 
 function frotasChecklistTable(
   titulo: string,
-  frotas: { frota_id: number; frota_geral: string | null; placa: string | null }[],
+  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[],
   vazioMsg: string
 ): string {
   const linhas = frotas
@@ -521,12 +522,14 @@ function frotasChecklistTable(
       return `<tr style="background:${bg};">
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.frota_id)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.localizacao)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${escapeHtml(normalizeCdNome(f.localizacao))}</td>
       </tr>`;
     })
     .join("");
   const corpo =
     linhas ||
-    `<tr><td colspan="2" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
+    `<tr><td colspan="4" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
 
   return `
     <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 8px;">${escapeHtml(titulo)} (${frotas.length})</div>
@@ -534,6 +537,8 @@ function frotasChecklistTable(
       <thead><tr style="background:${BLUE};color:#ffffff;">
         <th style="padding:10px 8px;text-align:left;">Frota</th>
         <th style="padding:10px 8px;text-align:left;">Placa</th>
+        <th style="padding:10px 8px;text-align:left;">Localização</th>
+        <th style="padding:10px 8px;text-align:left;">CD</th>
       </tr></thead>
       <tbody>${corpo}</tbody>
     </table>`;
@@ -579,7 +584,7 @@ export function renderRelatorioOperacionalDiario(
 
   return shell(`
     ${header(
-      "Relatório operacional diário",
+      "Relatório Checklist Diário",
       `${formatReportDate(dataRef)} · checklists, pendências e observações do dia`,
       options
     )}
