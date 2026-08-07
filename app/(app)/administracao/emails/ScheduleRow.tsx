@@ -20,7 +20,13 @@ import {
 
 type PendingKind = "disparar" | "toggle" | "remover" | null;
 
-export function ScheduleRow({ schedule }: { schedule: EmailSchedule }) {
+export function ScheduleRow({
+  schedule,
+  setoresDisponiveis = [],
+}: {
+  schedule: EmailSchedule;
+  setoresDisponiveis?: string[];
+}) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [pendingKind, setPendingKind] = useState<PendingKind>(null);
@@ -123,7 +129,12 @@ export function ScheduleRow({ schedule }: { schedule: EmailSchedule }) {
           <DialogHeader>
             <DialogTitle>Editar programação</DialogTitle>
           </DialogHeader>
-          <ScheduleForm schedule={schedule} action={handleUpdate} onCancel={() => setEditOpen(false)} />
+          <ScheduleForm
+            schedule={schedule}
+            action={handleUpdate}
+            onCancel={() => setEditOpen(false)}
+            setoresDisponiveis={setoresDisponiveis}
+          />
         </DialogContent>
       </Dialog>
     </div>

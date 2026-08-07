@@ -64,10 +64,7 @@ const ScheduleSchema = z.object({
     .string()
     .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
     .pipe(z.array(z.string().max(120)).max(100)),
-  setores_incluidos: z
-    .string()
-    .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
-    .pipe(z.array(z.string().max(120)).max(100)),
+  setores_incluidos: z.array(z.string().max(120)).max(100),
 });
 
 function isRedirectError(error: unknown): boolean {
@@ -93,7 +90,7 @@ export async function createScheduleAction(formData: FormData) {
       dia_mes: formData.get("dia_mes") || null,
       hora_envio: formData.get("hora_envio"),
       cds_incluidos: formData.get("cds_incluidos") ?? "",
-      setores_incluidos: formData.get("setores_incluidos") ?? "",
+      setores_incluidos: formData.getAll("setores_incluidos"),
     };
     const parsed = ScheduleSchema.parse(raw);
     await createEmailSchedule({
@@ -134,7 +131,7 @@ export async function updateScheduleAction(formData: FormData): Promise<ActionRe
       dia_mes: formData.get("dia_mes") || null,
       hora_envio: formData.get("hora_envio"),
       cds_incluidos: formData.get("cds_incluidos") ?? "",
-      setores_incluidos: formData.get("setores_incluidos") ?? "",
+      setores_incluidos: formData.getAll("setores_incluidos"),
     };
     const parsed = ScheduleSchema.parse(raw);
     await updateEmailSchedule(id, { ...parsed, ativo: current.ativo });

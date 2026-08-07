@@ -25,6 +25,7 @@ type ScheduleFormProps = {
   schedule?: EmailSchedule;
   action: (formData: FormData) => void | Promise<void>;
   onCancel?: () => void;
+  setoresDisponiveis?: string[];
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -43,9 +44,10 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-export function ScheduleForm({ schedule, action, onCancel }: ScheduleFormProps) {
+export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = [] }: ScheduleFormProps) {
   const [frequencia, setFrequencia] = useState<string>(schedule?.frequencia ?? "DIARIO");
   const isEdit = Boolean(schedule);
+  const setoresSelecionados = new Set(schedule?.setores_incluidos ?? []);
 
   return (
     <div className={onCancel ? "" : "rounded-xl border bg-white p-6 shadow-sm"}>
@@ -151,18 +153,30 @@ export function ScheduleForm({ schedule, action, onCancel }: ScheduleFormProps) 
             defaultValue={schedule?.cds_incluidos.join(", ")}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="setores_incluidos">Setores incluídos (vazio = todos — relatório geral)</Label>
-          <Input
-            id="setores_incluidos"
-            name="setores_incluidos"
-            placeholder="EXPEDIÇÃO MANAUS, MARKETPLACE, CD TURISMO/ MERCADO"
-            defaultValue={schedule?.setores_incluidos.join(", ")}
-          />
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Setores incluídos (vazio = todos — relatório geral)</Label>
           <p className="text-xs text-muted-foreground">
             Usado só no Relatório Checklist Diário — restringe o relatório às frotas desses setores.
-            Deixe vazio pro relatório geral (que também recebe o PDF resumo em anexo).
+            Deixe tudo desmarcado pro relatório geral (que também recebe o PDF resumo em anexo).
           </p>
+          {setoresDisponiveis.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum setor cadastrado nas frotas ainda.</p>
+          ) : (
+            <div className="grid max-h-56 grid-cols-1 gap-x-4 gap-y-1.5 overflow-y-auto rounded-md border p-3 sm:grid-cols-2">
+              {setoresDisponiveis.map((setor) => (
+                <label key={setor} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="setores_incluidos"
+                    value={setor}
+                    defaultChecked={setoresSelecionados.has(setor)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  {setor}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2 sm:col-span-2">
           <SubmitButton label={isEdit ? "Salvar alterações" : "Criar programação"} />
