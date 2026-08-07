@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, type MouseEvent } from "react";
-import { Save, ShieldOff } from "lucide-react";
+import { KeyRound, Save, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { UsuarioAuditoriaDialog } from "./usuario-auditoria-dialog";
+import { redefinirSenhaTerceiroAction } from "@/app/(app)/administracao/usuarios/_actions";
 
 type Props = {
   usuarioId: string;
@@ -19,10 +22,12 @@ type Props = {
   /** Status atual do usuário (true = ativo). */
   wasActive: boolean;
   disabled?: boolean;
+  tipoConta?: "INTERNO" | "TERCEIRO";
 };
 
-export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled }: Props) {
+export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled, tipoConta }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [senhaOpen, setSenhaOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -61,6 +66,13 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
     <div className="flex items-center justify-end gap-1">
       <UsuarioAuditoriaDialog usuarioId={usuarioId} usuarioLabel={usuarioLabel} />
 
+      {tipoConta === "TERCEIRO" && (
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => setSenhaOpen(true)}>
+          <KeyRound className="h-4 w-4" aria-hidden="true" />
+          <span className="ml-1.5 hidden sm:inline">Redefinir senha</span>
+        </Button>
+      )}
+
       <Button
         type="submit"
         variant="outline"
@@ -71,6 +83,30 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
         <Save className="h-4 w-4" aria-hidden="true" />
         <span className="ml-1.5">Salvar</span>
       </Button>
+
+      <Dialog open={senhaOpen} onOpenChange={setSenhaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Redefinir senha</DialogTitle>
+            <DialogDescription className="pt-1 text-sm">
+              Nova senha de acesso pra <span className="font-medium text-slate-900">{usuarioLabel}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={redefinirSenhaTerceiroAction} className="space-y-3" onSubmit={() => setSenhaOpen(false)}>
+            <input type="hidden" name="id" value={usuarioId} />
+            <div className="space-y-1.5">
+              <Label htmlFor={`senha-${usuarioId}`}>Nova senha</Label>
+              <Input id={`senha-${usuarioId}`} name="senha" type="password" minLength={8} required autoComplete="new-password" />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setSenhaOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">Salvar nova senha</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">

@@ -1,7 +1,9 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import Credentials from "next-auth/providers/credentials";
 import { normalizeUserDisplayName } from "@/lib/user";
 import { requiredEnv } from "@/lib/env";
+import { verificarCredenciaisTerceiro } from "@/lib/repos/usuarios";
 
 const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 
@@ -30,10 +32,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: requiredEnv("AZURE_AD_CLIENT_SECRET"),
       issuer: `https://login.microsoftonline.com/${requiredEnv("AZURE_AD_TENANT")}/v2.0`,
     }),
+    Credentials({
+      id: "motorista-terceiro",
+      name: "Motorista terceiro",
+      credentials: {
+        email: { label: "E-mail", type: "email" },
+        senha: { label: "Senha", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
+        const senha = typeof credentials?.senha === "string" ? credentials.senha : "";
+        if (!email || !senha) return null;
+
+        const usuario = await verificarCredenciaisTerceiro(email, senha);
+        if (!usuario) return null;
+
+        return { id: usuario.id, email: usuario.email, name: usuario.nome ?? usuario.email };
+      },
+    }),
   ],
   pages: { signIn: "/login" },
   callbacks: {
-    async signIn({ user, profile }) {
+    async signIn({ user, profile, account }) {
+      // Credenciais de terceiro já foram validadas em authorize() acima — não passam
+      // pelo filtro de domínio corporativo, que só se aplica ao login via Microsoft.
+      if (account?.provider === "motorista-terceiro") return true;
       const email = profileEmail(user, profile);
       return isAllowedCorporateEmail(email);
     },

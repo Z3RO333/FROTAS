@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { PERFIS_USUARIO, canManageUsers, requireAppUser } from "@/lib/rbac";
-import { createUsuario, getUsuarioById, updateUsuario } from "@/lib/repos/usuarios";
+import { createUsuario, getUsuarioById, setSenhaUsuario, updateUsuario } from "@/lib/repos/usuarios";
 import { publicActionError } from "@/lib/public-error";
 
 const UsuarioSchema = z.object({
@@ -13,11 +13,14 @@ const UsuarioSchema = z.object({
   matricula: z.string().trim().optional(),
   perfil: z.enum(PERFIS_USUARIO),
   ativo: z.boolean(),
+  tipo_conta: z.enum(["INTERNO", "TERCEIRO"]),
 });
 
 const UpdateUsuarioSchema = UsuarioSchema.extend({
   id: z.string().trim().min(1),
 });
+
+const SenhaSchema = z.string().min(8, "A senha precisa ter pelo menos 8 caracteres.");
 
 function readUsuarioForm(formData: FormData) {
   // O form envia "ativo" duas vezes (hidden=false + checkbox=true quando marcado).
@@ -30,6 +33,7 @@ function readUsuarioForm(formData: FormData) {
     matricula: String(formData.get("matricula") ?? ""),
     perfil: String(formData.get("perfil") ?? ""),
     ativo: ativoValues.includes("true"),
+    tipo_conta: String(formData.get("tipo_conta") ?? "INTERNO"),
   };
 }
 
@@ -50,12 +54,47 @@ export async function createUsuarioAction(formData: FormData) {
   try {
     const input = UsuarioSchema.parse(readUsuarioForm(formData));
     ensureCanAssignPerfil(actor.perfil, input.perfil);
-    await createUsuario(input, actor.email);
+
+    let senha: string | null = null;
+    if (input.tipo_conta === "TERCEIRO") {
+      const parsedSenha = SenhaSchema.safeParse(String(formData.get("senha") ?? ""));
+      if (!parsedSenha.success) {
+        redirectBack("erro", parsedSenha.error.issues[0]?.message ?? "Senha inválida.");
+      }
+      senha = parsedSenha.data;
+    }
+
+    const usuario = await createUsuario(input, actor.email);
+    if (senha) await setSenhaUsuario(usuario.id, senha);
+
     revalidatePath("/administracao/usuarios");
     redirectBack("sucesso", "Usuário criado com perfil manual.");
   } catch (error) {
     if (isRedirectError(error)) throw error;
     redirectBack("erro", publicActionError(error, "Não foi possível criar o usuário."));
+  }
+}
+
+export async function redefinirSenhaTerceiroAction(formData: FormData) {
+  const actor = await requireAppUser();
+  if (!canManageUsers(actor.perfil)) redirect("/");
+
+  const id = String(formData.get("id") ?? "");
+
+  try {
+    const target = await getUsuarioById(id);
+    if (!target) redirectBack("erro", "Usuário não encontrado.");
+    if (target.tipo_conta !== "TERCEIRO") {
+      redirectBack("erro", "Redefinição de senha só se aplica a contas de motorista terceiro.");
+    }
+
+    const senha = SenhaSchema.parse(String(formData.get("senha") ?? ""));
+    await setSenhaUsuario(id, senha);
+    revalidatePath("/administracao/usuarios");
+    redirectBack("sucesso", `Senha redefinida para ${target.nome ?? target.email}.`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    redirectBack("erro", publicActionError(error, "Não foi possível redefinir a senha."));
   }
 }
 
@@ -84,6 +123,7 @@ export async function updateUsuarioAction(formData: FormData) {
         matricula: input.matricula,
         perfil: input.perfil,
         ativo: input.ativo,
+        tipo_conta: input.tipo_conta,
       },
       actor.email
     );

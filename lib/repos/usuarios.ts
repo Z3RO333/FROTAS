@@ -1,5 +1,8 @@
+import bcrypt from "bcryptjs";
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
+
+export type TipoContaUsuario = "INTERNO" | "TERCEIRO";
 
 export type UsuarioApp = {
   id: string;
@@ -8,6 +11,7 @@ export type UsuarioApp = {
   matricula: string | null;
   perfil: PerfilUsuario;
   ativo: boolean;
+  tipo_conta: TipoContaUsuario;
   criado_em: string | null;
   atualizado_em: string | null;
 };
@@ -19,6 +23,7 @@ type UsuarioRow = {
   matricula: string | null;
   perfil: string | null;
   ativo: boolean | null;
+  tipo_conta: string | null;
   criado_em: string | null;
   atualizado_em: string | null;
 };
@@ -35,10 +40,17 @@ export type UsuarioInput = {
   matricula?: string | null;
   perfil: PerfilUsuario;
   ativo?: boolean;
+  tipo_conta?: TipoContaUsuario;
 };
+
+const USUARIO_COLUMNS = "id,nome,email,matricula,perfil,ativo,tipo_conta,criado_em,atualizado_em";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function normalizeTipoConta(value: string | null): TipoContaUsuario {
+  return value === "TERCEIRO" ? "TERCEIRO" : "INTERNO";
 }
 
 function mapUsuario(row: UsuarioRow): UsuarioApp {
@@ -49,6 +61,7 @@ function mapUsuario(row: UsuarioRow): UsuarioApp {
     matricula: row.matricula,
     perfil: isPerfilUsuario(row.perfil) ? row.perfil : "MOTORISTA",
     ativo: row.ativo !== false,
+    tipo_conta: normalizeTipoConta(row.tipo_conta),
     criado_em: row.criado_em,
     atualizado_em: row.atualizado_em,
   };
@@ -57,7 +70,7 @@ function mapUsuario(row: UsuarioRow): UsuarioApp {
 export async function listUsuarios(filters: UsuarioFilters = {}): Promise<UsuarioApp[]> {
   let query = supabaseManutencao
     .from("usuarios")
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .order("nome", { ascending: true, nullsFirst: false })
     .order("email", { ascending: true });
 
@@ -85,7 +98,7 @@ export async function getUsuarioByEmail(email: string): Promise<UsuarioApp | nul
   const normalized = normalizeEmail(email);
   const { data, error } = await supabaseManutencao
     .from("usuarios")
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .eq("email", normalized)
     .maybeSingle();
 
@@ -114,8 +127,9 @@ export async function ensureUsuarioForAccess(input: UsuarioInput): Promise<Usuar
       matricula: input.matricula?.trim() || null,
       perfil: input.perfil,
       ativo: input.ativo ?? true,
+      tipo_conta: input.tipo_conta ?? "INTERNO",
     })
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .single();
 
   if (error) {
@@ -140,8 +154,9 @@ export async function createUsuario(input: UsuarioInput, actorEmail: string): Pr
       matricula: input.matricula?.trim() || null,
       perfil: input.perfil,
       ativo: input.ativo ?? true,
+      tipo_conta: input.tipo_conta ?? "INTERNO",
     })
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .single();
 
   if (error) throw new Error(`createUsuario: ${error.message}`);
@@ -162,12 +177,13 @@ export async function updateUsuario(
   if (input.matricula !== undefined) patch.matricula = input.matricula?.trim() || null;
   if (input.perfil !== undefined) patch.perfil = input.perfil;
   if (input.ativo !== undefined) patch.ativo = input.ativo;
+  if (input.tipo_conta !== undefined) patch.tipo_conta = input.tipo_conta;
 
   const { data, error } = await supabaseManutencao
     .from("usuarios")
     .update(patch)
     .eq("id", id)
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .single();
 
   if (error) throw new Error(`updateUsuario: ${error.message}`);
@@ -181,12 +197,48 @@ export async function updateUsuario(
 export async function getUsuarioById(id: string): Promise<UsuarioApp | null> {
   const { data, error } = await supabaseManutencao
     .from("usuarios")
-    .select("id,nome,email,matricula,perfil,ativo,criado_em,atualizado_em")
+    .select(USUARIO_COLUMNS)
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw new Error(`getUsuarioById: ${error.message}`);
   return data ? mapUsuario(data as UsuarioRow) : null;
+}
+
+/**
+ * Define/redefine a senha de uma conta TERCEIRO. O hash bcrypt fica em uma coluna
+ * separada (senha_hash) que nunca é retornada por mapUsuario/UsuarioApp — só é lido
+ * dentro de verificarCredenciaisTerceiro, pra validar o login.
+ */
+export async function setSenhaUsuario(id: string, senha: string): Promise<void> {
+  const senha_hash = await bcrypt.hash(senha, 12);
+  const { error } = await supabaseManutencao
+    .from("usuarios")
+    .update({ senha_hash, atualizado_em: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(`setSenhaUsuario: ${error.message}`);
+}
+
+export async function verificarCredenciaisTerceiro(email: string, senha: string): Promise<UsuarioApp | null> {
+  const normalized = normalizeEmail(email);
+  const { data, error } = await supabaseManutencao
+    .from("usuarios")
+    .select(`${USUARIO_COLUMNS},senha_hash`)
+    .eq("email", normalized)
+    .eq("tipo_conta", "TERCEIRO")
+    .eq("ativo", true)
+    .maybeSingle();
+
+  if (error) throw new Error(`verificarCredenciaisTerceiro: ${error.message}`);
+  if (!data) return null;
+
+  const row = data as UsuarioRow & { senha_hash: string | null };
+  if (!row.senha_hash) return null;
+
+  const confere = await bcrypt.compare(senha, row.senha_hash);
+  if (!confere) return null;
+
+  return mapUsuario(row);
 }
 
 export type UsuarioAuditoriaEntry = {
