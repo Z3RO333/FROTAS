@@ -207,7 +207,7 @@ export async function sendRelatorioOperacionalDiario(args: {
   enviadoPor?: string;
   scheduleId?: number | null;
 }): Promise<SendResult> {
-  const assunto = `[Frotas] Relatório operacional — ${formatReportDate(args.dataRef)}`;
+  const assunto = `[Frotas] Relatório Checklist Diário — ${formatReportDate(args.dataRef)}`;
   const html = renderRelatorioOperacionalDiario(args.input, args.dataRef, { logoImageSrc: EMAIL_LOGO_URL });
   const destinatarios = args.destinatarios.join(",");
   const enviadoPor = args.enviadoPor ?? "sistema";
