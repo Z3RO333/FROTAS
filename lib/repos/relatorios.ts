@@ -306,8 +306,37 @@ export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
   return Promise.all(promises);
 }
 
-export async function getChecklistsRealizadosNoDia(date: string): Promise<number> {
+export function filtraPorSetores<T extends { localizacao: string | null }>(frotas: T[], setores?: string[]): T[] {
+  if (!setores || setores.length === 0) return frotas;
+  const alvo = new Set(setores.map((s) => s.trim().toUpperCase()));
+  return frotas.filter((f) => f.localizacao && alvo.has(f.localizacao.trim().toUpperCase()));
+}
+
+async function getFrotaIdsEscopo(setores?: string[]): Promise<Set<number> | null> {
+  if (!setores || setores.length === 0) return null;
+  const frotas = await listFrotasForReport();
+  const escopo = filtraPorSetores(
+    frotas.map((f) => ({ id: f.id, localizacao: f.localizacao })),
+    setores
+  );
+  return new Set(escopo.map((f) => f.id));
+}
+
+export async function getChecklistsRealizadosNoDia(date: string, setores?: string[]): Promise<number> {
   const { start, end } = reportDayUtcRange(date);
+  const escopo = await getFrotaIdsEscopo(setores);
+
+  if (escopo !== null) {
+    if (escopo.size === 0) return 0;
+    const { count, error } = await supabaseManutencao
+      .from("checklists_frota")
+      .select("id", { count: "exact", head: true })
+      .gte("data_checklist", start)
+      .lt("data_checklist", end)
+      .in("frota_id", [...escopo]);
+    if (error) throw new Error(`getChecklistsRealizadosNoDia: ${error.message}`);
+    return count ?? 0;
+  }
 
   const { count, error } = await supabaseManutencao
     .from("checklists_frota")
@@ -320,7 +349,8 @@ export async function getChecklistsRealizadosNoDia(date: string): Promise<number
 }
 
 export async function getFrotasComSemChecklistNoDia(
-  date: string
+  date: string,
+  setores?: string[]
 ): Promise<{ fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] }> {
   const { start, end } = reportDayUtcRange(date);
 
@@ -348,25 +378,31 @@ export async function getFrotasComSemChecklistNoDia(
     fetchAllChecklistFrotaIds(),
   ]);
 
-  return splitFrotasPorChecklist(
+  const frotasEscopo = filtraPorSetores(
     frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa, localizacao: f.localizacao })),
-    frotaIdsComChecklist
+    setores
   );
+
+  return splitFrotasPorChecklist(frotasEscopo, frotaIdsComChecklist);
 }
 
-export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<PendenciaGrupoFrota[]> {
+export async function getPendenciasCriadasNoDiaPorFrota(date: string, setores?: string[]): Promise<PendenciaGrupoFrota[]> {
   const { start, end } = reportDayUtcRange(date);
+  const escopo = await getFrotaIdsEscopo(setores);
+  if (escopo !== null && escopo.size === 0) return [];
 
   const rows: { frota_id: number; item_nome: string; gravidade: string }[] = [];
   const chunkSize = 1000;
   for (let from = 0; ; from += chunkSize) {
-    const { data, error } = await supabaseManutencao
+    let query = supabaseManutencao
       .from("pendencias_frota")
       .select("frota_id,item_nome,gravidade")
       .gte("criado_em", start)
       .lt("criado_em", end)
       .order("id", { ascending: true })
       .range(from, from + chunkSize - 1);
+    if (escopo !== null) query = query.in("frota_id", [...escopo]);
+    const { data, error } = await query;
     if (error) throw new Error(`getPendenciasCriadasNoDiaPorFrota: ${error.message}`);
     const chunk = (data ?? []) as { frota_id: number; item_nome: string; gravidade: string }[];
     rows.push(...chunk);
@@ -397,8 +433,10 @@ export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<P
   return agruparPendenciasPorFrota(pendenciasComFrota);
 }
 
-export async function getObservacoesCriadasNoDiaPorFrota(date: string): Promise<ObservacaoGrupoFrota[]> {
+export async function getObservacoesCriadasNoDiaPorFrota(date: string, setores?: string[]): Promise<ObservacaoGrupoFrota[]> {
   const { start, end } = reportDayUtcRange(date);
+  const escopo = await getFrotaIdsEscopo(setores);
+  if (escopo !== null && escopo.size === 0) return [];
 
   const rows: {
     frota_id: number;
@@ -408,13 +446,15 @@ export async function getObservacoesCriadasNoDiaPorFrota(date: string): Promise<
   }[] = [];
   const chunkSize = 1000;
   for (let from = 0; ; from += chunkSize) {
-    const { data, error } = await supabaseManutencao
+    let query = supabaseManutencao
       .from("checklists_frota")
       .select("frota_id,motorista_nome,observacao_original,observacao_corrigida_ia")
       .gte("data_checklist", start)
       .lt("data_checklist", end)
       .order("id", { ascending: true })
       .range(from, from + chunkSize - 1);
+    if (escopo !== null) query = query.in("frota_id", [...escopo]);
+    const { data, error } = await query;
     if (error) throw new Error(`getObservacoesCriadasNoDiaPorFrota: ${error.message}`);
     const chunk = (data ?? []) as typeof rows;
     rows.push(...chunk);

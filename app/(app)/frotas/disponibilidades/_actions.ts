@@ -98,6 +98,7 @@ export async function createDisponibilidadeScheduleAction(formData: FormData) {
       frequencia: parsed.frequencia,
       hora_envio: parsed.hora_envio,
       cds_incluidos: parsed.cd_nome === "__ALL__" ? [] : [parsed.cd_nome],
+      setores_incluidos: [],
       ativo: true,
       criado_por: user.email,
       dia_semana: null,

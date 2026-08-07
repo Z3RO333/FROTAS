@@ -10,6 +10,7 @@ import {
   agruparObservacoesPorFrota,
   agruparPendenciasPorFrota,
   extrairObservacoesValidas,
+  filtraPorSetores,
   splitFrotasPorChecklist,
 } from "@/lib/repos/relatorios";
 
@@ -128,5 +129,34 @@ describe("extrairObservacoesValidas", () => {
     expect(extrairObservacoesValidas(rows)).toEqual([
       { frota_id: 4, motorista_nome: "Elias", observacao: "válida" },
     ]);
+  });
+});
+
+describe("filtraPorSetores", () => {
+  const frotas = [
+    { frota_id: 1, localizacao: "EXPEDIÇÃO MANAUS" },
+    { frota_id: 2, localizacao: "MARKETPLACE" },
+    { frota_id: 3, localizacao: "CD TURISMO/ MERCADO" },
+    { frota_id: 4, localizacao: null },
+  ];
+
+  it("returns all fleets unchanged when setores is undefined or empty", () => {
+    expect(filtraPorSetores(frotas)).toEqual(frotas);
+    expect(filtraPorSetores(frotas, [])).toEqual(frotas);
+  });
+
+  it("keeps only fleets whose localizacao matches one of the given setores", () => {
+    const result = filtraPorSetores(frotas, ["MARKETPLACE", "CD TURISMO/ MERCADO"]);
+    expect(result.map((f) => f.frota_id)).toEqual([2, 3]);
+  });
+
+  it("matches case-insensitively and trims whitespace", () => {
+    const result = filtraPorSetores(frotas, ["  marketplace  "]);
+    expect(result.map((f) => f.frota_id)).toEqual([2]);
+  });
+
+  it("excludes fleets with null localizacao when a setor filter is active", () => {
+    const result = filtraPorSetores(frotas, ["EXPEDIÇÃO MANAUS"]);
+    expect(result.some((f) => f.frota_id === 4)).toBe(false);
   });
 });

@@ -151,6 +151,19 @@ export function ScheduleForm({ schedule, action, onCancel }: ScheduleFormProps) 
             defaultValue={schedule?.cds_incluidos.join(", ")}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="setores_incluidos">Setores incluídos (vazio = todos — relatório geral)</Label>
+          <Input
+            id="setores_incluidos"
+            name="setores_incluidos"
+            placeholder="EXPEDIÇÃO MANAUS, MARKETPLACE, CD TURISMO/ MERCADO"
+            defaultValue={schedule?.setores_incluidos.join(", ")}
+          />
+          <p className="text-xs text-muted-foreground">
+            Usado só no Relatório Checklist Diário — restringe o relatório às frotas desses setores.
+            Deixe vazio pro relatório geral (que também recebe o PDF resumo em anexo).
+          </p>
+        </div>
         <div className="flex gap-2 sm:col-span-2">
           <SubmitButton label={isEdit ? "Salvar alterações" : "Criar programação"} />
           {onCancel && (
