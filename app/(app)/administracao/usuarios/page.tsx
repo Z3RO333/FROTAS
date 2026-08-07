@@ -239,6 +239,7 @@ function UsuarioRow({
         wasActive={usuario.ativo}
         disabled={!canEditDev}
         tipoConta={usuario.tipo_conta}
+        isSelf={isSelf}
       />
     </form>
   );

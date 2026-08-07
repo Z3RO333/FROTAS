@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { PERFIS_USUARIO, canManageUsers, requireAppUser } from "@/lib/rbac";
-import { createUsuario, getUsuarioById, setSenhaUsuario, updateUsuario } from "@/lib/repos/usuarios";
+import { PERFIS_USUARIO, canManageUsers, requireAppUser, type PerfilUsuario } from "@/lib/rbac";
+import { createUsuario, deleteUsuario, getUsuarioById, setSenhaUsuario, updateUsuario } from "@/lib/repos/usuarios";
 import { publicActionError } from "@/lib/public-error";
 
 const UsuarioSchema = z.object({
@@ -47,12 +47,23 @@ function ensureCanAssignPerfil(actorPerfil: string, targetPerfil: string): void 
   }
 }
 
+/**
+ * Contas TERCEIRO entram com e-mail/senha próprios (não conta corporativa via Entra ID),
+ * então nunca podem receber um perfil acima de MOTORISTA — mesmo que o formulário chegue
+ * com outro valor (campo adulterado, bug de UI, etc). O perfil enviado é sempre ignorado
+ * nesse caso.
+ */
+function perfilPermitido(tipoConta: "INTERNO" | "TERCEIRO", perfilSolicitado: PerfilUsuario): PerfilUsuario {
+  return tipoConta === "TERCEIRO" ? "MOTORISTA" : perfilSolicitado;
+}
+
 export async function createUsuarioAction(formData: FormData) {
   const actor = await requireAppUser();
   if (!canManageUsers(actor.perfil)) redirect("/");
 
   try {
-    const input = UsuarioSchema.parse(readUsuarioForm(formData));
+    const parsed = UsuarioSchema.parse(readUsuarioForm(formData));
+    const input = { ...parsed, perfil: perfilPermitido(parsed.tipo_conta, parsed.perfil) };
     ensureCanAssignPerfil(actor.perfil, input.perfil);
 
     let senha: string | null = null;
@@ -103,7 +114,8 @@ export async function updateUsuarioAction(formData: FormData) {
   if (!canManageUsers(actor.perfil)) redirect("/");
 
   try {
-    const input = UpdateUsuarioSchema.parse(readUsuarioForm(formData));
+    const parsed = UpdateUsuarioSchema.parse(readUsuarioForm(formData));
+    const input = { ...parsed, perfil: perfilPermitido(parsed.tipo_conta, parsed.perfil) };
     const target = await getUsuarioById(input.id);
     if (!target) redirectBack("erro", "Usuário não encontrado.");
     if (target.perfil === "DEV" && actor.perfil !== "DEV") {
@@ -132,6 +144,31 @@ export async function updateUsuarioAction(formData: FormData) {
   } catch (error) {
     if (isRedirectError(error)) throw error;
     redirectBack("erro", publicActionError(error, "Não foi possível atualizar o usuário."));
+  }
+}
+
+export async function deleteUsuarioAction(formData: FormData) {
+  const actor = await requireAppUser();
+  if (!canManageUsers(actor.perfil)) redirect("/");
+
+  const id = String(formData.get("id") ?? "");
+
+  try {
+    const target = await getUsuarioById(id);
+    if (!target) redirectBack("erro", "Usuário não encontrado.");
+    if (target.email === actor.email) {
+      redirectBack("erro", "Você não pode excluir seu próprio usuário.");
+    }
+    if (target.perfil === "DEV" && actor.perfil !== "DEV") {
+      redirectBack("erro", "Somente DEV pode excluir usuários DEV.");
+    }
+
+    await deleteUsuario(id);
+    revalidatePath("/administracao/usuarios");
+    redirectBack("sucesso", `Usuário ${target.nome ?? target.email} excluído.`);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    redirectBack("erro", publicActionError(error, "Não foi possível excluir o usuário."));
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type MouseEvent } from "react";
-import { KeyRound, Save, ShieldOff } from "lucide-react";
+import { KeyRound, Save, ShieldOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { UsuarioAuditoriaDialog } from "./usuario-auditoria-dialog";
-import { redefinirSenhaTerceiroAction } from "@/app/(app)/administracao/usuarios/_actions";
+import { deleteUsuarioAction, redefinirSenhaTerceiroAction } from "@/app/(app)/administracao/usuarios/_actions";
 
 type Props = {
   usuarioId: string;
@@ -23,11 +23,14 @@ type Props = {
   wasActive: boolean;
   disabled?: boolean;
   tipoConta?: "INTERNO" | "TERCEIRO";
+  /** Esconde o botão de excluir pro próprio usuário logado. */
+  isSelf?: boolean;
 };
 
-export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled, tipoConta }: Props) {
+export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled, tipoConta, isSelf }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [senhaOpen, setSenhaOpen] = useState(false);
+  const [excluirOpen, setExcluirOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -83,6 +86,50 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
         <Save className="h-4 w-4" aria-hidden="true" />
         <span className="ml-1.5">Salvar</span>
       </Button>
+
+      {!isSelf && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          className="text-red-600 hover:text-red-700"
+          onClick={() => setExcluirOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <span className="ml-1.5 hidden sm:inline">Excluir</span>
+        </Button>
+      )}
+
+      <Dialog open={excluirOpen} onOpenChange={setExcluirOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <Trash2 className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-base">Excluir usuário?</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2 text-sm">
+              Isso apaga <span className="font-medium text-slate-900">{usuarioLabel}</span> e todo o histórico de
+              auditoria dele permanentemente — não é o mesmo que desativar, e{" "}
+              <span className="font-semibold">não dá pra desfazer</span>. Se só quer bloquear o acesso por
+              enquanto, desative em vez de excluir.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={deleteUsuarioAction}>
+            <input type="hidden" name="id" value={usuarioId} />
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setExcluirOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="destructive">
+                Sim, excluir permanentemente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={senhaOpen} onOpenChange={setSenhaOpen}>
         <DialogContent className="sm:max-w-md">
