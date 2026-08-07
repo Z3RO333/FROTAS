@@ -44,6 +44,7 @@ export type FrotaResumoChecklist = {
   frota_id: number;
   frota_geral: string | null;
   placa: string | null;
+  localizacao: string | null;
 };
 
 function frotaSortKey(f: { frota_geral: string | null; placa: string | null; frota_id: number }): [string, string] {
@@ -66,7 +67,7 @@ function compareFrotaKeys(a: [string, string], b: [string, string]): number {
 }
 
 export function splitFrotasPorChecklist(
-  frotasAtivas: { id: number; frota_geral: string | null; placa: string | null }[],
+  frotasAtivas: { id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[],
   frotaIdsComChecklist: number[]
 ): { fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] } {
   const comChecklist = new Set(frotaIdsComChecklist);
@@ -78,6 +79,7 @@ export function splitFrotasPorChecklist(
       frota_id: frota.id,
       frota_geral: frota.frota_geral,
       placa: frota.placa,
+      localizacao: frota.localizacao,
     };
     if (comChecklist.has(frota.id)) fizeram.push(resumo);
     else naoFizeram.push(resumo);
@@ -347,7 +349,7 @@ export async function getFrotasComSemChecklistNoDia(
   ]);
 
   return splitFrotasPorChecklist(
-    frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa })),
+    frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa, localizacao: f.localizacao })),
     frotaIdsComChecklist
   );
 }

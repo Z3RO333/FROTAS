@@ -16,9 +16,9 @@ import {
 describe("splitFrotasPorChecklist", () => {
   it("separates active fleets into fizeram/naoFizeram based on checklist frota ids", () => {
     const frotasAtivas = [
-      { id: 1, frota_geral: "10", placa: "AAA-0001" },
-      { id: 2, frota_geral: "20", placa: "BBB-0002" },
-      { id: 3, frota_geral: "5", placa: "CCC-0003" },
+      { id: 1, frota_geral: "10", placa: "AAA-0001", localizacao: "CD Manaus" },
+      { id: 2, frota_geral: "20", placa: "BBB-0002", localizacao: "CD Manaus" },
+      { id: 3, frota_geral: "5", placa: "CCC-0003", localizacao: "CD Manaus" },
     ];
 
     const result = splitFrotasPorChecklist(frotasAtivas, [2, 2, 3]);
@@ -29,9 +29,9 @@ describe("splitFrotasPorChecklist", () => {
 
   it("sorts each group alphabetically by frota_geral, falling back to placa then id", () => {
     const frotasAtivas = [
-      { id: 1, frota_geral: null, placa: "ZZZ-0001" },
-      { id: 2, frota_geral: "B", placa: null },
-      { id: 3, frota_geral: "A", placa: null },
+      { id: 1, frota_geral: null, placa: "ZZZ-0001", localizacao: null },
+      { id: 2, frota_geral: "B", placa: null, localizacao: null },
+      { id: 3, frota_geral: "A", placa: null, localizacao: null },
     ];
 
     const result = splitFrotasPorChecklist(frotasAtivas, []);
@@ -40,7 +40,7 @@ describe("splitFrotasPorChecklist", () => {
   });
 
   it("returns fizeram empty when no checklist ids match", () => {
-    const frotasAtivas = [{ id: 1, frota_geral: "1", placa: null }];
+    const frotasAtivas = [{ id: 1, frota_geral: "1", placa: null, localizacao: null }];
 
     const result = splitFrotasPorChecklist(frotasAtivas, []);
 
