@@ -197,9 +197,9 @@ function badge(label: string, tone: { bg: string; color: string; border: string 
   )}</span>`;
 }
 
-function summaryCell(label: string, value: string, color: string, note?: string): string {
+function summaryCell(label: string, value: string, color: string, note?: string, widthPercent = 25): string {
   return `
-    <td style="padding:6px;width:25%;vertical-align:top;">
+    <td style="padding:6px;width:${widthPercent}%;vertical-align:top;">
       <div style="border:1px solid ${BORDER};border-left:4px solid ${color};border-radius:10px;padding:12px 13px;background:#ffffff;">
         <div style="font-size:10px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;">${escapeHtml(
           label
@@ -587,9 +587,9 @@ export function renderRelatorioOperacionalDiario(
       <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
           <tr>
-            ${summaryCell("Checklists realizados", formatNumber(input.totalChecklists), BLUE)}
-            ${summaryCell("Apontamentos", formatNumber(input.totalApontamentos), "#dc2626")}
-            ${summaryCell("Frotas em dia", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia)}
+            ${summaryCell("Checklists realizados", formatNumber(input.totalChecklists), BLUE, undefined, 33.33)}
+            ${summaryCell("Apontamentos", formatNumber(input.totalApontamentos), "#dc2626", undefined, 33.33)}
+            ${summaryCell("Frotas em dia", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia, 33.33)}
           </tr>
         </table>
         ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.")}
