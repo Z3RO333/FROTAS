@@ -124,6 +124,58 @@ export function agruparPendenciasPorFrota(pendencias: PendenciaComFrota[]): Pend
   return [...map.values()].sort((a, b) => compareFrotaKeys(frotaSortKey(a), frotaSortKey(b)));
 }
 
+export type ObservacaoComFrota = {
+  frota_id: number;
+  frota_geral: string | null;
+  placa: string | null;
+  motorista_nome: string | null;
+  observacao: string;
+};
+
+export type ObservacaoGrupoFrota = {
+  frota_id: number;
+  frota_geral: string | null;
+  placa: string | null;
+  observacoes: { motorista_nome: string | null; observacao: string }[];
+};
+
+export function agruparObservacoesPorFrota(observacoes: ObservacaoComFrota[]): ObservacaoGrupoFrota[] {
+  const map = new Map<number, ObservacaoGrupoFrota>();
+
+  for (const o of observacoes) {
+    const existing = map.get(o.frota_id);
+    if (existing) {
+      existing.observacoes.push({ motorista_nome: o.motorista_nome, observacao: o.observacao });
+    } else {
+      map.set(o.frota_id, {
+        frota_id: o.frota_id,
+        frota_geral: o.frota_geral,
+        placa: o.placa,
+        observacoes: [{ motorista_nome: o.motorista_nome, observacao: o.observacao }],
+      });
+    }
+  }
+
+  return [...map.values()].sort((a, b) => compareFrotaKeys(frotaSortKey(a), frotaSortKey(b)));
+}
+
+export function extrairObservacoesValidas(
+  rows: {
+    frota_id: number;
+    motorista_nome: string | null;
+    observacao_original: string | null;
+    observacao_corrigida_ia: string | null;
+  }[]
+): { frota_id: number; motorista_nome: string | null; observacao: string }[] {
+  return rows
+    .map((r) => ({
+      frota_id: r.frota_id,
+      motorista_nome: r.motorista_nome,
+      observacao: r.observacao_corrigida_ia?.trim() || r.observacao_original?.trim() || "",
+    }))
+    .filter((r) => r.observacao.length > 0);
+}
+
 export async function getRelatorioKpis(date: string): Promise<RelatorioKpis> {
   const { start, end } = reportDayUtcRange(date);
 
@@ -341,4 +393,54 @@ export async function getPendenciasCriadasNoDiaPorFrota(date: string): Promise<P
   }));
 
   return agruparPendenciasPorFrota(pendenciasComFrota);
+}
+
+export async function getObservacoesCriadasNoDiaPorFrota(date: string): Promise<ObservacaoGrupoFrota[]> {
+  const { start, end } = reportDayUtcRange(date);
+
+  const rows: {
+    frota_id: number;
+    motorista_nome: string | null;
+    observacao_original: string | null;
+    observacao_corrigida_ia: string | null;
+  }[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("checklists_frota")
+      .select("frota_id,motorista_nome,observacao_original,observacao_corrigida_ia")
+      .gte("data_checklist", start)
+      .lt("data_checklist", end)
+      .order("id", { ascending: true })
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`getObservacoesCriadasNoDiaPorFrota: ${error.message}`);
+    const chunk = (data ?? []) as typeof rows;
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
+
+  const comObservacao = extrairObservacoesValidas(rows);
+
+  const frotaIds = [...new Set(comObservacao.map((r) => r.frota_id))];
+  if (frotaIds.length === 0) return [];
+
+  const { data: veiculos, error: veiculosError } = await supabaseManutencao
+    .from("veiculos")
+    .select("id,codigo_frota,placa")
+    .in("id", frotaIds);
+  if (veiculosError) throw new Error(`getObservacoesCriadasNoDiaPorFrota veiculos: ${veiculosError.message}`);
+
+  const veiculoMap = new Map(
+    (veiculos ?? []).map((v) => [Number(v.id), v as { id: number; codigo_frota: string | null; placa: string | null }])
+  );
+
+  const observacoesComFrota: ObservacaoComFrota[] = comObservacao.map((r) => ({
+    frota_id: r.frota_id,
+    frota_geral: veiculoMap.get(r.frota_id)?.codigo_frota ?? null,
+    placa: veiculoMap.get(r.frota_id)?.placa ?? null,
+    motorista_nome: r.motorista_nome,
+    observacao: r.observacao,
+  }));
+
+  return agruparObservacoesPorFrota(observacoesComFrota);
 }
