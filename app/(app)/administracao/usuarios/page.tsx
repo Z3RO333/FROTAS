@@ -12,6 +12,7 @@ import { canManageUsers, requireAppUser } from "@/lib/rbac";
 import { listUsuarios, type UsuarioApp } from "@/lib/repos/usuarios";
 import { formatDate } from "@/lib/utils";
 import { createUsuarioAction, updateUsuarioAction } from "./_actions";
+import type { TipoContaUsuario } from "@/lib/repos/usuarios";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ export default async function UsuariosPage({
         <CardHeader className="border-b bg-white">
           <CardTitle className="text-lg">Novo usuário</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="space-y-3 p-4">
           <form action={createUsuarioAction} className="grid gap-3 lg:grid-cols-[1.1fr_1.2fr_.8fr_.8fr_auto] lg:items-end">
             <Field label="Nome">
               <Input name="nome" placeholder="Nome da pessoa" />
@@ -78,9 +79,23 @@ export default async function UsuariosPage({
                 <input type="checkbox" name="ativo" value="true" defaultChecked className="h-4 w-4" />
                 Ativo
               </label>
+            </div>
+
+            <Field label="Tipo de conta">
+              <TipoContaSelect name="tipo_conta" defaultValue="INTERNO" />
+            </Field>
+            <Field label="Senha (só p/ motorista terceiro)">
+              <Input name="senha" type="password" placeholder="Mín. 8 caracteres" autoComplete="new-password" />
+            </Field>
+            <div className="lg:col-span-2" />
+            <div className="flex items-center lg:pb-0.5">
               <Button type="submit">Adicionar</Button>
             </div>
           </form>
+          <p className="text-xs text-muted-foreground">
+            Contas &quot;Terceiro&quot; entram por e-mail e senha própria (tela de login), sem depender de conta
+            Microsoft — use pra motoristas de transportadoras parceiras.
+          </p>
         </CardContent>
       </Card>
 
@@ -106,11 +121,12 @@ export default async function UsuariosPage({
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.6fr_.75fr_auto] lg:gap-3">
+          <div className="hidden border-b bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 lg:grid lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.65fr_.6fr_.75fr_auto] lg:gap-3">
             <span>Nome</span>
             <span>E-mail</span>
             <span>Matrícula</span>
             <span>Cargo</span>
+            <span>Tipo de conta</span>
             <span>Status</span>
             <span>Criado em</span>
             <span className="text-right">Ação</span>
@@ -150,7 +166,7 @@ function UsuarioRow({
   return (
     <form
       action={updateUsuarioAction}
-      className="grid gap-3 p-4 lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.6fr_.75fr_auto] lg:items-center"
+      className="grid gap-3 p-4 lg:grid-cols-[1.2fr_1.3fr_.7fr_.75fr_.65fr_.6fr_.75fr_auto] lg:items-center"
     >
       <input type="hidden" name="id" value={usuario.id} />
 
@@ -161,7 +177,7 @@ function UsuarioRow({
 
       <div>
         <MobileLabel>E-mail</MobileLabel>
-        {/* Email é imutável: é o identificador de login Microsoft */}
+        {/* Email é imutável: é o identificador de login (Microsoft pra conta INTERNO, senha própria pra TERCEIRO) */}
         <input type="hidden" name="email" value={usuario.email} />
         <div className="flex h-10 items-center truncate rounded-md border bg-slate-50 px-3 text-sm text-muted-foreground">
           {usuario.email}
@@ -181,6 +197,11 @@ function UsuarioRow({
           </div>
           <PerfilSelect name="perfil" defaultValue={usuario.perfil} disabled={!canEditDev} allowDev={actorPerfil === "DEV"} />
         </div>
+      </div>
+
+      <div>
+        <MobileLabel>Tipo de conta</MobileLabel>
+        <TipoContaSelect name="tipo_conta" defaultValue={usuario.tipo_conta} disabled={!canEditDev} />
       </div>
 
       <div>
@@ -217,6 +238,7 @@ function UsuarioRow({
         usuarioLabel={usuario.nome ?? usuario.email}
         wasActive={usuario.ativo}
         disabled={!canEditDev}
+        tipoConta={usuario.tipo_conta}
       />
     </form>
   );
@@ -228,6 +250,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function TipoContaSelect({
+  name,
+  defaultValue,
+  disabled = false,
+}: {
+  name: string;
+  defaultValue: TipoContaUsuario;
+  disabled?: boolean;
+}) {
+  return (
+    <select
+      name={name}
+      aria-label="Tipo de conta"
+      defaultValue={defaultValue}
+      disabled={disabled}
+      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50"
+    >
+      <option value="INTERNO">Interno (Microsoft)</option>
+      <option value="TERCEIRO">Terceiro (e-mail e senha)</option>
+    </select>
   );
 }
 

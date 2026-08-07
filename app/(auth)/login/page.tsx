@@ -1,9 +1,16 @@
 import Image from "next/image";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ erro?: string }>;
+}) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const erro = (await searchParams).erro;
 
   return (
     <main className="login-stage">
@@ -199,6 +206,81 @@ export default async function LoginPage() {
           font-weight: 600;
         }
 
+        .login-divider {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 20px 0;
+          font-size: 11px;
+          color: #6b7494;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: rgba(255,255,255,.1);
+        }
+
+        .login-terceiro-form {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .login-terceiro-form label {
+          font-size: 12px;
+          color: #b4bbd3;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .login-terceiro-form input {
+          background: rgba(255,255,255,.05);
+          border: 1px solid rgba(255,255,255,.12);
+          border-radius: 8px;
+          padding: 10px 12px;
+          color: #f8fafc;
+          font-size: 14px;
+        }
+
+        .login-terceiro-form input:focus-visible {
+          outline: 2px solid #ffd23f;
+          outline-offset: 1px;
+        }
+
+        .login-terceiro-btn {
+          width: 100%;
+          padding: 12px;
+          border-radius: 10px;
+          background: transparent;
+          color: #f8fafc;
+          border: 1px solid rgba(255,255,255,.18);
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background .15s, border-color .15s;
+        }
+
+        .login-terceiro-btn:hover {
+          background: rgba(255,255,255,.06);
+          border-color: rgba(255,255,255,.3);
+        }
+
+        .login-erro {
+          margin: 0 0 16px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: rgba(239,68,68,.12);
+          border: 1px solid rgba(239,68,68,.3);
+          color: #fca5a5;
+          font-size: 12px;
+        }
+
         @media (max-width: 1023px) {
           .login-stage {
             grid-template-columns: 1fr;
@@ -247,6 +329,8 @@ export default async function LoginPage() {
           <h1>Frotas Bemol</h1>
           <p>Entre com sua conta corporativa para acessar o painel.</p>
 
+          {erro && <div className="login-erro" role="alert">{erro}</div>}
+
           <form
             action={async () => {
               "use server";
@@ -264,6 +348,39 @@ export default async function LoginPage() {
           <div className="login-footnote">
             Acesso restrito a contas <b>@bemol.com.br</b>
           </div>
+
+          <div className="login-divider">ou motorista terceiro</div>
+
+          <form
+            className="login-terceiro-form"
+            action={async (formData: FormData) => {
+              "use server";
+              try {
+                await signIn("motorista-terceiro", {
+                  email: String(formData.get("email") ?? ""),
+                  senha: String(formData.get("senha") ?? ""),
+                  redirectTo: "/motorista",
+                });
+              } catch (error) {
+                if (error instanceof AuthError) {
+                  redirect(`/login?erro=${encodeURIComponent("E-mail ou senha inválidos.")}`);
+                }
+                throw error;
+              }
+            }}
+          >
+            <label>
+              E-mail
+              <input type="email" name="email" autoComplete="email" required placeholder="seuemail@exemplo.com" />
+            </label>
+            <label>
+              Senha
+              <input type="password" name="senha" autoComplete="current-password" required />
+            </label>
+            <button className="login-terceiro-btn" type="submit">
+              Entrar como motorista terceiro
+            </button>
+          </form>
         </div>
       </div>
     </main>
