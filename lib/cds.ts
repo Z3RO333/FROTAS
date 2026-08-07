@@ -5,6 +5,7 @@ export const CDS_OPERACIONAIS = [
   "CD Porto Velho",
   "CD Rio Branco",
   "CD Boa Vista",
+  "Manutenção",
 ] as const;
 
 export type CdOperacional = (typeof CDS_OPERACIONAIS)[number];
