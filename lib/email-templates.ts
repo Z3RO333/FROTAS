@@ -115,8 +115,8 @@ function emailLogo(src: string | undefined, width: number): string {
 
   // Outlook (motor Word) as vezes nao renderiza imagens embutidas (cid) quando so a largura
   // e informada — precisa da altura explicita no atributo HTML, nao so via CSS.
-  // O arquivo em si ja tem o fundo escuro "assado" (sem canal alpha, que o Outlook nao decodifica
-  // direito), entao o cantos arredondados vao direto na imagem — sem card extra por cima.
+  // O arquivo e PNG com canal alpha (fundo transparente) — em versoes antigas do Outlook
+  // desktop a transparencia pode nao ser respeitada corretamente.
   const height = Math.round(width * 0.3979);
   return `<img src="${escapeHtml(
     src
