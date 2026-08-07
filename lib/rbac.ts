@@ -155,7 +155,7 @@ export function canWriteDocumentos(perfil: PerfilUsuario): boolean {
 }
 
 export function canManageUsers(perfil: PerfilUsuario): boolean {
-  return perfil === "ADMIN" || perfil === "DEV";
+  return perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
 }
 
 export function canManageEmailSchedules(perfil: PerfilUsuario): boolean {
