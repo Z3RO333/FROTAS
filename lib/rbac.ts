@@ -108,7 +108,10 @@ export async function resolveAppUser(): Promise<AppUserResolution> {
     user: {
       email,
       name: usuario.nome || name,
-      perfil: usuario.perfil,
+      // Segunda trava, independente da tela de administração: contas TERCEIRO nunca
+      // carregam um perfil acima de MOTORISTA pra sessão, mesmo que o registro no
+      // banco esteja inconsistente por algum motivo.
+      perfil: usuario.tipo_conta === "TERCEIRO" ? "MOTORISTA" : usuario.perfil,
     },
   };
 }

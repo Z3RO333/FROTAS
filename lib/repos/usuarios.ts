@@ -206,6 +206,17 @@ export async function getUsuarioById(id: string): Promise<UsuarioApp | null> {
 }
 
 /**
+ * Exclusão definitiva (não é o mesmo que desativar). usuarios_auditoria referencia
+ * usuario_id com "on delete cascade", então o histórico de auditoria dessa conta
+ * também é apagado junto — não há como registrar essa ação na própria tabela de
+ * auditoria depois do fato, por isso não tentamos.
+ */
+export async function deleteUsuario(id: string): Promise<void> {
+  const { error } = await supabaseManutencao.from("usuarios").delete().eq("id", id);
+  if (error) throw new Error(`deleteUsuario: ${error.message}`);
+}
+
+/**
  * Define/redefine a senha de uma conta TERCEIRO. O hash bcrypt fica em uma coluna
  * separada (senha_hash) que nunca é retornada por mapUsuario/UsuarioApp — só é lido
  * dentro de verificarCredenciaisTerceiro, pra validar o login.
