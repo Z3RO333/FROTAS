@@ -495,6 +495,12 @@ export type RelatorioOperacionalDiarioInput = {
     placa: string | null;
     itens: { item_nome: string; gravidade: string }[];
   }[];
+  observacoesPorFrota: {
+    frota_id: number;
+    frota_geral: string | null;
+    placa: string | null;
+    observacoes: { motorista_nome: string | null; observacao: string }[];
+  }[];
 };
 
 function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string; border: string } {
@@ -556,10 +562,25 @@ export function renderRelatorioOperacionalDiario(
     pendenciasLinhas ||
     `<tr><td colspan="3" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma pendência criada no dia.</td></tr>`;
 
+  const observacoesLinhas = input.observacoesPorFrota
+    .flatMap((grupo) => grupo.observacoes.map((obs, index) => ({ grupo, obs, first: index === 0 })))
+    .map(({ grupo, obs, first }, rowIndex) => {
+      const bg = rowIndex % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${first ? display(grupo.frota_geral ?? grupo.frota_id) : ""}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(obs.motorista_nome)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;white-space:pre-wrap;">${display(obs.observacao)}</td>
+      </tr>`;
+    })
+    .join("");
+  const observacoesCorpo =
+    observacoesLinhas ||
+    `<tr><td colspan="3" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma observação registrada no dia.</td></tr>`;
+
   return shell(`
     ${header(
       "Relatório operacional diário",
-      `${formatReportDate(dataRef)} · checklists e pendências do dia`,
+      `${formatReportDate(dataRef)} · checklists, pendências e observações do dia`,
       options
     )}
     <tr>
@@ -585,6 +606,19 @@ export function renderRelatorioOperacionalDiario(
             <th style="padding:10px 8px;text-align:left;">Gravidade</th>
           </tr></thead>
           <tbody>${pendenciasCorpo}</tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Observações do dia</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Frota</th>
+            <th style="padding:10px 8px;text-align:left;">Motorista</th>
+            <th style="padding:10px 8px;text-align:left;">Observação</th>
+          </tr></thead>
+          <tbody>${observacoesCorpo}</tbody>
         </table>
       </td>
     </tr>`);

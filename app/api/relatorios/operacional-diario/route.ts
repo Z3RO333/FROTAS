@@ -4,6 +4,7 @@ import {
   getChecklistsRealizadosNoDia,
   getFrotasComSemChecklistNoDia,
   getPendenciasCriadasNoDiaPorFrota,
+  getObservacoesCriadasNoDiaPorFrota,
 } from "@/lib/repos/relatorios";
 import { sendRelatorioOperacionalDiario } from "@/lib/email";
 import {
@@ -27,13 +28,16 @@ export async function POST(req: NextRequest) {
   const ontem = shiftCalendarDate(reportCalendarDate(), -1);
   const dataRef = new Date(reportDayUtcRange(ontem).start);
 
-  const [totalChecklists, frotasChecklist, pendenciasPorFrota] = await Promise.all([
+  const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
     getChecklistsRealizadosNoDia(ontem),
     getFrotasComSemChecklistNoDia(ontem),
     getPendenciasCriadasNoDiaPorFrota(ontem),
+    getObservacoesCriadasNoDiaPorFrota(ontem),
   ]);
 
-  const totalApontamentos = pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0);
+  const totalApontamentos =
+    pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
+    observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
 
   const schedules = await claimDueEmailSchedules({ limit: 25, tipo: "RELATORIO_OPERACIONAL_DIARIO" });
 
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest) {
       frotasFizeram: frotasChecklist.fizeram,
       frotasNaoFizeram: frotasChecklist.naoFizeram,
       pendenciasPorFrota,
+      observacoesPorFrota,
     },
   });
 
