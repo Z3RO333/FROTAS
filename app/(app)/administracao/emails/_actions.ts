@@ -108,7 +108,9 @@ export async function createScheduleAction(formData: FormData) {
   }
 }
 
-export async function updateScheduleAction(formData: FormData) {
+export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
+
+export async function updateScheduleAction(formData: FormData): Promise<ActionResult> {
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
@@ -131,22 +133,15 @@ export async function updateScheduleAction(formData: FormData) {
     const parsed = ScheduleSchema.parse(raw);
     await updateEmailSchedule(id, { ...parsed, ativo: current.ativo });
     revalidatePath("/administracao/emails");
-    redirect("/administracao/emails?sucesso=Programação+atualizada");
+    return { ok: true, message: "Programação atualizada" };
   } catch (error) {
-    if (isRedirectError(error)) throw error;
-    redirect(
-      `/administracao/emails?erro=${encodeURIComponent(
-        publicActionError(error, "Erro ao atualizar programação")
-      )}`
-    );
+    return { ok: false, error: publicActionError(error, "Erro ao atualizar programação") };
   }
 }
 
-export async function triggerScheduleNowAction(formData: FormData) {
+export async function triggerScheduleNowAction(id: number): Promise<ActionResult> {
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
-
-  const id = Number(formData.get("id"));
 
   try {
     const schedule = await getEmailSchedule(id);
@@ -157,9 +152,7 @@ export async function triggerScheduleNowAction(formData: FormData) {
     );
 
     if (destinatarios.length === 0) {
-      redirect(
-        `/administracao/emails?erro=${encodeURIComponent("Programação sem destinatários válidos.")}`
-      );
+      return { ok: false, error: "Programação sem destinatários válidos." };
     }
 
     const agora = new Date();
@@ -250,11 +243,10 @@ export async function triggerScheduleNowAction(formData: FormData) {
       }
       if (falhas.length > 0 && enviados.length > 0) {
         revalidatePath("/administracao/emails");
-        redirect(
-          `/administracao/emails?erro=${encodeURIComponent(
-            `"${schedule.nome}" disparada parcialmente — sucesso: ${enviados.join(", ")}; falha: ${falhas.join(", ")}`
-          )}`
-        );
+        return {
+          ok: false,
+          error: `"${schedule.nome}" disparada parcialmente — sucesso: ${enviados.join(", ")}; falha: ${falhas.join(", ")}`,
+        };
       }
     } else {
       const sgMail = await getSgMail();
@@ -291,32 +283,34 @@ export async function triggerScheduleNowAction(formData: FormData) {
     }
 
     revalidatePath("/administracao/emails");
-    redirect(`/administracao/emails?sucesso=${encodeURIComponent(`"${schedule.nome}" disparada agora`)}`);
+    return { ok: true, message: `"${schedule.nome}" disparada agora` };
   } catch (error) {
-    if (isRedirectError(error)) throw error;
-    redirect(
-      `/administracao/emails?erro=${encodeURIComponent(
-        publicActionError(error, "Erro ao disparar programação")
-      )}`
-    );
+    return { ok: false, error: publicActionError(error, "Erro ao disparar programação") };
   }
 }
 
-export async function toggleScheduleAction(formData: FormData) {
+export async function toggleScheduleAction(id: number, ativoAtual: boolean): Promise<ActionResult> {
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
-  const id = Number(formData.get("id"));
-  const ativo = formData.get("ativo") === "true";
-  await toggleEmailSchedule(id, !ativo);
-  revalidatePath("/administracao/emails");
+  try {
+    await toggleEmailSchedule(id, !ativoAtual);
+    revalidatePath("/administracao/emails");
+    return { ok: true, message: ativoAtual ? "Programação pausada" : "Programação ativada" };
+  } catch (error) {
+    return { ok: false, error: publicActionError(error, "Erro ao alterar status da programação") };
+  }
 }
 
-export async function deleteScheduleAction(formData: FormData) {
+export async function deleteScheduleAction(id: number): Promise<ActionResult> {
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
-  const id = Number(formData.get("id"));
-  await deleteEmailSchedule(id);
-  revalidatePath("/administracao/emails");
+  try {
+    await deleteEmailSchedule(id);
+    revalidatePath("/administracao/emails");
+    return { ok: true, message: "Programação removida" };
+  } catch (error) {
+    return { ok: false, error: publicActionError(error, "Erro ao remover programação") };
+  }
 }

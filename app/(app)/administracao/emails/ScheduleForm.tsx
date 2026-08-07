@@ -2,12 +2,14 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EmailSchedule } from "@/lib/repos/email-schedule";
 
-const TIPO_LABELS: Record<string, string> = {
+export const TIPO_LABELS: Record<string, string> = {
   DISPONIBILIDADE: "Disponibilidade",
   PREVENTIVAS_ATRASO: "Preventivas em atraso",
   LAVAGEM_PENDENTE: "Lavagem pendente",
@@ -22,22 +24,36 @@ const TIPO_LABELS: Record<string, string> = {
 type ScheduleFormProps = {
   schedule?: EmailSchedule;
   action: (formData: FormData) => void | Promise<void>;
+  onCancel?: () => void;
 };
 
-export function ScheduleForm({ schedule, action }: ScheduleFormProps) {
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Salvando...
+        </>
+      ) : (
+        label
+      )}
+    </Button>
+  );
+}
+
+export function ScheduleForm({ schedule, action, onCancel }: ScheduleFormProps) {
   const [frequencia, setFrequencia] = useState<string>(schedule?.frequencia ?? "DIARIO");
   const isEdit = Boolean(schedule);
 
   return (
-    <div className="rounded-xl border bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{isEdit ? "Editar programação" : "Nova programação"}</h2>
-        {isEdit && (
-          <a href="/administracao/emails" className="text-sm text-muted-foreground hover:underline">
-            Cancelar
-          </a>
-        )}
-      </div>
+    <div className={onCancel ? "" : "rounded-xl border bg-white p-6 shadow-sm"}>
+      {!onCancel && (
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Nova programação</h2>
+        </div>
+      )}
       <form action={action} className="grid gap-4 sm:grid-cols-2">
         {isEdit && <input type="hidden" name="id" value={schedule!.id} />}
         <div className="space-y-1.5">
@@ -135,8 +151,13 @@ export function ScheduleForm({ schedule, action }: ScheduleFormProps) {
             defaultValue={schedule?.cds_incluidos.join(", ")}
           />
         </div>
-        <div className="sm:col-span-2">
-          <Button type="submit">{isEdit ? "Salvar alterações" : "Criar programação"}</Button>
+        <div className="flex gap-2 sm:col-span-2">
+          <SubmitButton label={isEdit ? "Salvar alterações" : "Criar programação"} />
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+          )}
         </div>
       </form>
     </div>
