@@ -593,7 +593,6 @@ export function renderRelatorioOperacionalDiario(
           </tr>
         </table>
         ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.")}
-        ${frotasChecklistTable("🚫 Frotas que não fizeram checklist", input.frotasNaoFizeram, "Todas as frotas fizeram checklist hoje.")}
       </td>
     </tr>
     <tr>
