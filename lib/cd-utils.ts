@@ -14,24 +14,33 @@ export function normalizeCdNome(value: string | null | undefined): string {
     return "CD Taruma";
   }
 
+  if (normalized.startsWith("MANUTENCAO")) return "Manutenção";
+
   if (
     normalized === "CD1" || normalized === "CD MANAUS" || normalized === "CD E-COMMERCE" ||
-    normalized === "AM - MANAUS" || normalized === "EXPEDICAO" || normalized === "EXPOSICAO" ||
-    normalized === "ESCRITORIO" || normalized.startsWith("ESCRITORIO -") ||
+    normalized === "AM - MANAUS" ||
+    normalized.startsWith("EXPEDICAO") || normalized.startsWith("EXPOSICAO") ||
+    normalized.startsWith("ENTREGA INTERIOR") ||
+    normalized === "ESCRITORIO" || normalized.startsWith("ESCRITORIO -") || normalized.startsWith("ESCRITORIO ") ||
     normalized.startsWith("INTERIOR -") || normalized.startsWith("LOJA COARI") ||
     normalized.startsWith("LOJA MAUES") ||
     ["BARREIRINHA","BOA VISTA DOS RAMOS","BORBA","COARI","CODAJAS","HUMAITA","JUTAI",
      "MANICORE","MAUES","NHAMUNDA","NOVA OLINDA DO NORTE","NOVO ARIPUANA","PARINTINS",
      "TEFE","URUCURITUBA","RAMPAP","E-COMMERCE","MARKETPLACE","SHIP FROM STORE",
-     "ASSISTENCIA TECNICA","MANUTENCAO","MERCADO","TABATINGA"].includes(normalized)
+     "ASSISTENCIA TECNICA","MERCADO","TABATINGA"].includes(normalized)
   ) { return "CD Manaus"; }
 
   if (normalized.startsWith("CD TURISMO") || normalized === "CD FARMA" ||
       normalized === "CD MERCADO" || normalized === "CD III" || normalized === "CD 3") {
     return "CD III";
   }
-  if (normalized.startsWith("RO -") || normalized.includes("PORTO VELHO")) return "CD Porto Velho";
-  if (normalized.startsWith("AC -")) return "CD Rio Branco";
+  if (normalized.startsWith("RO -") || normalized.includes("PORTO VELHO") ||
+      normalized === "ARIQUEMES" || normalized.includes("JIPARANA")) {
+    return "CD Porto Velho";
+  }
+  if (normalized.startsWith("AC -") || normalized.includes("RIO BRANCO") || normalized.includes("CRUZEIRO DO SUL")) {
+    return "CD Rio Branco";
+  }
   if (normalized.startsWith("RR -") || normalized.includes("BOA VISTA")) return "CD Boa Vista";
   if (normalized.startsWith("VENDA") || normalized.startsWith("VENDID") || normalized.startsWith("DESCARACTERIZAD")) return "Sem CD";
   return CDS_OPERACIONAIS.includes(cd as (typeof CDS_OPERACIONAIS)[number]) ? cd : "Sem CD";
