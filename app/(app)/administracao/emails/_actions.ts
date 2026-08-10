@@ -28,7 +28,7 @@ import {
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { logEmail } from "@/lib/repos/email-logs";
 import { getEmailFrom } from "@/lib/email-from";
-import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
+import { reportCalendarDate, reportDayUtcRange, previousBusinessDay } from "@/lib/report-date";
 
 const ScheduleSchema = z.object({
   nome: z.string().trim().min(1, "Nome obrigatório").max(120),
@@ -174,7 +174,7 @@ export async function triggerScheduleNowAction(id: number): Promise<ActionResult
       });
       if (!result.ok) throw new Error(result.error);
     } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
-      const ontem = shiftCalendarDate(reportCalendarDate(), -1);
+      const ontem = previousBusinessDay(reportCalendarDate());
       const dataRef = new Date(reportDayUtcRange(ontem).start);
       const setores = schedule.setores_incluidos.length > 0 ? schedule.setores_incluidos : undefined;
       const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([

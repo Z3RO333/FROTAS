@@ -23,6 +23,25 @@ export function shiftCalendarDate(date: string, days: number): string {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+/**
+ * Dia útil anterior à data informada, pulando fim de semana (ninguém trabalha
+ * sábado/domingo, então o relatório de segunda deve trazer sexta, não domingo).
+ */
+export function previousBusinessDay(date: string): string {
+  let result = shiftCalendarDate(date, -1);
+  while (isWeekend(result)) {
+    result = shiftCalendarDate(result, -1);
+  }
+  return result;
+}
+
+function isWeekend(date: string): boolean {
+  assertCalendarDate(date);
+  const [year, month, day] = date.split("-").map(Number);
+  const dayOfWeek = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
 export function reportDayUtcRange(date: string): { start: string; end: string } {
   assertCalendarDate(date);
   const [year, month, day] = date.split("-").map(Number);
