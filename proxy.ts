@@ -68,6 +68,7 @@ export default auth((req) => {
     // Rotas internas protegidas por FROTAS_INTERNAL_SECRET no proprio handler.
     // Liberadas aqui pra que o secret check rode (sem isso, sessao redireciona pra /login).
     pathname === "/api/relatorios/daily" ||
+    pathname === "/api/relatorios/operacional-diario" ||
     pathname === "/api/checklists/analyze" ||
     pathname === "/api/checklists/vision/process" ||
     pathname === "/api/email/send-scheduled";
