@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, Eye, Gauge, MapPin, ShieldCheck, Truck, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export default async function ChecklistsAdminPage({
     countChecklistImageInspectionsByStatus(),
     localizacoesDistintas(),
   ]);
+  const checklistGroups = groupChecklistsByDate(checklists);
 
   return (
     <div className="space-y-5">
@@ -84,27 +86,36 @@ export default async function ChecklistsAdminPage({
                 </tr>
               </thead>
               <tbody>
-                {checklists.map((checklist) => {
-                  const observacao =
-                    checklist.observacao_corrigida_ia?.trim() || checklist.observacao_original?.trim() || "";
-
-                  return (
-                    <tr key={checklist.id} className="border-t align-top">
-                      <td className="whitespace-nowrap px-4 py-3">{formatDate(checklist.data_checklist)}</td>
-                      <td className="px-4 py-3 font-medium">{checklist.frota_geral ?? "-"}</td>
-                      <td className="px-4 py-3">{checklist.placa ?? "-"}</td>
-                      <td className="max-w-52 truncate px-4 py-3" title={checklist.rota ?? undefined}>{checklist.rota ?? "-"}</td>
-                      <td className="px-4 py-3">{checklist.motorista_nome ?? checklist.motorista_id}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{formatNumber(checklist.km_informado)}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline">{checklist.status_geral}</Badge>
-                      </td>
-                      <td className="min-w-56 max-w-80 whitespace-pre-wrap break-words px-4 py-3">
-                        {observacao ?? ""}
+                {checklistGroups.map((group) => (
+                  <Fragment key={group.date}>
+                    <tr className="border-t bg-slate-100">
+                      <td colSpan={8} className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        {group.date} · {group.items.length} {group.items.length === 1 ? "checklist" : "checklists"}
                       </td>
                     </tr>
-                  );
-                })}
+                    {group.items.map((checklist) => {
+                      const observacao =
+                        checklist.observacao_corrigida_ia?.trim() || checklist.observacao_original?.trim() || "";
+
+                      return (
+                        <tr key={checklist.id} className="border-t align-top">
+                          <td className="whitespace-nowrap px-4 py-3">{formatDate(checklist.data_checklist)}</td>
+                          <td className="px-4 py-3 font-medium">{checklist.frota_geral ?? "-"}</td>
+                          <td className="px-4 py-3">{checklist.placa ?? "-"}</td>
+                          <td className="max-w-52 truncate px-4 py-3" title={checklist.rota ?? undefined}>{checklist.rota ?? "-"}</td>
+                          <td className="px-4 py-3">{checklist.motorista_nome ?? checklist.motorista_id}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{formatNumber(checklist.km_informado)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline">{checklist.status_geral}</Badge>
+                          </td>
+                          <td className="min-w-56 max-w-80 whitespace-pre-wrap break-words px-4 py-3">
+                            {observacao ?? ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))}
                 {checklists.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
@@ -116,43 +127,50 @@ export default async function ChecklistsAdminPage({
             </table>
           </div>
 
-          <div className="grid gap-3 p-3 pt-0 md:hidden">
-            {checklists.map((checklist) => {
-              const observacao =
-                checklist.observacao_corrigida_ia?.trim() || checklist.observacao_original?.trim() || "";
+          <div className="space-y-4 p-3 pt-0 md:hidden">
+            {checklistGroups.map((group) => (
+              <div key={group.date} className="space-y-3">
+                <div className="sticky top-0 z-10 -mx-3 bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  {group.date} · {group.items.length} {group.items.length === 1 ? "checklist" : "checklists"}
+                </div>
+                {group.items.map((checklist) => {
+                  const observacao =
+                    checklist.observacao_corrigida_ia?.trim() || checklist.observacao_original?.trim() || "";
 
-              return (
-                <article key={checklist.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground">{formatDate(checklist.data_checklist)}</p>
-                      <h2 className="mt-0.5 truncate text-lg font-semibold">
-                        Frota {checklist.frota_geral ?? checklist.placa ?? checklist.frota_id}
-                      </h2>
-                    </div>
-                    <Badge variant="outline" className="max-w-[45%] shrink-0 truncate">
-                      {checklist.status_geral}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                    <MobileInfo icon={<Truck />} label="Placa" value={checklist.placa ?? "-"} />
-                    <MobileInfo icon={<Gauge />} label="KM" value={formatNumber(checklist.km_informado)} />
-                    <MobileInfo icon={<MapPin />} label="Rota" value={checklist.rota ?? "Não informada"} />
-                    <MobileInfo
-                      icon={<UserRound />}
-                      label="Motorista"
-                      value={checklist.motorista_nome ?? checklist.motorista_id}
-                    />
-                  </div>
-                  {observacao ? (
-                    <div className="mt-3 border-t pt-3 text-sm">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Observações</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-slate-900">{observacao}</p>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+                  return (
+                    <article key={checklist.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-muted-foreground">{formatDate(checklist.data_checklist)}</p>
+                          <h2 className="mt-0.5 truncate text-lg font-semibold">
+                            Frota {checklist.frota_geral ?? checklist.placa ?? checklist.frota_id}
+                          </h2>
+                        </div>
+                        <Badge variant="outline" className="max-w-[45%] shrink-0 truncate">
+                          {checklist.status_geral}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                        <MobileInfo icon={<Truck />} label="Placa" value={checklist.placa ?? "-"} />
+                        <MobileInfo icon={<Gauge />} label="KM" value={formatNumber(checklist.km_informado)} />
+                        <MobileInfo icon={<MapPin />} label="Rota" value={checklist.rota ?? "Não informada"} />
+                        <MobileInfo
+                          icon={<UserRound />}
+                          label="Motorista"
+                          value={checklist.motorista_nome ?? checklist.motorista_id}
+                        />
+                      </div>
+                      {observacao ? (
+                        <div className="mt-3 border-t pt-3 text-sm">
+                          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Observações</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-slate-900">{observacao}</p>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ))}
             {checklists.length === 0 ? (
               <div className="rounded-xl border border-dashed bg-slate-50 p-6 text-center text-sm text-muted-foreground">
                 Nenhum checklist encontrado para os filtros selecionados.
@@ -184,6 +202,24 @@ export default async function ChecklistsAdminPage({
       </div>
     </div>
   );
+}
+
+type Checklist = Awaited<ReturnType<typeof listAdminChecklists>>[number];
+
+// Checklists já vêm ordenados por data (mais recente primeiro); agrupar aqui só
+// junta itens consecutivos do mesmo dia pra desenhar um separador entre os dias.
+function groupChecklistsByDate(checklists: Checklist[]): { date: string; items: Checklist[] }[] {
+  const groups: { date: string; items: Checklist[] }[] = [];
+  for (const checklist of checklists) {
+    const date = formatDate(checklist.data_checklist);
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup?.date === date) {
+      lastGroup.items.push(checklist);
+    } else {
+      groups.push({ date, items: [checklist] });
+    }
+  }
+  return groups;
 }
 
 function Kpi({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) {
