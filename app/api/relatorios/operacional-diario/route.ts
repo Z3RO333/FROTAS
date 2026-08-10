@@ -13,7 +13,7 @@ import {
   releaseEmailScheduleClaim,
 } from "@/lib/repos/email-schedule";
 import { isInternalAuthorized } from "@/lib/internal-auth";
-import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
+import { reportCalendarDate, reportDayUtcRange, previousBusinessDay } from "@/lib/report-date";
 import { apiError } from "@/lib/api-error";
 
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   if (!isInternalAuthorized(req)) return apiError("Unauthorized", 401, "INVALID_INTERNAL_TOKEN");
 
-  const ontem = shiftCalendarDate(reportCalendarDate(), -1);
+  const ontem = previousBusinessDay(reportCalendarDate());
   const dataRef = new Date(reportDayUtcRange(ontem).start);
 
   const schedules = await claimDueEmailSchedules({ limit: 25, tipo: "RELATORIO_OPERACIONAL_DIARIO" });
