@@ -336,13 +336,13 @@ export type PneuVeiculoGroup = {
   pneus: PneuRow[];
 };
 
-export async function listVeiculosComPneus(limit = 50): Promise<PneuVeiculoGroup[]> {
+export async function listVeiculosComPneus(): Promise<PneuVeiculoGroup[]> {
   const { data, error } = await supabaseManutencao
     .from("fact_pneus")
     .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
     .order("equipamento")
     .order("posicao")
-    .limit(2000);
+    .limit(10000);
   if (error) throw new Error(`listVeiculosComPneus: ${error.message}`);
 
   const rows = (data ?? []) as PneuRow[];
@@ -363,9 +363,7 @@ export async function listVeiculosComPneus(limit = 50): Promise<PneuVeiculoGroup
     groups.set(key, g);
   }
 
-  return [...groups.values()]
-    .sort((a, b) => b.total_pneus - a.total_pneus)
-    .slice(0, limit);
+  return [...groups.values()].sort((a, b) => b.total_pneus - a.total_pneus);
 }
 
 export async function getPneus(): Promise<PneuRow[]> {
@@ -374,7 +372,7 @@ export async function getPneus(): Promise<PneuRow[]> {
     .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
     .order("equipamento")
     .order("posicao")
-    .limit(1000);
+    .limit(10000);
   if (error) throw new Error(`getPneus: ${error.message}`);
   return (data ?? []) as PneuRow[];
 }
