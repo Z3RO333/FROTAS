@@ -30,7 +30,7 @@ export const localizacoesDistintasCached = unstable_cache(
 
 export const setoresDistintosCached = unstable_cache(
   async () => setoresDistintos(),
-  ["frotas:setores"],
+  ["frotas:setores:v2"],
   {
     revalidate: 600,
     tags: ["frotas:filters"],
