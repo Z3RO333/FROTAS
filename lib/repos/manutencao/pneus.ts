@@ -98,18 +98,27 @@ export async function listUltimaContagemNumeroFogoPorFrota(
   ano = new Date().getFullYear()
 ): Promise<Record<string, number>> {
   const digitoAno = String(ano).slice(-1);
-  const { data, error } = await supabaseManutencao
-    .from("numero_fogo")
-    .select("frota, contagem")
-    .eq("ultimo_digito_ano", digitoAno)
-    .not("frota", "is", null)
-    .order("contagem", { ascending: false })
-    .limit(5000);
 
-  if (error) throw new Error(`listUltimaContagemNumeroFogoPorFrota: ${error.message}`);
+  // PostgREST limita a 1000 linhas por request (db.max_rows) independente do .limit() pedido —
+  // pagina com .range() para não perder frotas cuja maior contagem fica fora do topo global.
+  const rows: { frota: string | null; contagem: number | null }[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("numero_fogo")
+      .select("frota, contagem")
+      .eq("ultimo_digito_ano", digitoAno)
+      .not("frota", "is", null)
+      .order("contagem", { ascending: false })
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`listUltimaContagemNumeroFogoPorFrota: ${error.message}`);
+    const chunk = data ?? [];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
 
   const result: Record<string, number> = {};
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const frota = String(row.frota ?? "").trim();
     const contagem = Number(row.contagem ?? 0);
     if (frota && result[frota] == null && Number.isFinite(contagem)) {

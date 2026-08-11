@@ -130,18 +130,27 @@ function buildResumo(rows: VeiculoDisponibilidadeRow[], cd_nome: string): Dispon
 }
 
 async function listVeiculosDisponibilidade(): Promise<VeiculoDisponibilidadeRow[]> {
-  const { data, error } = await supabaseManutencao
-    .from("veiculos")
-    .select(VEICULOS_DISPONIBILIDADE_SELECT)
-    .eq("ativo", true)
-    .eq("vendido", false)
-    .order("local", { ascending: true })
-    .order("codigo_frota", { ascending: true })
-    .limit(5000);
+  // PostgREST limita a 1000 linhas por request (db.max_rows) independente do .limit() pedido —
+  // pagina com .range() para não cortar veículos silenciosamente conforme a frota cresce.
+  const rows: VeiculoDisponibilidadeRow[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("veiculos")
+      .select(VEICULOS_DISPONIBILIDADE_SELECT)
+      .eq("ativo", true)
+      .eq("vendido", false)
+      .order("local", { ascending: true })
+      .order("codigo_frota", { ascending: true })
+      .range(from, from + chunkSize - 1);
 
-  if (error) throw new Error(`listVeiculosDisponibilidade: ${error.message}`);
+    if (error) throw new Error(`listVeiculosDisponibilidade: ${error.message}`);
+    const chunk = (data ?? []) as VeiculoDisponibilidadeRow[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
 
-  return (data ?? []) as VeiculoDisponibilidadeRow[];
+  return rows;
 }
 
 export async function listCDsDisponibilidade(): Promise<string[]> {

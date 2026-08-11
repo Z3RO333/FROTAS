@@ -32,6 +32,7 @@ const SERVICO_META: Record<string, { label: string; destino: DestinoManutencao }
   embreagem: { label: "Embreagem", destino: "PREVENTIVA" },
   portas_rool_up: { label: "Porta Roll-Up", destino: "PREVENTIVA" },
   tacografo: { label: "Tacógrafo", destino: "TACOGRAFO" },
+  bateria: { label: "Bateria", destino: "OUTRO" },
 };
 
 export async function registrarServicoAction(
@@ -93,6 +94,7 @@ export async function registrarServicoAction(
     revalidatePath("/manutencao");
     revalidatePath("/planejamento");
     revalidatePath("/planejamento/lavagem");
+    revalidatePath("/planejamento/bateria");
     revalidatePath("/planejamento/manutencao");
     revalidatePath("/frotas");
     revalidatePath(`/frotas/${veiculo.id}`);

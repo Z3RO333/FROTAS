@@ -187,28 +187,43 @@ export async function getManutencao(tipoServico?: string): Promise<ManutencaoRow
     .filter(([, factType]) => !tipoServico || factType === tipoServico)
     .map(([appType]) => appType);
 
-  const [factResult, serviceResult, vehicleResult] = await Promise.all([
+  // PostgREST limita a 1000 linhas por request (db.max_rows) independente do .limit() pedido —
+  // pagina servicos_app com .range() para não cortar histórico conforme os dados crescem.
+  async function fetchAllServicosApp(): Promise<OverlayService[]> {
+    const rows: OverlayService[] = [];
+    const chunkSize = 1000;
+    for (let from = 0; ; from += chunkSize) {
+      const { data, error } = await supabaseManutencao
+        .from("servicos_app")
+        .select("id_veiculo,tipo_servico,data_servico,quilometragem")
+        .in("tipo_servico", appTypes)
+        .order("data_servico", { ascending: false })
+        .range(from, from + chunkSize - 1);
+      if (error) throw new Error(`getManutencao servicos_app: ${error.message}`);
+      const chunk = (data ?? []) as OverlayService[];
+      rows.push(...chunk);
+      if (chunk.length < chunkSize) break;
+    }
+    return rows;
+  }
+
+  const [factResult, servicosApp, vehicleResult] = await Promise.all([
     query.limit(500),
-    supabaseManutencao
-      .from("servicos_app")
-      .select("id_veiculo,tipo_servico,data_servico,quilometragem")
-      .in("tipo_servico", appTypes)
-      .order("data_servico", { ascending: false })
-      .limit(2000),
+    fetchAllServicosApp(),
     supabaseManutencao
       .from("veiculos")
       .select("codigo_frota,placa,equipamento,local,km_atual,intervalo_alinhamento_km,intervalo_suspensao_km,intervalo_arcondicionado_dias,intervalo_tacografo_dias,intervalo_portas_rool_up_dias,intervalo_embreagem_dias,intervalo_motor_km")
       .eq("ativo", true)
       .eq("vendido", false),
   ]);
-  const error = factResult.error ?? serviceResult.error ?? vehicleResult.error;
+  const error = factResult.error ?? vehicleResult.error;
   if (error) throw new Error(`getManutencao: ${error.message}`);
 
   const vehicles = new Map(
     ((vehicleResult.data ?? []) as OverlayVehicle[]).map((vehicle) => [vehicle.codigo_frota, vehicle])
   );
   const latestServices = new Map<string, OverlayService>();
-  for (const service of (serviceResult.data ?? []) as OverlayService[]) {
+  for (const service of servicosApp) {
     const factType = serviceTypeMap[service.tipo_servico];
     const key = `${service.id_veiculo}:${factType}`;
     if (factType && !latestServices.has(key)) latestServices.set(key, service);
@@ -336,16 +351,28 @@ export type PneuVeiculoGroup = {
   pneus: PneuRow[];
 };
 
-export async function listVeiculosComPneus(): Promise<PneuVeiculoGroup[]> {
-  const { data, error } = await supabaseManutencao
-    .from("fact_pneus")
-    .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
-    .order("equipamento")
-    .order("posicao")
-    .limit(10000);
-  if (error) throw new Error(`listVeiculosComPneus: ${error.message}`);
+// PostgREST limita a 1000 linhas por request (db.max_rows) independente do .limit() pedido —
+// pagina com .range() para trazer a fact_pneus inteira (chega a passar de 1000 linhas com a frota atual).
+async function fetchAllPneus(): Promise<PneuRow[]> {
+  const rows: PneuRow[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await supabaseManutencao
+      .from("fact_pneus")
+      .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
+      .order("equipamento")
+      .order("posicao")
+      .range(from, from + chunkSize - 1);
+    if (error) throw new Error(`fetchAllPneus: ${error.message}`);
+    const chunk = (data ?? []) as PneuRow[];
+    rows.push(...chunk);
+    if (chunk.length < chunkSize) break;
+  }
+  return rows;
+}
 
-  const rows = (data ?? []) as PneuRow[];
+export async function listVeiculosComPneus(): Promise<PneuVeiculoGroup[]> {
+  const rows = await fetchAllPneus();
   const groups = new Map<string, PneuVeiculoGroup>();
 
   for (const r of rows) {
@@ -367,14 +394,7 @@ export async function listVeiculosComPneus(): Promise<PneuVeiculoGroup[]> {
 }
 
 export async function getPneus(): Promise<PneuRow[]> {
-  const { data, error } = await supabaseManutencao
-    .from("fact_pneus")
-    .select("equipamento,frota_numero,posicao,numero_fogo,marca,dt_montagem,status,marcado")
-    .order("equipamento")
-    .order("posicao")
-    .limit(10000);
-  if (error) throw new Error(`getPneus: ${error.message}`);
-  return (data ?? []) as PneuRow[];
+  return fetchAllPneus();
 }
 
 export async function getLavagem(): Promise<LavagemRow[]> {
@@ -400,36 +420,64 @@ export async function getLavagem(): Promise<LavagemRow[]> {
     intervalo_dias: number | null;
   };
 
-  const [veiculosResult, servicosResult, legadoResult] = await Promise.all([
+  // PostgREST limita a 1000 linhas por request (db.max_rows) independente do .limit() pedido —
+  // pagina com .range() para não cortar histórico conforme os dados crescem.
+  async function fetchAllServicosLavagem(): Promise<ServicoLavagem[]> {
+    const rows: ServicoLavagem[] = [];
+    const chunkSize = 1000;
+    for (let from = 0; ; from += chunkSize) {
+      const { data, error } = await supabaseManutencao
+        .from("servicos_app")
+        .select("id_veiculo,data_servico,quilometragem,observacoes")
+        .eq("tipo_servico", "lavagem")
+        .order("data_servico", { ascending: false })
+        .range(from, from + chunkSize - 1);
+      if (error) throw new Error(`getLavagem servicos_app: ${error.message}`);
+      const chunk = (data ?? []) as ServicoLavagem[];
+      rows.push(...chunk);
+      if (chunk.length < chunkSize) break;
+    }
+    return rows;
+  }
+
+  async function fetchAllFactLavagem(): Promise<LavagemLegada[]> {
+    const rows: LavagemLegada[] = [];
+    const chunkSize = 1000;
+    for (let from = 0; ; from += chunkSize) {
+      const { data, error } = await supabaseManutencao
+        .from("fact_lavagem")
+        .select("equipamento,placa,frota_numero,setor,data_realizada,intervalo_dias")
+        .order("data_realizada", { ascending: false })
+        .range(from, from + chunkSize - 1);
+      if (error) throw new Error(`getLavagem fact_lavagem: ${error.message}`);
+      const chunk = (data ?? []) as LavagemLegada[];
+      rows.push(...chunk);
+      if (chunk.length < chunkSize) break;
+    }
+    return rows;
+  }
+
+  const [veiculosResult, servicosRows, legadoRows] = await Promise.all([
     supabaseManutencao
       .from("veiculos")
       .select("codigo_frota,placa,equipamento,local,intervalo_lavagem_dias")
       .eq("ativo", true)
       .eq("vendido", false)
       .order("codigo_frota"),
-    supabaseManutencao
-      .from("servicos_app")
-      .select("id_veiculo,data_servico,quilometragem,observacoes")
-      .eq("tipo_servico", "lavagem")
-      .order("data_servico", { ascending: false })
-      .limit(1000),
-    supabaseManutencao
-      .from("fact_lavagem")
-      .select("equipamento,placa,frota_numero,setor,data_realizada,intervalo_dias")
-      .order("data_realizada", { ascending: false })
-      .limit(1000),
+    fetchAllServicosLavagem(),
+    fetchAllFactLavagem(),
   ]);
 
-  const error = veiculosResult.error ?? servicosResult.error ?? legadoResult.error;
+  const error = veiculosResult.error;
   if (error) throw new Error(`getLavagem: ${error.message}`);
 
   const servicoPorFrota = new Map<string, ServicoLavagem>();
-  for (const row of (servicosResult.data ?? []) as ServicoLavagem[]) {
+  for (const row of servicosRows) {
     if (!servicoPorFrota.has(row.id_veiculo)) servicoPorFrota.set(row.id_veiculo, row);
   }
 
   const legadoPorFrota = new Map<string, LavagemLegada>();
-  for (const row of (legadoResult.data ?? []) as LavagemLegada[]) {
+  for (const row of legadoRows) {
     for (const key of [row.frota_numero, row.equipamento, row.placa]) {
       if (key && !legadoPorFrota.has(key)) legadoPorFrota.set(key, row);
     }

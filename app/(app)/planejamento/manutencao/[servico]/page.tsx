@@ -1,12 +1,15 @@
-import Link from "next/link";
-import { ArrowLeft, Gauge, Wrench } from "lucide-react";
+import { Gauge, Plus, Wrench } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getServiceCatalogItem } from "@/lib/manutencao-service-catalog";
 import { listHistoricoServico, listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
 import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
 import { reportCalendarDate } from "@/lib/report-date";
 import { formatCalendarDate } from "@/lib/utils";
-import { RegistrarServicoForm } from "@/components/manutencao/registrar-servico-form";
+import {
+  RegistrarServicoDialogProvider,
+  RegistrarServicoTrigger,
+} from "@/components/manutencao/registrar-servico-dialog";
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 
@@ -22,6 +25,7 @@ export default async function ServicoPage({ params }: { params: Promise<{ servic
     listHistoricoServico(config.type),
   ]);
   const today = reportCalendarDate();
+  const veiculoPorCodigo = new Map(veiculos.map((veiculo) => [veiculo.codigo_frota, veiculo]));
 
   return (
     <div className="space-y-6">
@@ -33,22 +37,23 @@ export default async function ServicoPage({ params }: { params: Promise<{ servic
         severity="MANUTENCAO"
       />
 
-      <RegistrarServicoForm
+      <ServiceNavigation compact />
+
+      <RegistrarServicoDialogProvider
         veiculos={veiculos}
         today={today}
         fixedType={config.type}
         serviceLabel={config.label}
-      />
-
+      >
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-slate-950">Histórico de {config.label.toLocaleLowerCase("pt-BR")}</h2>
-            <p className="text-sm text-slate-500">{historico.length} registros mais recentes.</p>
+            <p className="text-sm text-slate-500">{historico.length} registros mais recentes. Clique na frota para registrar novamente.</p>
           </div>
-          <Link href="/planejamento/manutencao" className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:text-blue-800">
-            <ArrowLeft className="h-4 w-4" /> Preventivas
-          </Link>
+          <RegistrarServicoTrigger className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+            <Plus className="h-4 w-4" /> Registrar serviço
+          </RegistrarServicoTrigger>
         </div>
 
         <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
@@ -78,7 +83,16 @@ export default async function ServicoPage({ params }: { params: Promise<{ servic
 
                   return (
                     <tr key={row.id_servico} className="hover:bg-blue-50/40">
-                      <td className="p-3"><div className="font-medium text-slate-950">{row.id_veiculo}</div><div className="font-mono text-xs text-slate-500">{row.veiculo?.placa ?? "—"}</div></td>
+                      <td className="p-0">
+                        <RegistrarServicoTrigger
+                          vehicle={veiculoPorCodigo.get(row.id_veiculo)}
+                          className="block w-full p-3 text-left hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                          ariaLabel={`Registrar ${config.label.toLocaleLowerCase("pt-BR")} da frota ${row.id_veiculo}`}
+                        >
+                          <div className="font-medium">{row.id_veiculo}</div>
+                          <div className="font-mono text-xs text-slate-500">{row.veiculo?.placa ?? "—"}</div>
+                        </RegistrarServicoTrigger>
+                      </td>
                       <td className="p-3 tabular-nums">{formatCalendarDate(calendarDate(row.data_servico))}</td>
                       <td className="p-3 text-right tabular-nums">{row.quilometragem?.toLocaleString("pt-BR") ?? "—"}</td>
                       <td className="p-3">
@@ -102,6 +116,7 @@ export default async function ServicoPage({ params }: { params: Promise<{ servic
           </div>
         </div>
       </section>
+      </RegistrarServicoDialogProvider>
     </div>
   );
 }
