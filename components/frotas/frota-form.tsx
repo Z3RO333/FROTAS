@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NOME_LAYOUT_PNEUS, TIPO_POR_QTD_PNEUS } from "@/lib/pneus-layout";
 import type { Frota } from "@/lib/repos/frotas";
+import { CDS_OPERACIONAIS } from "@/lib/cds";
+import { normalizeCdNome } from "@/lib/cd-utils";
 
 const OPCOES_QTD_PNEUS = Object.entries(TIPO_POR_QTD_PNEUS)
   .map(([qtd, tipo]) => ({ qtd: Number(qtd), label: NOME_LAYOUT_PNEUS[tipo] }))
@@ -25,18 +27,25 @@ type Props = {
   initial?: Partial<Frota>;
   action: (state: FrotaActionState, formData: FormData) => Promise<FrotaActionState>;
   submitLabel: string;
-  localizacoes: string[];
   setores: string[];
 };
 
-export function FrotaForm({ initial, action, submitLabel, localizacoes, setores }: Props) {
+export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
   const [state, formAction] = useActionState(action, FROTA_ACTION_INITIAL_STATE);
   const isCreate = !initial?.id;
   const value = (name: string, fallback: React.InputHTMLAttributes<HTMLInputElement>["defaultValue"]) =>
     state.values[name] ?? fallback;
-  const localizacaoAtual = String(value("localizacao", initial?.localizacao ?? ""));
-  const setorAtual = String(value("setor", initial?.setor ?? ""));
-  const opcoesLocalizacoes = [...new Set(localizacaoAtual ? [localizacaoAtual, ...localizacoes] : localizacoes)];
+  const localizacaoLegada = initial?.localizacao?.trim() ?? "";
+  const cdNormalizado = normalizeCdNome(localizacaoLegada);
+  const localizacaoInicial = CDS_OPERACIONAIS.includes(cdNormalizado as (typeof CDS_OPERACIONAIS)[number])
+    ? cdNormalizado
+    : "";
+  const setorLegado = localizacaoLegada && !CDS_OPERACIONAIS.includes(localizacaoLegada as (typeof CDS_OPERACIONAIS)[number])
+    ? localizacaoLegada
+    : "";
+  const localizacaoAtual = String(value("localizacao", localizacaoInicial));
+  const setorAtual = String(value("setor", initial?.setor ?? setorLegado));
+  const opcoesLocalizacoes = [...CDS_OPERACIONAIS];
   const opcoesSetores = [...new Set(setorAtual ? [setorAtual, ...setores] : setores)];
 
   return (
@@ -70,11 +79,11 @@ export function FrotaForm({ initial, action, submitLabel, localizacoes, setores 
         invalid={state.field === "ano_fabricacao"}
       />
       <div className="space-y-1.5">
-        <Label htmlFor="localizacao">Localização / CD</Label>
+        <Label htmlFor="localizacao">CD</Label>
         <select
           id="localizacao"
           name="localizacao"
-          aria-label="Localização ou CD"
+          aria-label="Centro de distribuição"
           defaultValue={localizacaoAtual}
           aria-invalid={state.field === "localizacao" || undefined}
           className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
