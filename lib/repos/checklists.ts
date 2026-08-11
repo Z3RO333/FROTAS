@@ -15,10 +15,7 @@ const COLS_PENDENCIA_LIST =
   "id,frota_id,checklist_id,item_nome,gravidade,status,criado_em,resolvido_em";
 import { getFrota } from "@/lib/repos/frotas";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
-import {
-  countPendingKmValidations,
-  type KmOrigem,
-} from "@/lib/repos/historico-km";
+import { type KmOrigem } from "@/lib/repos/historico-km";
 import { recordChecklistEnviado } from "@/lib/services/veiculo-eventos";
 import { getAppUrl } from "@/lib/app-url";
 import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
@@ -492,12 +489,11 @@ export async function checklistDashboardKpis(): Promise<{
   aprovados_hoje: number;
   pendentes_hoje: number;
   criticos_abertos: number;
-  divergencias_km: number;
 }> {
   return safeSupabase("kpis", async () => {
     const { start, end } = todayRange();
-    // 4 queries de COUNT em paralelo — só conta no banco, não transfere rows
-    const [totalRes, aprovadosRes, pendencias, divergencias] = await Promise.all([
+    // 3 queries de COUNT em paralelo — só conta no banco, não transfere rows
+    const [totalRes, aprovadosRes, pendencias] = await Promise.all([
       supabaseManutencao
         .from("checklists_frota")
         .select("id", { count: "exact", head: true })
@@ -514,7 +510,6 @@ export async function checklistDashboardKpis(): Promise<{
         .select("id", { count: "exact", head: true })
         .eq("gravidade", "CRITICA")
         .in("status", ["ABERTA", "EM_TRATATIVA"]),
-      countPendingKmValidations().catch(() => 0),
     ]);
 
     if (totalRes.error) throw totalRes.error;
@@ -528,14 +523,12 @@ export async function checklistDashboardKpis(): Promise<{
       aprovados_hoje,
       pendentes_hoje: total_hoje - aprovados_hoje,
       criticos_abertos: pendencias.count ?? 0,
-      divergencias_km: Number(divergencias ?? 0),
     };
   }, {
     total_hoje: 0,
     aprovados_hoje: 0,
     pendentes_hoje: 0,
     criticos_abertos: 0,
-    divergencias_km: 0,
   });
 }
 

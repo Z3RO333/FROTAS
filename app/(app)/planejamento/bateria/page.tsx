@@ -1,5 +1,12 @@
-import { Battery, BatteryWarning, CalendarClock, Layers } from "lucide-react";
+import { Battery, BatteryWarning, CalendarClock, Layers, Plus } from "lucide-react";
 import { getBateria } from "@/lib/repos/planejamento";
+import { listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
+import { reportCalendarDate } from "@/lib/report-date";
+import {
+  RegistrarServicoDialogProvider,
+  RegistrarServicoTrigger,
+} from "@/components/manutencao/registrar-servico-dialog";
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
@@ -18,7 +25,7 @@ function diasDesde(iso: string | null): number | null {
 const GARANTIA_DIAS = 365;
 
 export default async function BateriaPage() {
-  const rows = await getBateria();
+  const [rows, veiculos] = await Promise.all([getBateria(), listVeiculosParaServico()]);
   const semData = rows.filter((r) => !r.data_compra).length;
   const comData = rows.length - semData;
 
@@ -34,6 +41,7 @@ export default async function BateriaPage() {
     const db = b.data_compra ? new Date(b.data_compra).getTime() : Infinity;
     return da - db;
   });
+  const veiculoPorCodigo = new Map(veiculos.map((veiculo) => [veiculo.codigo_frota, veiculo]));
 
   return (
     <div className="space-y-6">
@@ -44,6 +52,8 @@ export default async function BateriaPage() {
         icon={Battery}
         severity={foraGarantia > 0 ? "ATENCAO" : "OK"}
       />
+
+      <ServiceNavigation compact />
 
       <MetricGrid cols={4}>
         <MetricCard label="Total registros" value={rows.length} icon={Layers} severity="INFO" />
@@ -70,11 +80,25 @@ export default async function BateriaPage() {
         />
       </MetricGrid>
 
+      <RegistrarServicoDialogProvider
+        veiculos={veiculos}
+        today={reportCalendarDate()}
+        fixedType="bateria"
+        serviceLabel="Bateria"
+      >
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-          <span className="h-1 w-6 rounded-full bg-violet-500" />
-          Controle de baterias ({rows.length})
-        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <span className="h-1 w-6 rounded-full bg-violet-500" />
+              Controle de baterias ({rows.length})
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">Clique na frota para enviar o veículo à manutenção de bateria.</p>
+          </div>
+          <RegistrarServicoTrigger className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+            <Plus className="h-4 w-4" /> Registrar bateria
+          </RegistrarServicoTrigger>
+        </div>
 
         {/* Cards mobile */}
         <div className="grid gap-3 md:hidden">
@@ -87,10 +111,17 @@ export default async function BateriaPage() {
               <div
                 key={`bc-${i}`}
                 className={cn(
-                  "rounded-xl border border-l-4 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]",
+                  "relative rounded-xl border border-l-4 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)] transition hover:-translate-y-px hover:shadow-md",
                   r.data_compra ? borderColor : "border-l-slate-300"
                 )}
               >
+                <RegistrarServicoTrigger
+                  vehicle={veiculoPorCodigo.get(r.frota_numero ?? "")}
+                  className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  ariaLabel={`Registrar manutenção de bateria da frota ${r.frota_numero ?? r.placa ?? "selecionada"}`}
+                >
+                  <span className="sr-only">Registrar manutenção de bateria</span>
+                </RegistrarServicoTrigger>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -146,7 +177,15 @@ export default async function BateriaPage() {
                   const proximo = dias != null && dias > GARANTIA_DIAS - 30 && dias <= GARANTIA_DIAS;
                   return (
                     <tr key={`br-${i}`} className="transition-colors hover:bg-blue-50/40">
-                      <td className="p-3 font-medium text-slate-900">{r.frota_numero ?? "—"}</td>
+                      <td className="p-0">
+                        <RegistrarServicoTrigger
+                          vehicle={veiculoPorCodigo.get(r.frota_numero ?? "")}
+                          className="block w-full p-3 text-left font-medium text-slate-900 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                          ariaLabel={`Registrar manutenção de bateria da frota ${r.frota_numero ?? r.placa ?? "selecionada"}`}
+                        >
+                          {r.frota_numero ?? "—"}
+                        </RegistrarServicoTrigger>
+                      </td>
                       <td className="p-3 font-mono text-xs text-slate-700">{r.placa ?? "—"}</td>
                       <td className="p-3 text-xs text-slate-500">{r.setor ?? "—"}</td>
                       <td className="p-3 text-xs text-slate-600 tabular-nums">{r.data_compra ?? "—"}</td>
@@ -168,6 +207,7 @@ export default async function BateriaPage() {
           </div>
         </div>
       </section>
+      </RegistrarServicoDialogProvider>
     </div>
   );
 }

@@ -1,10 +1,14 @@
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Plus } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listTacografoPorFrota } from "@/lib/repos/tacografo";
 import { formatCalendarDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
-import { RegistrarServicoForm } from "@/components/manutencao/registrar-servico-form";
+import {
+  RegistrarServicoDialogProvider,
+  RegistrarServicoTrigger,
+} from "@/components/manutencao/registrar-servico-dialog";
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
 import { reportCalendarDate } from "@/lib/report-date";
 
@@ -42,6 +46,7 @@ export default async function TacografoPage() {
     sem_registro: frotas.filter((f) => f.status === "SEM_REGISTRO").length,
     em_dia: frotas.filter((f) => f.status === "EM_DIA").length,
   };
+  const veiculoPorCodigo = new Map(veiculos.map((veiculo) => [veiculo.codigo_frota, veiculo]));
 
   return (
     <div className="space-y-5">
@@ -53,12 +58,19 @@ export default async function TacografoPage() {
         severity="ATENCAO"
       />
 
-      <RegistrarServicoForm
+      <ServiceNavigation compact />
+
+      <RegistrarServicoDialogProvider
         veiculos={veiculos}
         today={reportCalendarDate()}
         fixedType="tacografo"
         serviceLabel="Tacógrafo"
-      />
+      >
+      <div className="flex justify-end">
+        <RegistrarServicoTrigger className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+          <Plus className="h-4 w-4" /> Registrar tacógrafo
+        </RegistrarServicoTrigger>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
@@ -92,7 +104,15 @@ export default async function TacografoPage() {
                 key={f.veiculo_id}
                 className="border-b odd:bg-white even:bg-slate-50/60 last:border-0"
               >
-                <td className="p-3 font-medium">{f.frota_geral ?? String(f.veiculo_id)}</td>
+                <td className="p-0">
+                  <RegistrarServicoTrigger
+                    vehicle={veiculoPorCodigo.get(f.frota_geral ?? "")}
+                    className="block w-full p-3 text-left font-medium hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                    ariaLabel={`Registrar tacógrafo da frota ${f.frota_geral ?? String(f.veiculo_id)}`}
+                  >
+                    {f.frota_geral ?? String(f.veiculo_id)}
+                  </RegistrarServicoTrigger>
+                </td>
                 <td className="p-3">{f.placa ?? "—"}</td>
                 <td className="p-3 text-muted-foreground">{f.localizacao ?? "—"}</td>
                 <td className="p-3">{formatCalendarDate(f.data_servico)}</td>
@@ -129,6 +149,7 @@ export default async function TacografoPage() {
           </tbody>
         </table>
       </div>
+      </RegistrarServicoDialogProvider>
     </div>
   );
 }
