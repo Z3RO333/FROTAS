@@ -17,10 +17,21 @@ import {
 import { validateAggregateFileSize, validatePdfFile } from "@/lib/upload-validation";
 import { publicActionError } from "@/lib/public-error";
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const optionalDate = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null))
+  .refine((v) => v === null || DATE_RE.test(v), { message: "Data inválida" });
+
 const DocumentSchema = z.object({
   frota: z.string().trim().min(1, "Frota obrigatória"),
   placa: z.string().trim().min(1, "Placa obrigatória"),
   modelo: z.string().trim().min(1, "Modelo obrigatório"),
+  dut_vencimento: optionalDate,
+  crlv_vencimento: optionalDate,
 });
 
 export type DocumentActionResult = { ok: true } | { ok: false; error: string };
@@ -56,6 +67,8 @@ export async function createDocumentAction(formData: FormData): Promise<Document
           placa,
           dut_url: replacement.dut_url,
           crlv_url: replacement.crlv_url,
+          dut_vencimento: input.dut_vencimento,
+          crlv_vencimento: input.crlv_vencimento,
         });
       } catch (error) {
         await removeDocumentFiles(replacement.uploadedPaths).catch((cleanupError) => {
@@ -164,6 +177,8 @@ function readDocumentFields(formData: FormData) {
     frota: String(formData.get("frota") ?? ""),
     placa: String(formData.get("placa") ?? ""),
     modelo: String(formData.get("modelo") ?? ""),
+    dut_vencimento: formData.get("dut_vencimento") ? String(formData.get("dut_vencimento")) : null,
+    crlv_vencimento: formData.get("crlv_vencimento") ? String(formData.get("crlv_vencimento")) : null,
   };
 }
 

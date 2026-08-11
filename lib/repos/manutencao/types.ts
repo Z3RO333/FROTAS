@@ -80,6 +80,8 @@ export interface DocumentRecord {
   modelo: string;
   dut_url: string | null;
   crlv_url: string | null;
+  dut_vencimento: string | null;
+  crlv_vencimento: string | null;
   created_at: string;
   created_by: string | null;
   updated_at?: string | null;

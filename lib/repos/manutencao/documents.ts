@@ -9,6 +9,8 @@ const SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 15;
 export type DocumentUpsertInput = Pick<DocumentRecord, "frota" | "placa" | "modelo"> & {
   dut_url?: string | null;
   crlv_url?: string | null;
+  dut_vencimento?: string | null;
+  crlv_vencimento?: string | null;
 };
 
 export async function listDocuments(filters: {

@@ -298,20 +298,65 @@ export async function getManutencao(tipoServico?: string): Promise<ManutencaoRow
   return rows;
 }
 
-export async function getDocumentos(tipo?: string): Promise<DocumentoRow[]> {
-  let query = supabaseManutencao
-    .from("fact_documentos_frota")
-    .select("equipamento,placa,frota_numero,tipo_documento,data_vencimento,dias_passados,status,link_documento,localizacao")
-    .order("status", { nullsFirst: false })
-    .order("dias_passados", { ascending: false });
-  if (tipo) {
-    query = query.eq("tipo_documento", tipo);
-  } else {
-    query = query.neq("tipo_documento", "TACOGRAFO");
-  }
-  const { data, error } = await query.limit(500);
+// Fonte única de vencimento: a tabela `documents` (mesma que alimenta a Central de
+// Documentos em /documentos). Antes lia de fact_documentos_frota, uma tabela alimentada
+// por importação manual de planilha Excel, totalmente desconectada dos uploads feitos
+// pelo usuário — atualizar um documento na Central nunca refletia aqui.
+function statusDocumento(vencimento: string | null): { status: string | null; diasPassados: number | null } {
+  if (!vencimento) return { status: null, diasPassados: null };
+  const dias = Math.round((Date.now() - new Date(`${vencimento}T00:00:00`).getTime()) / 86400000);
+  return { status: dias > 0 ? "VENCIDO" : "NO_PRAZO", diasPassados: dias > 0 ? dias : 0 };
+}
+
+export async function getDocumentos(tipo?: "DUT" | "CRLV"): Promise<DocumentoRow[]> {
+  const { data: docs, error } = await supabaseManutencao
+    .from("documents")
+    .select("frota,placa,dut_vencimento,crlv_vencimento");
   if (error) throw new Error(`getDocumentos: ${error.message}`);
-  return (data ?? []) as DocumentoRow[];
+
+  const { data: veiculos, error: veiculosError } = await supabaseManutencao
+    .from("veiculos")
+    .select("codigo_frota,local");
+  if (veiculosError) throw new Error(`getDocumentos veiculos: ${veiculosError.message}`);
+  const localPorFrota = new Map((veiculos ?? []).map((v) => [v.codigo_frota, v.local]));
+
+  const rows: DocumentoRow[] = [];
+  for (const doc of docs ?? []) {
+    const localizacao = localPorFrota.get(doc.frota) ?? null;
+    if (!tipo || tipo === "DUT") {
+      const { status, diasPassados } = statusDocumento(doc.dut_vencimento);
+      rows.push({
+        equipamento: null,
+        placa: doc.placa,
+        frota_numero: doc.frota,
+        tipo_documento: "DUT",
+        data_vencimento: doc.dut_vencimento,
+        dias_passados: diasPassados,
+        status,
+        link_documento: null,
+        localizacao,
+      });
+    }
+    if (!tipo || tipo === "CRLV") {
+      const { status, diasPassados } = statusDocumento(doc.crlv_vencimento);
+      rows.push({
+        equipamento: null,
+        placa: doc.placa,
+        frota_numero: doc.frota,
+        tipo_documento: "CRLV",
+        data_vencimento: doc.crlv_vencimento,
+        dias_passados: diasPassados,
+        status,
+        link_documento: null,
+        localizacao,
+      });
+    }
+  }
+
+  return rows.sort((a, b) => {
+    if (a.status !== b.status) return a.status === "VENCIDO" ? -1 : 1;
+    return (b.dias_passados ?? 0) - (a.dias_passados ?? 0);
+  });
 }
 
 export async function getDisponibilidade(dias = 60): Promise<DisponibilidadeRow[]> {
