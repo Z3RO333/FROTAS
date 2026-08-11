@@ -45,7 +45,7 @@ export default async function PlanejamentoPage() {
             value={k.docs_vencidos}
             icon={FileText}
             severity="CRITICO"
-            href="/planejamento/documentos"
+            href="/documentos"
             hint="Tacógrafo, CRLV, DUT"
           />
           <MetricCard
