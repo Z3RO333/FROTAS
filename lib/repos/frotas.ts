@@ -14,6 +14,7 @@ export type Frota = {
   renavam: string | null;
   ano_fabricacao: number | null;
   localizacao: string | null;
+  setor: string | null;
   km_atual: number | null;
   qtd_pneus: number | null;
   status: StatusFrota | null;
@@ -59,6 +60,7 @@ type VeiculoRow = {
   renavam: string | null;
   ano_fabricacao: number | null;
   local: string | null;
+  setor: string | null;
   km_atual: number | null;
   qtd_pneus: number | null;
   status: StatusFrota | null;
@@ -136,13 +138,14 @@ export type FrotaInput = {
   renavam?: string | null;
   ano_fabricacao?: number | null;
   localizacao?: string | null;
+  setor?: string | null;
   km_atual?: number | null;
   qtd_pneus?: number | null;
   status?: StatusFrota | null;
   observacoes?: string | null;
 };
 
-const TRACKED_FIELDS = ["chassi", "km_atual", "status", "observacoes", "localizacao"] as const;
+const TRACKED_FIELDS = ["chassi", "km_atual", "status", "observacoes", "localizacao", "setor"] as const;
 const WRITABLE_FIELDS = [
   "frota_geral",
   "placa",
@@ -151,6 +154,7 @@ const WRITABLE_FIELDS = [
   "renavam",
   "ano_fabricacao",
   "localizacao",
+  "setor",
   "km_atual",
   "qtd_pneus",
   "status",
@@ -167,6 +171,7 @@ function fromVeiculo(row: VeiculoRow): Frota {
     renavam: row.renavam,
     ano_fabricacao: row.ano_fabricacao != null ? Number(row.ano_fabricacao) : null,
     localizacao: row.local,
+    setor: row.setor,
     km_atual: row.km_atual != null ? Number(row.km_atual) : null,
     qtd_pneus: row.qtd_pneus != null ? Number(row.qtd_pneus) : null,
     status: row.status,
@@ -227,6 +232,7 @@ function toVeiculoInput(input: Partial<FrotaInput>, userEmail?: string): Record<
   if (input.renavam !== undefined) out.renavam = input.renavam;
   if (input.ano_fabricacao !== undefined) out.ano_fabricacao = input.ano_fabricacao;
   if (input.localizacao !== undefined) out.local = input.localizacao;
+  if (input.setor !== undefined) out.setor = input.setor;
   if (input.km_atual !== undefined) out.km_atual = input.km_atual;
   if (input.qtd_pneus !== undefined) out.qtd_pneus = input.qtd_pneus;
   if (input.status !== undefined) out.status = input.status;
@@ -287,11 +293,11 @@ function analyticsCache<T>(key: string, ttlMs: number, fn: () => Promise<T>): Pr
 
 // Colunas mínimas para cálculos derivados (condition/operacional/cadastroIncompleto)
 const COLS_MINIMAL =
-  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,ultimo_checklist_em,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,setor,ano_fabricacao,km_atual,status,vendido,ativo,status_operacional,ultimo_checklist_em,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_bloqueia_checklist";
 
 // Colunas para listagem (inclui campos exibidos na tabela, exclui combustivel/arla/km_meta)
 const COLS_LIST =
-  "id,codigo_frota,placa,modelo,chassi,renavam,local,ano_fabricacao,km_atual,status,status_operacional,vendido,ativo,updated_at,atualizado_por,ultimo_checklist_em,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_bloqueia_checklist,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_iniciado_por";
+  "id,codigo_frota,placa,modelo,chassi,renavam,local,setor,ano_fabricacao,km_atual,status,status_operacional,vendido,ativo,updated_at,atualizado_por,ultimo_checklist_em,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_bloqueia_checklist,manutencao_prev_retorno,manutencao_iniciado_em,manutencao_iniciado_por";
 
 // Mantida para compatibilidade com kpis() e funções de analytics internas
 async function allFrotas(): Promise<Frota[]> {
@@ -518,6 +524,18 @@ export async function localizacoesDistintas(): Promise<string[]> {
     .not("local", "is", null)
     .order("local");
   return [...new Set((data ?? []).map((r: { local: string | null }) => r.local).filter(Boolean) as string[])];
+}
+
+export async function setoresDistintos(): Promise<string[]> {
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("setor")
+    .eq("ativo", true)
+    .eq("vendido", false)
+    .not("setor", "is", null)
+    .order("setor");
+  if (error) throw new Error(`setoresDistintos: ${error.message}`);
+  return [...new Set((data ?? []).map((row: { setor: string | null }) => row.setor).filter(Boolean) as string[])];
 }
 
 export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {

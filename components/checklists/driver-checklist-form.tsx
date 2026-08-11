@@ -361,7 +361,8 @@ export function DriverChecklistForm({
               <div className="mt-0.5 text-sm text-muted-foreground">
                 Frota: <strong>{selected.frota_geral ?? selected.id}</strong>
                 {" - "}Placa: <strong>{selected.placa ?? "-"}</strong>
-                {selected.localizacao ? ` - Setor: ${selected.localizacao}` : ""}
+                {selected.localizacao ? ` - Local: ${selected.localizacao}` : ""}
+                {selected.setor ? ` - Setor: ${selected.setor}` : ""}
               </div>
             </div>
             <Button type="button" onClick={() => setStep(1)} className="w-full shrink-0 sm:w-auto">

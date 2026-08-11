@@ -6,6 +6,7 @@ import {
   kpis,
   localizacoesDistintas,
   modelosDistintos,
+  setoresDistintos,
   statusBreakdown,
 } from "@/lib/repos/frotas";
 
@@ -21,6 +22,15 @@ export const modelosDistintosCached = unstable_cache(
 export const localizacoesDistintasCached = unstable_cache(
   async () => localizacoesDistintas(),
   ["frotas:localizacoes"],
+  {
+    revalidate: 600,
+    tags: ["frotas:filters"],
+  }
+);
+
+export const setoresDistintosCached = unstable_cache(
+  async () => setoresDistintos(),
+  ["frotas:setores"],
   {
     revalidate: 600,
     tags: ["frotas:filters"],

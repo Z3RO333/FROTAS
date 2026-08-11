@@ -25,16 +25,19 @@ type Props = {
   initial?: Partial<Frota>;
   action: (state: FrotaActionState, formData: FormData) => Promise<FrotaActionState>;
   submitLabel: string;
+  localizacoes: string[];
   setores: string[];
 };
 
-export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
+export function FrotaForm({ initial, action, submitLabel, localizacoes, setores }: Props) {
   const [state, formAction] = useActionState(action, FROTA_ACTION_INITIAL_STATE);
   const isCreate = !initial?.id;
   const value = (name: string, fallback: React.InputHTMLAttributes<HTMLInputElement>["defaultValue"]) =>
     state.values[name] ?? fallback;
   const localizacaoAtual = String(value("localizacao", initial?.localizacao ?? ""));
-  const opcoesSetores = [...new Set(localizacaoAtual ? [localizacaoAtual, ...setores] : setores)];
+  const setorAtual = String(value("setor", initial?.setor ?? ""));
+  const opcoesLocalizacoes = [...new Set(localizacaoAtual ? [localizacaoAtual, ...localizacoes] : localizacoes)];
+  const opcoesSetores = [...new Set(setorAtual ? [setorAtual, ...setores] : setores)];
 
   return (
     <form key={state.attempt} action={formAction} className="grid max-w-3xl gap-4 md:grid-cols-2">
@@ -67,11 +70,11 @@ export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
         invalid={state.field === "ano_fabricacao"}
       />
       <div className="space-y-1.5">
-        <Label htmlFor="localizacao">Localização/Setor</Label>
+        <Label htmlFor="localizacao">Localização / CD</Label>
         <select
           id="localizacao"
           name="localizacao"
-          aria-label="Localização/Setor"
+          aria-label="Localização ou CD"
           defaultValue={localizacaoAtual}
           aria-invalid={state.field === "localizacao" || undefined}
           className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
@@ -79,14 +82,30 @@ export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
           }`}
         >
           <option value="">Selecione...</option>
-          {opcoesSetores.map((setor) => (
-            <option key={setor} value={setor}>
-              {setor}
+          {opcoesLocalizacoes.map((localizacao) => (
+            <option key={localizacao} value={localizacao}>
+              {localizacao}
             </option>
           ))}
         </select>
       </div>
       <Field label="Km atual" name="km_atual" type="number" defaultValue={value("km_atual", initial?.km_atual ?? "")} invalid={state.field === "km_atual"} />
+
+      <div className="space-y-1.5">
+        <Label htmlFor="setor">Setor</Label>
+        <Input
+          id="setor"
+          name="setor"
+          list="setores-frota"
+          defaultValue={setorAtual}
+          placeholder="Ex: Transporte, Oficina, Expedição"
+          aria-invalid={state.field === "setor" || undefined}
+          className={state.field === "setor" ? "border-red-400 focus-visible:ring-red-500" : undefined}
+        />
+        <datalist id="setores-frota">
+          {opcoesSetores.map((setor) => <option key={setor} value={setor} />)}
+        </datalist>
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="qtd_pneus">Quantidade de pneus{isCreate ? " *" : ""}</Label>

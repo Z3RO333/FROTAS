@@ -2,7 +2,7 @@ import { FileText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
 import { listEmailSchedules } from "@/lib/repos/email-schedule";
-import { localizacoesDistintas } from "@/lib/repos/frotas";
+import { setoresDistintos } from "@/lib/repos/frotas";
 import { createScheduleAction } from "./_actions";
 import { ScheduleForm } from "./ScheduleForm";
 import { ScheduleRow } from "./ScheduleRow";
@@ -18,7 +18,7 @@ export default async function EmailsPage({
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
   const sp = await searchParams;
-  const [schedules, setoresDisponiveis] = await Promise.all([listEmailSchedules(), localizacoesDistintas()]);
+  const [schedules, setoresDisponiveis] = await Promise.all([listEmailSchedules(), setoresDistintos()]);
 
   return (
     <div className="space-y-6">

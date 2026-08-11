@@ -58,7 +58,8 @@ export default async function MotoristaHomePage() {
                 <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <Info label="Modelo" value={frota.modelo} />
                   <Info label="Placa" value={frota.placa} />
-                  <Info label="Setor" value={frota.localizacao} />
+                  <Info label="Localização" value={frota.localizacao} />
+                  <Info label="Setor" value={frota.setor} />
                   <Info label="Último KM" value={formatNumber(frota.km_atual)} />
                 </div>
               </Link>

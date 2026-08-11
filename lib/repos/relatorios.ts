@@ -45,6 +45,7 @@ export type FrotaResumoChecklist = {
   frota_geral: string | null;
   placa: string | null;
   localizacao: string | null;
+  setor: string | null;
 };
 
 function frotaSortKey(f: { frota_geral: string | null; placa: string | null; frota_id: number }): [string, string] {
@@ -67,7 +68,7 @@ function compareFrotaKeys(a: [string, string], b: [string, string]): number {
 }
 
 export function splitFrotasPorChecklist(
-  frotasAtivas: { id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[],
+  frotasAtivas: { id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[],
   frotaIdsComChecklist: number[]
 ): { fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] } {
   const comChecklist = new Set(frotaIdsComChecklist);
@@ -80,6 +81,7 @@ export function splitFrotasPorChecklist(
       frota_geral: frota.frota_geral,
       placa: frota.placa,
       localizacao: frota.localizacao,
+      setor: frota.setor,
     };
     if (comChecklist.has(frota.id)) fizeram.push(resumo);
     else naoFizeram.push(resumo);
@@ -306,17 +308,17 @@ export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
   return Promise.all(promises);
 }
 
-export function filtraPorSetores<T extends { localizacao: string | null }>(frotas: T[], setores?: string[]): T[] {
+export function filtraPorSetores<T extends { setor: string | null }>(frotas: T[], setores?: string[]): T[] {
   if (!setores || setores.length === 0) return frotas;
   const alvo = new Set(setores.map((s) => s.trim().toUpperCase()));
-  return frotas.filter((f) => f.localizacao && alvo.has(f.localizacao.trim().toUpperCase()));
+  return frotas.filter((f) => f.setor && alvo.has(f.setor.trim().toUpperCase()));
 }
 
 async function getFrotaIdsEscopo(setores?: string[]): Promise<Set<number> | null> {
   if (!setores || setores.length === 0) return null;
   const frotas = await listFrotasForReport();
   const escopo = filtraPorSetores(
-    frotas.map((f) => ({ id: f.id, localizacao: f.localizacao })),
+    frotas.map((f) => ({ id: f.id, setor: f.setor })),
     setores
   );
   return new Set(escopo.map((f) => f.id));
@@ -379,7 +381,7 @@ export async function getFrotasComSemChecklistNoDia(
   ]);
 
   const frotasEscopo = filtraPorSetores(
-    frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa, localizacao: f.localizacao })),
+    frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa, localizacao: f.localizacao, setor: f.setor })),
     setores
   );
 

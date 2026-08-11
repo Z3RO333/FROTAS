@@ -72,7 +72,7 @@ export function FrotaInfo({ frota }: { frota: Frota }) {
           <Field label="Ano de fabricação" value={frota.ano_fabricacao} />
           <Field label="Idade" value={idade != null ? `${idade} ano(s)` : null} />
           <Field label="CD" value={normalizeCdNome(frota.localizacao)} />
-          <Field label="Setor" value={frota.localizacao} />
+          <Field label="Setor" value={frota.setor} />
           <Field label="Km atual" value={formatNumber(frota.km_atual)} />
           <Field label="Última atualização" value={atualizado || null} />
           <div className="md:col-span-3">

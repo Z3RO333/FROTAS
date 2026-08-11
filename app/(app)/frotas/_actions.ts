@@ -21,6 +21,7 @@ const FrotaSchema = z.object({
   renavam: z.string().trim().optional().nullable(),
   ano_fabricacao: z.coerce.number().int().min(1900).max(2100).optional().nullable(),
   localizacao: z.string().trim().optional().nullable(),
+  setor: z.string().trim().max(120).optional().nullable(),
   km_atual: z.coerce.number().int().min(0).optional().nullable(),
   qtd_pneus: z.coerce.number().int().min(0).optional().nullable(),
   status: StatusEnum.optional().nullable(),
@@ -62,7 +63,7 @@ type RelatorioActionResult = { ok: true } | { ok: false; error: string };
 
 export type FrotaActionState = {
   error: string | null;
-  field?: "frota_geral" | "placa" | "modelo" | "chassi" | "renavam" | "ano_fabricacao" | "localizacao" | "km_atual" | "qtd_pneus" | "observacoes";
+  field?: "frota_geral" | "placa" | "modelo" | "chassi" | "renavam" | "ano_fabricacao" | "localizacao" | "setor" | "km_atual" | "qtd_pneus" | "observacoes";
   values: Record<string, string>;
   attempt: number;
 };

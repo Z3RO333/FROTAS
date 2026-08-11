@@ -474,6 +474,7 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
             ${row("Ano de fabricação", frota.ano_fabricacao)}
             ${row("Idade", idade != null ? `${idade} ano(s)` : null)}
             ${row("Localização", frota.localizacao)}
+            ${row("Setor", frota.setor)}
             ${row("Km atual", frota.km_atual?.toLocaleString("pt-BR"))}
             ${row("Status operacional", STATUS_OPERACIONAL_LABELS[status])}
             ${row("Condição", CONDICAO_LABELS[condicao])}
@@ -488,8 +489,8 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
 export type RelatorioOperacionalDiarioInput = {
   totalChecklists: number;
   totalApontamentos: number;
-  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[];
-  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[];
+  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[];
+  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[];
   pendenciasPorFrota: {
     frota_id: number;
     frota_geral: string | null;
@@ -513,7 +514,7 @@ function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string;
 
 function frotasChecklistTable(
   titulo: string,
-  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null }[],
+  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[],
   vazioMsg: string
 ): string {
   const linhas = frotas
@@ -522,7 +523,7 @@ function frotasChecklistTable(
       return `<tr style="background:${bg};">
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.frota_id)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.localizacao)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.setor)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${escapeHtml(normalizeCdNome(f.localizacao))}</td>
       </tr>`;
     })
@@ -537,7 +538,7 @@ function frotasChecklistTable(
       <thead><tr style="background:${BLUE};color:#ffffff;">
         <th style="padding:10px 8px;text-align:left;">Frota</th>
         <th style="padding:10px 8px;text-align:left;">Placa</th>
-        <th style="padding:10px 8px;text-align:left;">Localização</th>
+        <th style="padding:10px 8px;text-align:left;">Setor</th>
         <th style="padding:10px 8px;text-align:left;">CD</th>
       </tr></thead>
       <tbody>${corpo}</tbody>
