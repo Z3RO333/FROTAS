@@ -4,6 +4,7 @@ import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
+import { CDS_OPERACIONAIS } from "@/lib/cds";
 
 export type Frota = {
   id: number;
@@ -529,13 +530,26 @@ export async function localizacoesDistintas(): Promise<string[]> {
 export async function setoresDistintos(): Promise<string[]> {
   const { data, error } = await supabaseManutencao
     .from("veiculos")
-    .select("setor")
+    .select("setor,local")
     .eq("ativo", true)
     .eq("vendido", false)
-    .not("setor", "is", null)
-    .order("setor");
+    .order("setor", { nullsFirst: false });
   if (error) throw new Error(`setoresDistintos: ${error.message}`);
-  return [...new Set((data ?? []).map((row: { setor: string | null }) => row.setor).filter(Boolean) as string[])];
+
+  const cdsOficiais = new Set(CDS_OPERACIONAIS.map((cd) => cd.trim().toLocaleUpperCase("pt-BR")));
+  const setores = new Set<string>();
+  for (const row of (data ?? []) as Array<{ setor: string | null; local: string | null }>) {
+    const setor = row.setor?.trim();
+    if (setor) setores.add(setor);
+
+    const legado = row.local?.trim();
+    if (!legado) continue;
+    const legadoNormalizado = legado.toLocaleUpperCase("pt-BR");
+    const registroDeVenda = /^(VENDA|VENDID|DESCARACTERIZAD)/.test(legadoNormalizado);
+    if (!cdsOficiais.has(legadoNormalizado) && !registroDeVenda) setores.add(legado);
+  }
+
+  return [...setores].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 export async function statusBreakdown(): Promise<{ status: string; total: number }[]> {
