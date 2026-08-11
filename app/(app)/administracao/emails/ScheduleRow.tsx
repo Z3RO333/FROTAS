@@ -67,6 +67,11 @@ export function ScheduleRow({
     run("remover", () => deleteScheduleAction(schedule.id));
   }
 
+  const totalDestinatarios = new Set([
+    ...schedule.destinatarios,
+    ...Object.values(schedule.destinatarios_por_setor ?? {}).flat(),
+  ]).size;
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 shadow-sm">
       <div className="flex-1 min-w-0">
@@ -81,7 +86,8 @@ export function ScheduleRow({
           </Badge>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          {schedule.frequencia} · {schedule.hora_envio} · {schedule.destinatarios.length} destinatário(s)
+          {schedule.frequencia} · {schedule.hora_envio} · {totalDestinatarios} destinatário(s)
+          {schedule.setores_incluidos.length > 0 ? ` · ${schedule.setores_incluidos.length} setor(es) vinculado(s)` : ""}
           {schedule.ultimo_envio
             ? ` · Último envio: ${new Date(schedule.ultimo_envio).toLocaleDateString("pt-BR")}`
             : ""}
