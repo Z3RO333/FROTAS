@@ -11,7 +11,7 @@ export function normalizeCdNome(value: string | null | undefined): string {
   const normalized = withoutAccents.replace(/\s+/g, " ").trim().toUpperCase();
 
   if (normalized === "CD TARUMA" || normalized === "CD TARUMA - AM" || normalized === "TARUMA") {
-    return "CD Taruma";
+    return "CD Tarumã";
   }
 
   if (normalized.startsWith("MANUTENCAO")) return "Manutenção";

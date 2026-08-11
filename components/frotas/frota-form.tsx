@@ -25,13 +25,16 @@ type Props = {
   initial?: Partial<Frota>;
   action: (state: FrotaActionState, formData: FormData) => Promise<FrotaActionState>;
   submitLabel: string;
+  setores: string[];
 };
 
-export function FrotaForm({ initial, action, submitLabel }: Props) {
+export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
   const [state, formAction] = useActionState(action, FROTA_ACTION_INITIAL_STATE);
   const isCreate = !initial?.id;
   const value = (name: string, fallback: React.InputHTMLAttributes<HTMLInputElement>["defaultValue"]) =>
     state.values[name] ?? fallback;
+  const localizacaoAtual = String(value("localizacao", initial?.localizacao ?? ""));
+  const opcoesSetores = [...new Set(localizacaoAtual ? [localizacaoAtual, ...setores] : setores)];
 
   return (
     <form key={state.attempt} action={formAction} className="grid max-w-3xl gap-4 md:grid-cols-2">
@@ -63,7 +66,26 @@ export function FrotaForm({ initial, action, submitLabel }: Props) {
         defaultValue={value("ano_fabricacao", initial?.ano_fabricacao ?? "")}
         invalid={state.field === "ano_fabricacao"}
       />
-      <Field label="Localização/Setor" name="localizacao" defaultValue={value("localizacao", initial?.localizacao ?? "")} invalid={state.field === "localizacao"} />
+      <div className="space-y-1.5">
+        <Label htmlFor="localizacao">Localização/Setor</Label>
+        <select
+          id="localizacao"
+          name="localizacao"
+          aria-label="Localização/Setor"
+          defaultValue={localizacaoAtual}
+          aria-invalid={state.field === "localizacao" || undefined}
+          className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            state.field === "localizacao" ? "border-red-400 focus-visible:ring-red-500" : "border-input"
+          }`}
+        >
+          <option value="">Selecione...</option>
+          {opcoesSetores.map((setor) => (
+            <option key={setor} value={setor}>
+              {setor}
+            </option>
+          ))}
+        </select>
+      </div>
       <Field label="Km atual" name="km_atual" type="number" defaultValue={value("km_atual", initial?.km_atual ?? "")} invalid={state.field === "km_atual"} />
 
       <div className="space-y-1.5">

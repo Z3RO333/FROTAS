@@ -77,11 +77,9 @@ function localizacaoOptions(): string[] {
 
 export function FrotasTable({
   rows,
-  localizacoes = [],
   updateLocalizacaoAction,
 }: {
   rows: Frota[];
-  localizacoes?: string[];
   updateLocalizacaoAction?: UpdateLocalizacaoAction;
 }) {
   const [selected, setSelected] = useState<Frota | null>(null);
@@ -136,7 +134,6 @@ export function FrotasTable({
               <FrotaRow
                 key={f.id}
                 frota={f}
-                localizacoes={localizacoes}
                 updateLocalizacaoAction={updateLocalizacaoAction}
                 onOpen={() => openDrawer(f)}
               />
@@ -150,7 +147,6 @@ export function FrotasTable({
           <FrotaDrawer
             frota={selected}
             tab={tab}
-            localizacoes={localizacoes}
             updateLocalizacaoAction={updateLocalizacaoAction}
             onTabChange={setTab}
           />
@@ -162,12 +158,10 @@ export function FrotasTable({
 
 function FrotaRow({
   frota,
-  localizacoes,
   updateLocalizacaoAction,
   onOpen,
 }: {
   frota: Frota;
-  localizacoes: string[];
   updateLocalizacaoAction?: UpdateLocalizacaoAction;
   onOpen: () => void;
 }) {
@@ -200,12 +194,7 @@ function FrotaRow({
       </TableCell>
       <TableCell className="min-w-[240px]" onClick={(event) => event.stopPropagation()}>
         {updateLocalizacaoAction ? (
-          <LocalizacaoSelectForm
-            frota={frota}
-            localizacoes={localizacoes}
-            action={updateLocalizacaoAction}
-            compact
-          />
+          <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} compact />
         ) : (
           <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
         )}
@@ -312,19 +301,19 @@ function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }
 
 function LocalizacaoSelectForm({
   frota,
-  localizacoes,
   action,
   compact = false,
 }: {
   frota: Frota;
-  localizacoes: string[];
   action: UpdateLocalizacaoAction;
   compact?: boolean;
 }) {
-  const options = [...new Set([...localizacaoOptions(), ...localizacoes])];
+  const options = localizacaoOptions();
+  const normalizado = normalizeCdNome(frota.localizacao);
 
   return (
     <form
+      key={`${frota.id}-${normalizado}`}
       action={action}
       className={compact ? "flex min-w-[220px] items-center gap-1" : "flex flex-col gap-2 sm:flex-row"}
       onClick={(event) => event.stopPropagation()}
@@ -332,7 +321,7 @@ function LocalizacaoSelectForm({
       <input type="hidden" name="id" value={frota.id} />
       <select
         name="localizacao"
-        defaultValue={normalizeCdNome(frota.localizacao) === "Sem CD" ? "" : normalizeCdNome(frota.localizacao)}
+        defaultValue={normalizado === "Sem CD" ? "" : normalizado}
         aria-label="CD ou localização da frota"
         className={
           compact
@@ -360,13 +349,11 @@ function LocalizacaoSelectForm({
 function FrotaDrawer({
   frota,
   tab,
-  localizacoes,
   updateLocalizacaoAction,
   onTabChange,
 }: {
   frota: Frota;
   tab: Tab;
-  localizacoes: string[];
   updateLocalizacaoAction?: UpdateLocalizacaoAction;
   onTabChange: (tab: Tab) => void;
 }) {
@@ -420,11 +407,7 @@ function FrotaDrawer({
 
       <div className="flex-1 overflow-y-auto p-5">
         {tab === "Resumo" ? (
-          <ResumoTab
-            frota={frota}
-            localizacoes={localizacoes}
-            updateLocalizacaoAction={updateLocalizacaoAction}
-          />
+          <ResumoTab frota={frota} updateLocalizacaoAction={updateLocalizacaoAction} />
         ) : null}
         {tab === "Cadastro" ? <CadastroTab frota={frota} /> : null}
         {tab === "KM" ? <KmTab frota={frota} /> : null}
@@ -466,11 +449,9 @@ function FrotaDrawer({
 
 function ResumoTab({
   frota,
-  localizacoes,
   updateLocalizacaoAction,
 }: {
   frota: Frota;
-  localizacoes: string[];
   updateLocalizacaoAction?: UpdateLocalizacaoAction;
 }) {
   const motivos = motivosAtencao(frota);
@@ -482,11 +463,7 @@ function ResumoTab({
           <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
             Trocar CD / localização
           </div>
-          <LocalizacaoSelectForm
-            frota={frota}
-            localizacoes={localizacoes}
-            action={updateLocalizacaoAction}
-          />
+          <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} />
         </div>
       ) : null}
       <InfoGrid>
