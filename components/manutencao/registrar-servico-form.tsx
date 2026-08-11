@@ -27,6 +27,83 @@ const PREVENTIVAS: Array<{ value: TipoServico; label: string }> = [
   { value: "tacografo", label: "Tacógrafo" },
 ];
 
+const SERVICE_FORM_CONFIG: Partial<Record<TipoServico, {
+  dateLabel: string;
+  description: string;
+  showKm: boolean;
+  requireKm?: boolean;
+  observationLabel: string;
+  observationPlaceholder: string;
+}>> = {
+  lavagem: {
+    dateLabel: "Data da lavagem",
+    description: "Registre quando a lavagem foi realizada. A próxima data será calculada automaticamente.",
+    showKm: true,
+    observationLabel: "Observação da lavagem",
+    observationPlaceholder: "Ex.: lavagem completa, higienização interna...",
+  },
+  alinhamento: {
+    dateLabel: "Data do alinhamento",
+    description: "Informe a quilometragem do alinhamento para calcular o próximo serviço.",
+    showKm: true,
+    requireKm: true,
+    observationLabel: "Detalhes do alinhamento",
+    observationPlaceholder: "Ex.: alinhamento dianteiro, oficina responsável...",
+  },
+  balanceamento: {
+    dateLabel: "Data do balanceamento",
+    description: "Informe a quilometragem do balanceamento para calcular o próximo serviço.",
+    showKm: true,
+    requireKm: true,
+    observationLabel: "Detalhes do balanceamento",
+    observationPlaceholder: "Ex.: rodas atendidas, oficina responsável...",
+  },
+  motor: {
+    dateLabel: "Data da preventiva",
+    description: "A quilometragem é necessária para programar a próxima preventiva do motor.",
+    showKm: true,
+    requireKm: true,
+    observationLabel: "Serviços executados",
+    observationPlaceholder: "Ex.: óleo, filtros, correias...",
+  },
+  suspensao: {
+    dateLabel: "Data do serviço",
+    description: "Informe a quilometragem para acompanhar o próximo serviço de suspensão.",
+    showKm: true,
+    requireKm: true,
+    observationLabel: "Serviços executados",
+    observationPlaceholder: "Ex.: buchas, amortecedores, pivôs...",
+  },
+  "ar-condicionado": {
+    dateLabel: "Data da manutenção",
+    description: "Registre a manutenção do sistema de climatização e o serviço executado.",
+    showKm: false,
+    observationLabel: "Serviços executados",
+    observationPlaceholder: "Ex.: higienização, carga de gás, troca de filtro...",
+  },
+  embreagem: {
+    dateLabel: "Data da manutenção",
+    description: "Registre a intervenção realizada no conjunto de embreagem.",
+    showKm: true,
+    observationLabel: "Serviços executados",
+    observationPlaceholder: "Ex.: troca do kit, regulagem, diagnóstico...",
+  },
+  portas_rool_up: {
+    dateLabel: "Data da manutenção",
+    description: "Registre a preventiva ou o reparo realizado na porta Roll-Up.",
+    showKm: false,
+    observationLabel: "Serviços executados",
+    observationPlaceholder: "Ex.: lubrificação, mola, trava, alinhamento...",
+  },
+  tacografo: {
+    dateLabel: "Data da aferição",
+    description: "Registre a aferição do tacógrafo para calcular o próximo vencimento.",
+    showKm: false,
+    observationLabel: "Certificado ou observação",
+    observationPlaceholder: "Ex.: número do certificado, empresa responsável...",
+  },
+};
+
 function SubmitButton({ label, compact = false }: { label: string; compact?: boolean }) {
   const { pending } = useFormStatus();
   return (
@@ -72,6 +149,7 @@ export function RegistrarServicoForm({
 
   const isLavagem = fixedType === "lavagem";
   const fixedLabel = serviceLabel ?? (isLavagem ? "Lavagem" : "Serviço");
+  const formConfig = fixedType ? SERVICE_FORM_CONFIG[fixedType] : undefined;
   const feedback = state.ok ? state.mensagem : state.error;
   const blockedFrota = state.ok && state.bloqueouFrota && state.frotaId && state.frotaLabel && !released
     ? { id: state.frotaId, label: state.frotaLabel }
@@ -86,9 +164,7 @@ export function RegistrarServicoForm({
           </h2>
         )}
         <p className="mt-0.5 text-sm text-slate-600">
-          {isLavagem
-            ? "Preencha os dados da lavagem. A próxima data será calculada automaticamente."
-            : "Preencha os dados do serviço para colocar a frota em manutenção."}
+          {formConfig?.description ?? "Preencha os dados do serviço para colocar a frota em manutenção."}
         </p>
       </div>
 
@@ -181,18 +257,34 @@ export function RegistrarServicoForm({
         )}
 
         <div className={cn("space-y-1.5", variant === "panel" && "lg:col-span-2")}>
-          <Label htmlFor="data_servico">Data do serviço *</Label>
+          <Label htmlFor="data_servico">{formConfig?.dateLabel ?? "Data do serviço"} *</Label>
           <Input id="data_servico" name="data_servico" type="date" required max={today} defaultValue={today} />
         </div>
 
-        <div className={cn("space-y-1.5", variant === "panel" && "lg:col-span-2")}>
-          <Label htmlFor="quilometragem">KM</Label>
-          <Input id="quilometragem" name="quilometragem" type="number" min={0} step={1} inputMode="numeric" placeholder="Opcional" />
-        </div>
+        {(formConfig?.showKm ?? true) && (
+          <div className={cn("space-y-1.5", variant === "panel" && "lg:col-span-2")}>
+            <Label htmlFor="quilometragem">Quilometragem {formConfig?.requireKm ? "*" : ""}</Label>
+            <Input
+              id="quilometragem"
+              name="quilometragem"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              required={formConfig?.requireKm}
+              placeholder={formConfig?.requireKm ? "Informe o KM atual" : "Opcional"}
+            />
+          </div>
+        )}
 
         <div className={cn("space-y-1.5", variant === "dialog" ? "sm:col-span-2" : "lg:col-span-3")}>
-          <Label htmlFor="observacoes">Observação</Label>
-          <Input id="observacoes" name="observacoes" maxLength={1000} placeholder="Opcional" />
+          <Label htmlFor="observacoes">{formConfig?.observationLabel ?? "Observação"}</Label>
+          <Input
+            id="observacoes"
+            name="observacoes"
+            maxLength={1000}
+            placeholder={formConfig?.observationPlaceholder ?? "Opcional"}
+          />
         </div>
 
         <SubmitButton

@@ -3,9 +3,9 @@ import { getBateria } from "@/lib/repos/planejamento";
 import { listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
 import { reportCalendarDate } from "@/lib/report-date";
 import {
-  RegistrarServicoDialogProvider,
-  RegistrarServicoTrigger,
-} from "@/components/manutencao/registrar-servico-dialog";
+  RegistrarBateriaDialogProvider,
+  RegistrarBateriaTrigger,
+} from "@/components/manutencao/registrar-bateria-dialog";
 import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
@@ -80,11 +80,9 @@ export default async function BateriaPage() {
         />
       </MetricGrid>
 
-      <RegistrarServicoDialogProvider
+      <RegistrarBateriaDialogProvider
         veiculos={veiculos}
         today={reportCalendarDate()}
-        fixedType="bateria"
-        serviceLabel="Bateria"
       >
       <section className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -95,9 +93,9 @@ export default async function BateriaPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-500">Clique na frota para enviar o veículo à manutenção de bateria.</p>
           </div>
-          <RegistrarServicoTrigger className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
-            <Plus className="h-4 w-4" /> Registrar bateria
-          </RegistrarServicoTrigger>
+          <RegistrarBateriaTrigger className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700">
+            <Plus className="h-4 w-4" /> Registrar troca
+          </RegistrarBateriaTrigger>
         </div>
 
         {/* Cards mobile */}
@@ -115,13 +113,14 @@ export default async function BateriaPage() {
                   r.data_compra ? borderColor : "border-l-slate-300"
                 )}
               >
-                <RegistrarServicoTrigger
+                <RegistrarBateriaTrigger
                   vehicle={veiculoPorCodigo.get(r.frota_numero ?? "")}
+                  currentBattery={r}
                   className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                   ariaLabel={`Registrar manutenção de bateria da frota ${r.frota_numero ?? r.placa ?? "selecionada"}`}
                 >
                   <span className="sr-only">Registrar manutenção de bateria</span>
-                </RegistrarServicoTrigger>
+                </RegistrarBateriaTrigger>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -178,13 +177,14 @@ export default async function BateriaPage() {
                   return (
                     <tr key={`br-${i}`} className="transition-colors hover:bg-blue-50/40">
                       <td className="p-0">
-                        <RegistrarServicoTrigger
+                        <RegistrarBateriaTrigger
                           vehicle={veiculoPorCodigo.get(r.frota_numero ?? "")}
+                          currentBattery={r}
                           className="block w-full p-3 text-left font-medium text-slate-900 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
                           ariaLabel={`Registrar manutenção de bateria da frota ${r.frota_numero ?? r.placa ?? "selecionada"}`}
                         >
                           {r.frota_numero ?? "—"}
-                        </RegistrarServicoTrigger>
+                        </RegistrarBateriaTrigger>
                       </td>
                       <td className="p-3 font-mono text-xs text-slate-700">{r.placa ?? "—"}</td>
                       <td className="p-3 text-xs text-slate-500">{r.setor ?? "—"}</td>
@@ -207,7 +207,7 @@ export default async function BateriaPage() {
           </div>
         </div>
       </section>
-      </RegistrarServicoDialogProvider>
+      </RegistrarBateriaDialogProvider>
     </div>
   );
 }

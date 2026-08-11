@@ -18,6 +18,13 @@ const ServicoSchema = z.object({
   observacoes: z.string().trim().max(1000).optional(),
 });
 
+const SERVICOS_COM_KM_OBRIGATORIO = new Set([
+  "alinhamento",
+  "balanceamento",
+  "motor",
+  "suspensao",
+]);
+
 export type RegistrarServicoState =
   | { ok: true; mensagem: string; frotaId?: number; frotaLabel?: string; bloqueouFrota?: boolean }
   | { ok: false; error: string };
@@ -32,7 +39,6 @@ const SERVICO_META: Record<string, { label: string; destino: DestinoManutencao }
   embreagem: { label: "Embreagem", destino: "PREVENTIVA" },
   portas_rool_up: { label: "Porta Roll-Up", destino: "PREVENTIVA" },
   tacografo: { label: "Tacógrafo", destino: "TACOGRAFO" },
-  bateria: { label: "Bateria", destino: "OUTRO" },
 };
 
 export async function registrarServicoAction(
@@ -55,6 +61,9 @@ export async function registrarServicoAction(
     }
     if (parsed.data.data_servico > reportCalendarDate()) {
       return { ok: false, error: "A data realizada não pode estar no futuro." };
+    }
+    if (SERVICOS_COM_KM_OBRIGATORIO.has(parsed.data.tipo_servico) && parsed.data.quilometragem == null) {
+      return { ok: false, error: "Informe a quilometragem para calcular o próximo serviço." };
     }
 
     const meta = SERVICO_META[parsed.data.tipo_servico];
@@ -94,7 +103,6 @@ export async function registrarServicoAction(
     revalidatePath("/manutencao");
     revalidatePath("/planejamento");
     revalidatePath("/planejamento/lavagem");
-    revalidatePath("/planejamento/bateria");
     revalidatePath("/planejamento/manutencao");
     revalidatePath("/frotas");
     revalidatePath(`/frotas/${veiculo.id}`);
