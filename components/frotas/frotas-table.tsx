@@ -122,6 +122,7 @@ export function FrotasTable({
               <TableHead>Modelo</TableHead>
               <TableHead>Ano / Idade</TableHead>
               <TableHead>Localização</TableHead>
+              <TableHead>Setor</TableHead>
               <TableHead className="text-right">KM</TableHead>
               <TableHead>Status operacional</TableHead>
               <TableHead>Condição</TableHead>
@@ -199,6 +200,7 @@ function FrotaRow({
           <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
         )}
       </TableCell>
+      <TableCell className="max-w-[180px] truncate">{frota.setor ?? <EmptyValue />}</TableCell>
       <TableCell className="text-right tabular-nums">{formatNumber(frota.km_atual)}</TableCell>
       <TableCell>
         <div className="flex flex-col items-start gap-1">
@@ -291,6 +293,7 @@ function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
         <MiniMetric icon={<MapPin className="h-4 w-4" />} label="Local" value={frota.localizacao ?? "-"} />
+        <MiniMetric icon={<MapPin className="h-4 w-4" />} label="Setor" value={frota.setor ?? "-"} />
         <MiniMetric icon={<Gauge className="h-4 w-4" />} label="KM" value={formatNumber(frota.km_atual)} />
         <MiniMetric icon={<CalendarClock className="h-4 w-4" />} label="Idade" value={idade != null ? `${idade} ano(s)` : "-"} />
         <MiniMetric icon={<FileText className="h-4 w-4" />} label="Atualização" value={formatDate(frota.atualizado_em) ?? "-"} />
@@ -468,6 +471,7 @@ function ResumoTab({
       ) : null}
       <InfoGrid>
         <Field label="Localização" value={frota.localizacao} />
+        <Field label="Setor" value={frota.setor} />
         <Field label="Status operacional" value={STATUS_OPERACIONAL_LABELS[statusOperacional(frota)]} />
         <Field label="Condição" value={CONDICAO_LABELS[condicaoFrota(frota)]} />
         <Field label="Última atualização" value={formatDate(frota.atualizado_em)} />
@@ -501,6 +505,8 @@ function CadastroTab({ frota }: { frota: Frota }) {
       <Field label="Renavam" value={frota.renavam} />
       <Field label="Modelo / Marca" value={frota.modelo} />
       <Field label="Ano de fabricação" value={frota.ano_fabricacao} />
+      <Field label="Localização / CD" value={frota.localizacao} />
+      <Field label="Setor" value={frota.setor} />
       <Field label="Cadastro" value={cadastroIncompleto(frota) ? "Incompleto" : "Completo"} />
       <Field label="Atualizado por" value={frota.atualizado_por} />
     </InfoGrid>

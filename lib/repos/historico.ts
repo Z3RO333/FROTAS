@@ -305,6 +305,7 @@ function labelCampo(campo: string): string {
     chassi: "Chassi",
     observacoes: "Observacoes",
     localizacao: "Localizacao",
+    setor: "Setor",
   };
   return labels[campo] ?? campo;
 }

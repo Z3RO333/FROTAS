@@ -275,6 +275,7 @@ export default async function FrotaDetailPage({
   const heroDescription = [
     frota.placa ? `Placa ${frota.placa}` : null,
     frota.localizacao,
+    frota.setor ? `Setor ${frota.setor}` : null,
     frota.ano_fabricacao ? `${frota.ano_fabricacao} (${idadeFrota ?? "—"} anos)` : null,
   ]
     .filter(Boolean)

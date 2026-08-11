@@ -16,6 +16,7 @@ function frota(overrides: Partial<Frota> = {}): Frota {
     renavam: null,
     ano_fabricacao: null,
     localizacao: null,
+    setor: null,
     km_atual: 20_000,
     qtd_pneus: null,
     status: "disponivel",

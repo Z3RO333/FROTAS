@@ -17,9 +17,9 @@ import {
 describe("splitFrotasPorChecklist", () => {
   it("separates active fleets into fizeram/naoFizeram based on checklist frota ids", () => {
     const frotasAtivas = [
-      { id: 1, frota_geral: "10", placa: "AAA-0001", localizacao: "CD Manaus" },
-      { id: 2, frota_geral: "20", placa: "BBB-0002", localizacao: "CD Manaus" },
-      { id: 3, frota_geral: "5", placa: "CCC-0003", localizacao: "CD Manaus" },
+      { id: 1, frota_geral: "10", placa: "AAA-0001", localizacao: "CD Manaus", setor: "Expedição" },
+      { id: 2, frota_geral: "20", placa: "BBB-0002", localizacao: "CD Manaus", setor: "Expedição" },
+      { id: 3, frota_geral: "5", placa: "CCC-0003", localizacao: "CD Manaus", setor: "Transporte" },
     ];
 
     const result = splitFrotasPorChecklist(frotasAtivas, [2, 2, 3]);
@@ -30,9 +30,9 @@ describe("splitFrotasPorChecklist", () => {
 
   it("sorts each group alphabetically by frota_geral, falling back to placa then id", () => {
     const frotasAtivas = [
-      { id: 1, frota_geral: null, placa: "ZZZ-0001", localizacao: null },
-      { id: 2, frota_geral: "B", placa: null, localizacao: null },
-      { id: 3, frota_geral: "A", placa: null, localizacao: null },
+      { id: 1, frota_geral: null, placa: "ZZZ-0001", localizacao: null, setor: null },
+      { id: 2, frota_geral: "B", placa: null, localizacao: null, setor: null },
+      { id: 3, frota_geral: "A", placa: null, localizacao: null, setor: null },
     ];
 
     const result = splitFrotasPorChecklist(frotasAtivas, []);
@@ -41,7 +41,7 @@ describe("splitFrotasPorChecklist", () => {
   });
 
   it("returns fizeram empty when no checklist ids match", () => {
-    const frotasAtivas = [{ id: 1, frota_geral: "1", placa: null, localizacao: null }];
+    const frotasAtivas = [{ id: 1, frota_geral: "1", placa: null, localizacao: null, setor: null }];
 
     const result = splitFrotasPorChecklist(frotasAtivas, []);
 
@@ -134,10 +134,10 @@ describe("extrairObservacoesValidas", () => {
 
 describe("filtraPorSetores", () => {
   const frotas = [
-    { frota_id: 1, localizacao: "EXPEDIÇÃO MANAUS" },
-    { frota_id: 2, localizacao: "MARKETPLACE" },
-    { frota_id: 3, localizacao: "CD TURISMO/ MERCADO" },
-    { frota_id: 4, localizacao: null },
+    { frota_id: 1, setor: "EXPEDIÇÃO MANAUS" },
+    { frota_id: 2, setor: "MARKETPLACE" },
+    { frota_id: 3, setor: "CD TURISMO/ MERCADO" },
+    { frota_id: 4, setor: null },
   ];
 
   it("returns all fleets unchanged when setores is undefined or empty", () => {
@@ -145,7 +145,7 @@ describe("filtraPorSetores", () => {
     expect(filtraPorSetores(frotas, [])).toEqual(frotas);
   });
 
-  it("keeps only fleets whose localizacao matches one of the given setores", () => {
+  it("keeps only fleets whose setor matches one of the given setores", () => {
     const result = filtraPorSetores(frotas, ["MARKETPLACE", "CD TURISMO/ MERCADO"]);
     expect(result.map((f) => f.frota_id)).toEqual([2, 3]);
   });
@@ -155,7 +155,7 @@ describe("filtraPorSetores", () => {
     expect(result.map((f) => f.frota_id)).toEqual([2]);
   });
 
-  it("excludes fleets with null localizacao when a setor filter is active", () => {
+  it("excludes fleets with null setor when a setor filter is active", () => {
     const result = filtraPorSetores(frotas, ["EXPEDIÇÃO MANAUS"]);
     expect(result.some((f) => f.frota_id === 4)).toBe(false);
   });
