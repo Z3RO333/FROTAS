@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { FrotaForm } from "@/components/frotas/frota-form";
 import { DeleteFrotaButton } from "@/components/frotas/delete-frota-button";
 import { getFrota } from "@/lib/repos/frotas";
+import { localizacoesDistintasCached } from "@/lib/repos/frotas-cache";
 import { requireGestorUser } from "@/lib/rbac";
 import { editarFrotaAction } from "../../_actions";
 
@@ -21,6 +22,7 @@ export default async function EditarFrotaPage({
   const frota = await getFrota(frotaId);
   if (!frota) notFound();
 
+  const setores = await localizacoesDistintasCached();
   const boundAction = editarFrotaAction.bind(null, frotaId);
 
   return (
@@ -32,7 +34,7 @@ export default async function EditarFrotaPage({
         </div>
         <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
       </div>
-      <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alterações" />
+      <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alterações" setores={setores} />
     </div>
   );
 }

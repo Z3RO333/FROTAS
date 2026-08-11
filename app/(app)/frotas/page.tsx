@@ -130,11 +130,7 @@ export default async function FrotasPage({
           />
         </MetricGrid>
       )}
-      <FrotasTable
-        rows={rows}
-        localizacoes={localizacoes}
-        updateLocalizacaoAction={atualizarLocalizacaoFrotaAction}
-      />
+      <FrotasTable rows={rows} updateLocalizacaoAction={atualizarLocalizacaoFrotaAction} />
       <PagePagination page={page} totalPages={totalPages} href={(value) => pageHref(sp, value)} />
     </div>
   );
