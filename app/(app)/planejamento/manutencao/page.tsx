@@ -20,6 +20,7 @@ import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SEVERITY, severityFromStatus } from "@/lib/design/tokens";
 import { cn } from "@/lib/utils";
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,8 @@ export default async function ManutencaoPage() {
           hint="Nunca tiveram data lançada"
         />
       </MetricGrid>
+
+      <ServiceNavigation />
 
       {/* Cards por tipo de serviço */}
       <section className="space-y-3">

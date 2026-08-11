@@ -1,5 +1,7 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { safePostgrestTerm } from "@/lib/postgrest-filter";
+import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
+import { reportCalendarDate } from "@/lib/report-date";
 
 export type PlanejamentoOverview = {
   docs_vencidos: number;
@@ -72,6 +74,10 @@ export type LavagemRow = {
   frota_numero: string | null;
   setor: string | null;
   data_realizada: string | null;
+  proxima_data: string | null;
+  intervalo_dias: number;
+  quilometragem: number | null;
+  observacoes: string | null;
   atraso_dias: number | null;
   status: string | null;
 };
@@ -110,18 +116,18 @@ export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
   const [docs, manut, lavagem, pneus, estepes, kit, disp] = await Promise.all([
     supabaseManutencao.from("fact_documentos_frota").select("status,tipo_documento").neq("tipo_documento", "TACOGRAFO"),
     supabaseManutencao.from("fact_manutencao_programada").select("status"),
-    supabaseManutencao.from("fact_lavagem").select("atraso_dias"),
+    getLavagem(),
     supabaseManutencao.from("fact_pneus").select("id", { count: "exact", head: true }),
     supabaseManutencao.from("fact_estepes").select("tem_estepe"),
     supabaseManutencao.from("fact_kit_seguranca").select("triangulo_ok,extintor_ok,macaco_ok,chave_roda_ok"),
     supabaseManutencao.from("fact_disponibilidade_diaria").select("disponibilidade,meta").order("data", { ascending: false }).limit(1),
   ]);
-  const overviewError = docs.error ?? manut.error ?? lavagem.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
+  const overviewError = docs.error ?? manut.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
   if (overviewError) throw new Error(`getPlanejamentoOverview: ${overviewError.message}`);
 
   const docsRows = (docs.data ?? []) as Array<{ status: string | null; tipo_documento: string | null }>;
   const manutRows = (manut.data ?? []) as Array<{ status: string | null }>;
-  const lavRows = (lavagem.data ?? []) as Array<{ atraso_dias: number | null }>;
+  const lavRows = lavagem;
   const estRows = (estepes.data ?? []) as Array<{ tem_estepe: boolean | null }>;
   const kitRows = (kit.data ?? []) as Array<{ triangulo_ok: boolean | null; extintor_ok: boolean | null; macaco_ok: boolean | null; chave_roda_ok: boolean | null }>;
   const dispRow = (disp.data ?? [])[0] as { disponibilidade: number | null; meta: number | null } | undefined;
@@ -147,9 +153,134 @@ export async function getManutencao(tipoServico?: string): Promise<ManutencaoRow
     .order("tipo_servico")
     .order("status", { nullsFirst: false });
   if (tipoServico) query = query.eq("tipo_servico", tipoServico);
-  const { data, error } = await query.limit(500);
+  type OverlayVehicle = {
+    codigo_frota: string;
+    placa: string | null;
+    equipamento: string | null;
+    local: string | null;
+    km_atual: number | null;
+    intervalo_alinhamento_km: number | null;
+    intervalo_suspensao_km: number | null;
+    intervalo_arcondicionado_dias: number | null;
+    intervalo_tacografo_dias: number | null;
+    intervalo_portas_rool_up_dias: number | null;
+    intervalo_embreagem_dias: number | null;
+    intervalo_motor_km: number | null;
+  };
+  type OverlayService = {
+    id_veiculo: string;
+    tipo_servico: string;
+    data_servico: string;
+    quilometragem: number | null;
+  };
+
+  const serviceTypeMap: Record<string, string> = {
+    "ar-condicionado": "AR_CONDICIONADO",
+    alinhamento: "ALINHAMENTO",
+    motor: "PREVENTIVA_MOTOR",
+    embreagem: "EMBREAGEM",
+    tacografo: "TACOGRAFO",
+    portas_rool_up: "PORTA_ROOL_UP",
+    suspensao: "SUSPENSAO",
+  };
+  const appTypes = Object.entries(serviceTypeMap)
+    .filter(([, factType]) => !tipoServico || factType === tipoServico)
+    .map(([appType]) => appType);
+
+  const [factResult, serviceResult, vehicleResult] = await Promise.all([
+    query.limit(500),
+    supabaseManutencao
+      .from("servicos_app")
+      .select("id_veiculo,tipo_servico,data_servico,quilometragem")
+      .in("tipo_servico", appTypes)
+      .order("data_servico", { ascending: false })
+      .limit(2000),
+    supabaseManutencao
+      .from("veiculos")
+      .select("codigo_frota,placa,equipamento,local,km_atual,intervalo_alinhamento_km,intervalo_suspensao_km,intervalo_arcondicionado_dias,intervalo_tacografo_dias,intervalo_portas_rool_up_dias,intervalo_embreagem_dias,intervalo_motor_km")
+      .eq("ativo", true)
+      .eq("vendido", false),
+  ]);
+  const error = factResult.error ?? serviceResult.error ?? vehicleResult.error;
   if (error) throw new Error(`getManutencao: ${error.message}`);
-  return (data ?? []) as ManutencaoRow[];
+
+  const vehicles = new Map(
+    ((vehicleResult.data ?? []) as OverlayVehicle[]).map((vehicle) => [vehicle.codigo_frota, vehicle])
+  );
+  const latestServices = new Map<string, OverlayService>();
+  for (const service of (serviceResult.data ?? []) as OverlayService[]) {
+    const factType = serviceTypeMap[service.tipo_servico];
+    const key = `${service.id_veiculo}:${factType}`;
+    if (factType && !latestServices.has(key)) latestServices.set(key, service);
+  }
+
+  const today = reportCalendarDate();
+  const applyService = (row: ManutencaoRow, service: OverlayService, vehicle?: OverlayVehicle): ManutencaoRow => {
+    const type = row.tipo_servico;
+    const kmConfig: Record<string, [keyof OverlayVehicle, number]> = {
+      ALINHAMENTO: ["intervalo_alinhamento_km", 10_000],
+      PREVENTIVA_MOTOR: ["intervalo_motor_km", 20_000],
+      SUSPENSAO: ["intervalo_suspensao_km", 5_000],
+    };
+    const dayConfig: Record<string, [keyof OverlayVehicle, number]> = {
+      AR_CONDICIONADO: ["intervalo_arcondicionado_dias", 365],
+      EMBREAGEM: ["intervalo_embreagem_dias", 365],
+      TACOGRAFO: ["intervalo_tacografo_dias", 180],
+      PORTA_ROOL_UP: ["intervalo_portas_rool_up_dias", 60],
+    };
+
+    let status: string | null = null;
+    let desvio: number | null = null;
+    let interval: number | null = null;
+    if (kmConfig[type]) {
+      const [field, fallback] = kmConfig[type];
+      interval = Number(vehicle?.[field] ?? fallback);
+      if (service.quilometragem != null && vehicle?.km_atual != null) {
+        desvio = service.quilometragem + interval - vehicle.km_atual;
+        status = desvio < 0 ? "VENCIDO" : "NO_PRAZO";
+      }
+    } else if (dayConfig[type]) {
+      const [field, fallback] = dayConfig[type];
+      interval = Number(vehicle?.[field] ?? fallback);
+      const schedule = calculateDateSchedule(service.data_servico, interval, today);
+      status = schedule.status;
+      desvio = schedule.status === "VENCIDO" ? -schedule.overdueDays : null;
+    }
+
+    return {
+      ...row,
+      data_realizada: calendarDate(service.data_servico),
+      media_intervalo: interval,
+      desvio,
+      status,
+    };
+  };
+
+  const rows = ((factResult.data ?? []) as ManutencaoRow[]).map((row) => {
+    const key = `${row.frota_numero}:${row.tipo_servico}`;
+    const service = latestServices.get(key);
+    if (!service || (row.data_realizada && calendarDate(service.data_servico)! < row.data_realizada)) return row;
+    latestServices.delete(key);
+    return applyService(row, service, row.frota_numero ? vehicles.get(row.frota_numero) : undefined);
+  });
+
+  for (const [key, service] of latestServices) {
+    const factType = key.slice(key.lastIndexOf(":") + 1);
+    const vehicle = vehicles.get(service.id_veiculo);
+    rows.push(applyService({
+      equipamento: vehicle?.equipamento ?? null,
+      placa: vehicle?.placa ?? null,
+      frota_numero: service.id_veiculo,
+      setor: vehicle?.local ?? null,
+      tipo_servico: factType,
+      data_realizada: null,
+      media_intervalo: null,
+      desvio: null,
+      status: null,
+    }, service, vehicle));
+  }
+
+  return rows;
 }
 
 export async function getDocumentos(tipo?: string): Promise<DocumentoRow[]> {
@@ -249,13 +380,96 @@ export async function getPneus(): Promise<PneuRow[]> {
 }
 
 export async function getLavagem(): Promise<LavagemRow[]> {
-  const { data, error } = await supabaseManutencao
-    .from("fact_lavagem")
-    .select("equipamento,placa,frota_numero,setor,data_realizada,atraso_dias,status")
-    .order("atraso_dias", { ascending: false })
-    .limit(300);
+  type VeiculoLavagem = {
+    codigo_frota: string;
+    placa: string | null;
+    equipamento: string | null;
+    local: string | null;
+    intervalo_lavagem_dias: number | null;
+  };
+  type ServicoLavagem = {
+    id_veiculo: string;
+    data_servico: string;
+    quilometragem: number | null;
+    observacoes: string | null;
+  };
+  type LavagemLegada = {
+    equipamento: string | null;
+    placa: string | null;
+    frota_numero: string | null;
+    setor: string | null;
+    data_realizada: string | null;
+    intervalo_dias: number | null;
+  };
+
+  const [veiculosResult, servicosResult, legadoResult] = await Promise.all([
+    supabaseManutencao
+      .from("veiculos")
+      .select("codigo_frota,placa,equipamento,local,intervalo_lavagem_dias")
+      .eq("ativo", true)
+      .eq("vendido", false)
+      .order("codigo_frota"),
+    supabaseManutencao
+      .from("servicos_app")
+      .select("id_veiculo,data_servico,quilometragem,observacoes")
+      .eq("tipo_servico", "lavagem")
+      .order("data_servico", { ascending: false })
+      .limit(1000),
+    supabaseManutencao
+      .from("fact_lavagem")
+      .select("equipamento,placa,frota_numero,setor,data_realizada,intervalo_dias")
+      .order("data_realizada", { ascending: false })
+      .limit(1000),
+  ]);
+
+  const error = veiculosResult.error ?? servicosResult.error ?? legadoResult.error;
   if (error) throw new Error(`getLavagem: ${error.message}`);
-  return (data ?? []) as LavagemRow[];
+
+  const servicoPorFrota = new Map<string, ServicoLavagem>();
+  for (const row of (servicosResult.data ?? []) as ServicoLavagem[]) {
+    if (!servicoPorFrota.has(row.id_veiculo)) servicoPorFrota.set(row.id_veiculo, row);
+  }
+
+  const legadoPorFrota = new Map<string, LavagemLegada>();
+  for (const row of (legadoResult.data ?? []) as LavagemLegada[]) {
+    for (const key of [row.frota_numero, row.equipamento, row.placa]) {
+      if (key && !legadoPorFrota.has(key)) legadoPorFrota.set(key, row);
+    }
+  }
+
+  const today = reportCalendarDate();
+  const rows: LavagemRow[] = ((veiculosResult.data ?? []) as VeiculoLavagem[]).map((veiculo) => {
+    const app = servicoPorFrota.get(veiculo.codigo_frota);
+    const legacy = legadoPorFrota.get(veiculo.codigo_frota)
+      ?? (veiculo.equipamento ? legadoPorFrota.get(veiculo.equipamento) : undefined)
+      ?? (veiculo.placa ? legadoPorFrota.get(veiculo.placa) : undefined);
+    const appDate = calendarDate(app?.data_servico);
+    const legacyDate = calendarDate(legacy?.data_realizada);
+    const useApp = Boolean(appDate && (!legacyDate || appDate >= legacyDate));
+    const performedDate = useApp ? appDate : legacyDate;
+    const interval = veiculo.intervalo_lavagem_dias ?? legacy?.intervalo_dias ?? 30;
+    const schedule = calculateDateSchedule(performedDate, interval, today);
+
+    return {
+      equipamento: veiculo.equipamento,
+      placa: veiculo.placa,
+      frota_numero: veiculo.codigo_frota,
+      setor: veiculo.local,
+      data_realizada: performedDate,
+      proxima_data: schedule.nextDate,
+      intervalo_dias: interval,
+      quilometragem: useApp ? app?.quilometragem ?? null : null,
+      observacoes: useApp ? app?.observacoes ?? null : null,
+      atraso_dias: schedule.overdueDays,
+      status: schedule.status,
+    };
+  });
+
+  return rows.sort((a, b) => {
+    if (!a.data_realizada && b.data_realizada) return -1;
+    if (a.data_realizada && !b.data_realizada) return 1;
+    return (b.atraso_dias ?? 0) - (a.atraso_dias ?? 0);
+  });
 }
 
 export async function getKitSeguranca(): Promise<KitSegurancaRow[]> {

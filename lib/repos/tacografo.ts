@@ -61,6 +61,15 @@ export async function listTacografoPorFrota(): Promise<TacografoVeiculo[]> {
     .order("data_servico", { ascending: false });
   if (historicoError) throw new Error(`listTacografoPorFrota historico: ${historicoError.message}`);
 
+  const codigos = veiculos.map((v) => v.codigo_frota).filter(Boolean);
+  const { data: servicos, error: servicosError } = await supabaseManutencao
+    .from("servicos_app")
+    .select("id_veiculo,data_servico")
+    .eq("tipo_servico", "tacografo")
+    .in("id_veiculo", codigos)
+    .order("data_servico", { ascending: false });
+  if (servicosError) throw new Error(`listTacografoPorFrota serviços: ${servicosError.message}`);
+
   const ultimoPorVeiculo = new Map<number, { data_servico: string; data_proxima: string | null }>();
   for (const h of historico ?? []) {
     if (!ultimoPorVeiculo.has(Number(h.veiculo_id))) {
@@ -71,10 +80,21 @@ export async function listTacografoPorFrota(): Promise<TacografoVeiculo[]> {
     }
   }
 
+  const ultimoServicoPorFrota = new Map<string, string>();
+  for (const servico of servicos ?? []) {
+    if (!ultimoServicoPorFrota.has(servico.id_veiculo)) {
+      ultimoServicoPorFrota.set(servico.id_veiculo, servico.data_servico.slice(0, 10));
+    }
+  }
+
   const hoje = Date.now();
   return veiculos.map((v) => {
     const vid = Number(v.id);
-    const ult = ultimoPorVeiculo.get(vid) ?? null;
+    const historicoAnterior = ultimoPorVeiculo.get(vid) ?? null;
+    const dataServicoApp = ultimoServicoPorFrota.get(v.codigo_frota);
+    const ult = dataServicoApp && (!historicoAnterior || dataServicoApp >= historicoAnterior.data_servico.slice(0, 10))
+      ? { data_servico: dataServicoApp, data_proxima: null }
+      : historicoAnterior;
     const proxima =
       ult?.data_proxima ??
       (ult

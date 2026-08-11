@@ -1,12 +1,25 @@
 import { requireAppUser, canAccessManutencao } from "@/lib/rbac";
 import { listServicosRecentes, SERVICO_CONFIG } from "@/lib/repos/manutencao/servicos";
 import { redirect } from "next/navigation";
-import { Wrench } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+const SERVICO_HREF: Record<string, string> = {
+  alinhamento: "/planejamento/manutencao/alinhamento",
+  balanceamento: "/planejamento/manutencao/balanceamento",
+  lavagem: "/planejamento/lavagem",
+  "ar-condicionado": "/planejamento/manutencao/ar-condicionado",
+  tacografo: "/planejamento/manutencao/tacografo",
+  portas_rool_up: "/planejamento/manutencao/porta-roll-up",
+  embreagem: "/planejamento/manutencao/embreagem",
+  motor: "/planejamento/manutencao/preventiva-motor",
+  suspensao: "/planejamento/manutencao/suspensao",
+};
 
 export default async function ManutencaoPage() {
   const user = await requireAppUser();
@@ -23,15 +36,22 @@ export default async function ManutencaoPage() {
       <PageHeader
         eyebrow="Manutenção"
         title="Radar de Serviços"
-        description="Histórico recente por tipo de serviço e últimos 100 atendimentos."
+        description="Escolha um serviço para enviar a frota à manutenção, registrar a execução e consultar o histórico."
         icon={Wrench}
         severity="MANUTENCAO"
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {porTipo.map((cfg) => (
-          <section key={cfg.id} className="rounded-md border bg-white p-4 shadow-sm">
-            <h2 className="mb-3 font-semibold">{cfg.label}</h2>
+          <Link
+            key={cfg.id}
+            href={SERVICO_HREF[cfg.id] ?? "/manutencao"}
+            className="group rounded-xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold text-slate-950">{cfg.label}</h2>
+              <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-blue-600" />
+            </div>
             {cfg.recentes.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem registros recentes.</p>
             ) : (
@@ -44,7 +64,8 @@ export default async function ManutencaoPage() {
                 ))}
               </ul>
             )}
-          </section>
+            <p className="mt-4 text-xs font-medium text-blue-700">Abrir página e enviar frota</p>
+          </Link>
         ))}
       </div>
 
