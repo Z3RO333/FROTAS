@@ -1,9 +1,12 @@
 import { ClipboardCheck } from "lucide-react";
 import { requireAppUser } from "@/lib/rbac";
 import { listTacografoPorFrota } from "@/lib/repos/tacografo";
-import { formatDate } from "@/lib/utils";
+import { formatCalendarDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { RegistrarServicoForm } from "@/components/manutencao/registrar-servico-form";
+import { listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
+import { reportCalendarDate } from "@/lib/report-date";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +26,10 @@ const STATUS_LABEL = {
 
 export default async function TacografoPage() {
   await requireAppUser();
-  const frotas = await listTacografoPorFrota();
+  const [frotas, veiculos] = await Promise.all([
+    listTacografoPorFrota(),
+    listVeiculosParaServico(),
+  ]);
 
   const ordenado = [...frotas].sort((a, b) => {
     const order = { VENCIDO: 0, PROXIMO_VENCIMENTO: 1, SEM_REGISTRO: 2, EM_DIA: 3 };
@@ -45,6 +51,13 @@ export default async function TacografoPage() {
         description={`${frotas.length} frotas monitoradas.`}
         icon={ClipboardCheck}
         severity="ATENCAO"
+      />
+
+      <RegistrarServicoForm
+        veiculos={veiculos}
+        today={reportCalendarDate()}
+        fixedType="tacografo"
+        serviceLabel="Tacógrafo"
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -82,9 +95,9 @@ export default async function TacografoPage() {
                 <td className="p-3 font-medium">{f.frota_geral ?? String(f.veiculo_id)}</td>
                 <td className="p-3">{f.placa ?? "—"}</td>
                 <td className="p-3 text-muted-foreground">{f.localizacao ?? "—"}</td>
-                <td className="p-3">{f.data_servico ? formatDate(f.data_servico) : "—"}</td>
+                <td className="p-3">{formatCalendarDate(f.data_servico)}</td>
                 <td className="p-3">
-                  <div className="font-medium">{f.data_proxima ? formatDate(f.data_proxima) : "—"}</div>
+                  <div className="font-medium">{formatCalendarDate(f.data_proxima)}</div>
                   {f.dias_para_vencer != null && (
                     <div className={`mt-0.5 text-xs font-semibold ${
                       f.dias_para_vencer < 0

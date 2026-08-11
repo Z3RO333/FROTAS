@@ -14,3 +14,9 @@ export function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("pt-BR");
 }
+
+export function formatCalendarDate(date: string | null | undefined): string {
+  if (!date) return "—";
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : formatDate(date);
+}

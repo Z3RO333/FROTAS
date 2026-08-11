@@ -124,14 +124,13 @@ export function EnviarManutencaoDialog({
             >
               <option value="">Selecione o destino (opcional)</option>
               <option value="OFICINA">Oficina</option>
-              <option value="LAVAGEM">Lavagem</option>
               <option value="PREVENTIVA">Manutenção preventiva</option>
               <option value="CORRETIVA">Manutenção corretiva</option>
-              <option value="ALINHAMENTO">Alinhamento</option>
-              <option value="AR_CONDICIONADO">Ar-condicionado</option>
-              <option value="TACOGRAFO">Tacógrafo</option>
               <option value="OUTRO">Outro destino</option>
             </select>
+            <p className="text-xs text-muted-foreground">
+              Lavagem, alinhamento e serviços rápidos são registrados diretamente na página de cada serviço.
+            </p>
           </div>
 
           <div className="space-y-1.5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
@@ -24,6 +24,7 @@ type Props = {
   frotaId: number;
   frotaLabel: string;
   size?: "sm" | "default";
+  onSuccess?: () => void;
 };
 
 const MANUTENCAO_INITIAL_STATE: ManutencaoActionState = {
@@ -40,13 +41,21 @@ function SubmitButton() {
   );
 }
 
-export function RetornarOperacaoDialog({ frotaId, frotaLabel, size = "default" }: Props) {
+export function RetornarOperacaoDialog({ frotaId, frotaLabel, size = "default", onSuccess }: Props) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(retornarOperacaoAction, MANUTENCAO_INITIAL_STATE);
+  const onSuccessRef = useRef(onSuccess);
   const temBloqueios = !state.ok && state.bloqueios && state.bloqueios.length > 0;
 
   useEffect(() => {
-    if (state.ok && state.mensagem) setOpen(false);
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
+
+  useEffect(() => {
+    if (state.ok && state.mensagem) {
+      setOpen(false);
+      onSuccessRef.current?.();
+    }
   }, [state]);
 
   return (
