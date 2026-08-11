@@ -208,8 +208,10 @@ export async function sendRelatorioOperacionalDiario(args: {
   enviadoPor?: string;
   scheduleId?: number | null;
   anexarResumoPdf?: boolean;
+  contextoAssunto?: string;
 }): Promise<SendResult> {
-  const assunto = `[Frotas] Relatório Checklist Diário — ${formatReportDate(args.dataRef)}`;
+  const contexto = args.contextoAssunto ? ` — ${args.contextoAssunto}` : "";
+  const assunto = `[Frotas] Relatório Checklist Diário${contexto} — ${formatReportDate(args.dataRef)}`;
   const html = renderRelatorioOperacionalDiario(args.input, args.dataRef, { logoImageSrc: EMAIL_LOGO_URL });
   const destinatarios = args.destinatarios.join(",");
   const enviadoPor = args.enviadoPor ?? "sistema";

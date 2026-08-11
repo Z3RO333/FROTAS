@@ -18,17 +18,24 @@ import {
   buildOperationalEmail,
   buildRelatorioDiarioIaEmail,
 } from "@/lib/services/scheduled-report-senders";
-import { sendRelatorioDiarioIa, sendRelatorioOperacionalDiario } from "@/lib/email";
-import {
-  getChecklistsRealizadosNoDia,
-  getFrotasComSemChecklistNoDia,
-  getPendenciasCriadasNoDiaPorFrota,
-  getObservacoesCriadasNoDiaPorFrota,
-} from "@/lib/repos/relatorios";
+import { sendRelatorioDiarioIa } from "@/lib/email";
+import { sendOperationalScheduleReports } from "@/lib/services/operational-report-schedule";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { logEmail } from "@/lib/repos/email-logs";
 import { getEmailFrom } from "@/lib/email-from";
 import { reportCalendarDate, reportDayUtcRange, previousBusinessDay } from "@/lib/report-date";
+
+const CorporateEmailListSchema = z
+  .array(z.string().email("Destinatário inválido."))
+  .max(20, "Informe no máximo 20 destinatários por envio.")
+  .refine(
+    (emails) => emails.every((email) => email.endsWith(`@${(process.env.ALLOWED_EMAIL_DOMAIN ?? "bemol.com.br").toLowerCase()}`)),
+    "Use apenas destinatários do domínio corporativo."
+  );
+const RequiredCorporateEmailListSchema = CorporateEmailListSchema.refine(
+  (emails) => emails.length > 0,
+  "Informe pelo menos um destinatário para o setor."
+);
 
 const ScheduleSchema = z.object({
   nome: z.string().trim().min(1, "Nome obrigatório").max(120),
@@ -46,16 +53,7 @@ const ScheduleSchema = z.object({
   destinatarios: z
     .string()
     .transform((s) => [...new Set(s.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean))])
-    .pipe(
-      z
-        .array(z.string().email("Destinatário inválido."))
-        .min(1, "Informe pelo menos um destinatário.")
-        .max(20, "Informe no máximo 20 destinatários.")
-        .refine(
-          (emails) => emails.every((email) => email.endsWith(`@${(process.env.ALLOWED_EMAIL_DOMAIN ?? "bemol.com.br").toLowerCase()}`)),
-          "Use apenas destinatários do domínio corporativo."
-        )
-    ),
+    .pipe(CorporateEmailListSchema),
   frequencia: z.enum(["DIARIO", "SEMANAL", "QUINZENAL", "MENSAL"]),
   dia_semana: z.coerce.number().int().min(0).max(6).nullable(),
   dia_mes: z.coerce.number().int().min(1).max(31).nullable(),
@@ -65,7 +63,49 @@ const ScheduleSchema = z.object({
     .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
     .pipe(z.array(z.string().max(120)).max(100)),
   setores_incluidos: z.array(z.string().max(120)).max(100),
+  destinatarios_por_setor: z.record(z.string().max(120), RequiredCorporateEmailListSchema),
+}).superRefine((schedule, context) => {
+  if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO" && schedule.setores_incluidos.length > 0) {
+    for (const setor of schedule.setores_incluidos) {
+      if (!schedule.destinatarios_por_setor[setor]?.length) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["destinatarios_por_setor", setor],
+          message: `Informe o destinatário do setor ${setor}.`,
+        });
+      }
+    }
+  } else if (schedule.destinatarios.length === 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["destinatarios"],
+      message: "Informe pelo menos um destinatário geral.",
+    });
+  }
 });
+
+function scheduleFormRaw(formData: FormData) {
+  const setores = formData.getAll("setores_incluidos").map(String);
+  const nomes = formData.getAll("setor_nome").map(String);
+  const destinatarios = formData.getAll("setor_destinatarios").map(String);
+  const destinatariosPorSetor = Object.fromEntries(nomes.map((setor, index) => [
+    setor,
+    [...new Set((destinatarios[index] ?? "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean))],
+  ]));
+
+  return {
+    nome: formData.get("nome"),
+    tipo: formData.get("tipo"),
+    destinatarios: formData.get("destinatarios") ?? "",
+    frequencia: formData.get("frequencia"),
+    dia_semana: formData.get("dia_semana") || null,
+    dia_mes: formData.get("dia_mes") || null,
+    hora_envio: formData.get("hora_envio"),
+    cds_incluidos: formData.get("cds_incluidos") ?? "",
+    setores_incluidos: setores,
+    destinatarios_por_setor: destinatariosPorSetor,
+  };
+}
 
 function isRedirectError(error: unknown): boolean {
   return (
@@ -81,17 +121,7 @@ export async function createScheduleAction(formData: FormData) {
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
 
   try {
-    const raw = {
-      nome: formData.get("nome"),
-      tipo: formData.get("tipo"),
-      destinatarios: formData.get("destinatarios"),
-      frequencia: formData.get("frequencia"),
-      dia_semana: formData.get("dia_semana") || null,
-      dia_mes: formData.get("dia_mes") || null,
-      hora_envio: formData.get("hora_envio"),
-      cds_incluidos: formData.get("cds_incluidos") ?? "",
-      setores_incluidos: formData.getAll("setores_incluidos"),
-    };
+    const raw = scheduleFormRaw(formData);
     const parsed = ScheduleSchema.parse(raw);
     await createEmailSchedule({
       ...parsed,
@@ -122,17 +152,7 @@ export async function updateScheduleAction(formData: FormData): Promise<ActionRe
     const current = await getEmailSchedule(id);
     if (!current) throw new Error("Programação não encontrada.");
 
-    const raw = {
-      nome: formData.get("nome"),
-      tipo: formData.get("tipo"),
-      destinatarios: formData.get("destinatarios"),
-      frequencia: formData.get("frequencia"),
-      dia_semana: formData.get("dia_semana") || null,
-      dia_mes: formData.get("dia_mes") || null,
-      hora_envio: formData.get("hora_envio"),
-      cds_incluidos: formData.get("cds_incluidos") ?? "",
-      setores_incluidos: formData.getAll("setores_incluidos"),
-    };
+    const raw = scheduleFormRaw(formData);
     const parsed = ScheduleSchema.parse(raw);
     await updateEmailSchedule(id, { ...parsed, ativo: current.ativo });
     revalidatePath("/administracao/emails");
@@ -154,7 +174,7 @@ export async function triggerScheduleNowAction(id: number): Promise<ActionResult
       new Set(schedule.destinatarios.map((e) => e.trim().toLowerCase()).filter(Boolean))
     );
 
-    if (destinatarios.length === 0) {
+    if (schedule.tipo !== "RELATORIO_OPERACIONAL_DIARIO" && destinatarios.length === 0) {
       return { ok: false, error: "Programação sem destinatários válidos." };
     }
 
@@ -176,32 +196,16 @@ export async function triggerScheduleNowAction(id: number): Promise<ActionResult
     } else if (schedule.tipo === "RELATORIO_OPERACIONAL_DIARIO") {
       const ontem = previousBusinessDay(reportCalendarDate());
       const dataRef = new Date(reportDayUtcRange(ontem).start);
-      const setores = schedule.setores_incluidos.length > 0 ? schedule.setores_incluidos : undefined;
-      const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
-        getChecklistsRealizadosNoDia(ontem, setores),
-        getFrotasComSemChecklistNoDia(ontem, setores),
-        getPendenciasCriadasNoDiaPorFrota(ontem, setores),
-        getObservacoesCriadasNoDiaPorFrota(ontem, setores),
-      ]);
-      const totalApontamentos =
-        pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
-        observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
-      const result = await sendRelatorioOperacionalDiario({
-        destinatarios,
+      const results = await sendOperationalScheduleReports({
+        schedule,
+        calendarDate: ontem,
         dataRef,
         enviadoPor: user.email,
-        scheduleId: schedule.id,
-        anexarResumoPdf: !setores,
-        input: {
-          totalChecklists,
-          totalApontamentos,
-          frotasFizeram: frotasChecklist.fizeram,
-          frotasNaoFizeram: frotasChecklist.naoFizeram,
-          pendenciasPorFrota,
-          observacoesPorFrota,
-        },
       });
-      if (!result.ok) throw new Error(result.error);
+      const failures = results.filter((result) => !result.enviado);
+      if (failures.length > 0) {
+        throw new Error(failures.map((failure) => failure.erro).filter(Boolean).join("; "));
+      }
     } else if (schedule.tipo === "DISPONIBILIDADE") {
       const sgMail = await getSgMail();
       const cdsAlvo = schedule.cds_incluidos.length > 0 ? schedule.cds_incluidos : await listCDsDisponibilidade();
