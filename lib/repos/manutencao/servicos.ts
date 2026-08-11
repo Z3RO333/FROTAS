@@ -27,6 +27,8 @@ export type VeiculoServicoOption = {
 
 export type VeiculoServicoStatus = VeiculoServicoOption & {
   id: number;
+  equipamento: string | null;
+  local: string | null;
   status: string | null;
   manutencao_motivo: string | null;
 };
@@ -58,7 +60,7 @@ export async function listVeiculosParaServico(): Promise<VeiculoServicoOption[]>
 export async function getVeiculoParaServico(codigoFrota: string): Promise<VeiculoServicoStatus | null> {
   const { data, error } = await supabaseManutencao
     .from("veiculos")
-    .select("id,codigo_frota,placa,status,manutencao_motivo")
+    .select("id,codigo_frota,placa,equipamento,local,status,manutencao_motivo")
     .eq("codigo_frota", codigoFrota)
     .eq("ativo", true)
     .eq("vendido", false)
