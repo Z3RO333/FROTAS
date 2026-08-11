@@ -15,11 +15,13 @@ import {
 import type { LucideProps } from "lucide-react";
 import type { ComponentType } from "react";
 import { getManutencao } from "@/lib/repos/planejamento";
+import { listServicosRecentes } from "@/lib/repos/manutencao/servicos";
 import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SEVERITY, severityFromStatus } from "@/lib/design/tokens";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +46,24 @@ const TIPO_ICONS: Record<string, ComponentType<LucideProps>> = {
   SUSPENSAO: Fan,
 };
 
+const SERVICO_APP_LABELS: Record<string, string> = {
+  lavagem: "Lavagem",
+  alinhamento: "Alinhamento",
+  balanceamento: "Balanceamento",
+  motor: "Preventiva do motor",
+  suspensao: "Suspensão",
+  "ar-condicionado": "Ar-condicionado",
+  embreagem: "Embreagem",
+  portas_rool_up: "Porta Roll-Up",
+  tacografo: "Tacógrafo",
+  bateria: "Bateria",
+};
+
 export default async function ManutencaoPage() {
-  const rows = await getManutencao();
+  const [rows, servicosRecentes] = await Promise.all([
+    getManutencao(),
+    listServicosRecentes(100),
+  ]);
 
   const byTipo = rows.reduce<Record<string, typeof rows>>((acc, r) => {
     acc[r.tipo_servico] ??= [];
@@ -223,6 +241,70 @@ export default async function ManutencaoPage() {
             </div>
           </>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <span className="h-1 w-6 rounded-full bg-blue-500" />
+            Serviços realizados recentemente
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Histórico dos últimos {servicosRecentes.length} registros feitos nas páginas de serviço.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:hidden">
+          {servicosRecentes.map((servico) => (
+            <article key={servico.id_servico} className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-950">
+                    Frota {servico.veiculo?.codigo_frota ?? servico.id_veiculo}
+                  </p>
+                  <p className="font-mono text-xs text-slate-500">{servico.veiculo?.placa ?? "—"}</p>
+                </div>
+                <Badge variant="outline">{SERVICO_APP_LABELS[servico.tipo_servico] ?? servico.tipo_servico}</Badge>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <span>{formatDate(servico.data_servico)}</span>
+                <span>{servico.quilometragem?.toLocaleString("pt-BR") ?? "—"} km</span>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-sm md:block">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-slate-50/80 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="p-3">Data</th>
+                  <th className="p-3">Frota</th>
+                  <th className="p-3">Placa</th>
+                  <th className="p-3">Serviço</th>
+                  <th className="p-3 text-right">KM</th>
+                  <th className="p-3">Observação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {servicosRecentes.map((servico) => (
+                  <tr key={servico.id_servico} className="transition-colors hover:bg-blue-50/40">
+                    <td className="p-3 tabular-nums">{formatDate(servico.data_servico)}</td>
+                    <td className="p-3 font-medium text-slate-950">{servico.veiculo?.codigo_frota ?? servico.id_veiculo}</td>
+                    <td className="p-3 font-mono text-xs text-slate-600">{servico.veiculo?.placa ?? "—"}</td>
+                    <td className="p-3"><Badge variant="outline">{SERVICO_APP_LABELS[servico.tipo_servico] ?? servico.tipo_servico}</Badge></td>
+                    <td className="p-3 text-right tabular-nums">{servico.quilometragem?.toLocaleString("pt-BR") ?? "—"}</td>
+                    <td className="max-w-sm truncate p-3 text-slate-600" title={servico.observacoes ?? undefined}>{servico.observacoes ?? "—"}</td>
+                  </tr>
+                ))}
+                {servicosRecentes.length === 0 && (
+                  <tr><td colSpan={6} className="p-8 text-center text-slate-500">Nenhum serviço registrado ainda.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       {/* Link rápido pra detalhe de tacógrafo */}

@@ -217,10 +217,16 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                   <CompletudeBar doc={doc} />
                 </TableCell>
                 <TableCell>
-                  <DocumentActions signedUrl={doc.dut_signed_url} downloadUrl={doc.dut_download_url} label="DUT" />
+                  <div className="space-y-1">
+                    <DocumentActions signedUrl={doc.dut_signed_url} downloadUrl={doc.dut_download_url} label="DUT" />
+                    <VencimentoLabel value={doc.dut_vencimento} />
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <DocumentActions signedUrl={doc.crlv_signed_url} downloadUrl={doc.crlv_download_url} label="CRLV" />
+                  <div className="space-y-1">
+                    <DocumentActions signedUrl={doc.crlv_signed_url} downloadUrl={doc.crlv_download_url} label="CRLV" />
+                    <VencimentoLabel value={doc.crlv_vencimento} />
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs tabular-nums text-slate-500">
                   {formatDate(doc.updated_at ?? doc.created_at)}
@@ -323,7 +329,9 @@ function DocumentUploadDialog() {
             <Field name="modelo" label="Modelo" placeholder="Modelo do veículo" required />
           </div>
           <FileField name="dut_file" label="DUT em PDF" />
+          <Field name="dut_vencimento" label="Vencimento do DUT" type="date" />
           <FileField name="crlv_file" label="CRLV em PDF" />
+          <Field name="crlv_vencimento" label="Vencimento do CRLV" type="date" />
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
@@ -385,7 +393,9 @@ function DocumentEditDialog({ document }: { document: DocumentRecordWithSignedUr
             <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
           </div>
           <FileField name="dut_file" label="Substituir DUT" />
+          <Field name="dut_vencimento" label="Vencimento do DUT" type="date" defaultValue={document.dut_vencimento ?? ""} />
           <FileField name="crlv_file" label="Substituir CRLV" />
+          <Field name="crlv_vencimento" label="Vencimento do CRLV" type="date" defaultValue={document.crlv_vencimento ?? ""} />
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancelar
@@ -484,8 +494,14 @@ function DocumentMobileCard({
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <DocumentActions signedUrl={document.dut_signed_url} downloadUrl={document.dut_download_url} label="DUT" />
-        <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
+        <div className="space-y-1">
+          <DocumentActions signedUrl={document.dut_signed_url} downloadUrl={document.dut_download_url} label="DUT" />
+          <VencimentoLabel value={document.dut_vencimento} />
+        </div>
+        <div className="space-y-1">
+          <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
+          <VencimentoLabel value={document.crlv_vencimento} />
+        </div>
       </div>
       <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
         Atualizado em {formatDate(document.updated_at ?? document.created_at)}
@@ -533,6 +549,24 @@ function DocumentActions({
   );
 }
 
+function diasAteVencimento(value: string): number {
+  return (new Date(`${value}T00:00:00`).getTime() - Date.now()) / 86400000;
+}
+
+function VencimentoLabel({ value }: { value: string | null | undefined }) {
+  if (!value) {
+    return <span className="block text-[10px] text-slate-400">Sem vencimento</span>;
+  }
+  const dias = diasAteVencimento(value);
+  const tone = dias < 0 ? "text-red-600" : dias < 30 ? "text-amber-600" : "text-slate-500";
+  const label = dias < 0 ? "Vencido" : dias < 30 ? "Vence em breve" : "Em dia";
+  return (
+    <span className={cn("block text-[10px] font-medium tabular-nums", tone)}>
+      {formatDateOnly(value)} · {label}
+    </span>
+  );
+}
+
 function DocumentStatus({ doc }: { doc: DocumentRecordWithSignedUrls }) {
   const s = statusDoDoc(doc);
   if (s === "COMPLETO") {
@@ -565,17 +599,19 @@ function Field({
   placeholder,
   defaultValue,
   required,
+  type,
 }: {
   name: string;
   label: string;
   placeholder?: string;
   defaultValue?: string;
   required?: boolean;
+  type?: string;
 }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} placeholder={placeholder} defaultValue={defaultValue} required={required} />
+      <Input id={name} name={name} type={type} placeholder={placeholder} defaultValue={defaultValue} required={required} />
     </div>
   );
 }
@@ -608,4 +644,8 @@ function normalizeSearch(value: string): string {
 function formatDate(value: string | null | undefined): string {
   if (!value) return "--";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatDateOnly(value: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(new Date(`${value}T00:00:00`));
 }
