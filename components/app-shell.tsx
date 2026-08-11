@@ -52,7 +52,6 @@ const PNEUS_NAV: NavItem[] = [
 
 const DOCUMENTOS_NAV: NavItem[] = [
   { href: "/documentos", label: "Documentos da Frota", icon: "FileText" },
-  { href: "/planejamento/documentos", label: "Vencimentos", icon: "FileText" },
 ];
 
 const ADMINISTRACAO_NAV: NavItem[] = [

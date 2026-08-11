@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { VehicleTireMap } from "@/components/pneus/vehicle-tire-map";
+import { VehicleSearchSelect } from "@/components/pneus/vehicle-search-select";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 import {
   DESCRICAO_POSICAO_PNEU,
@@ -125,22 +126,14 @@ export function PneusWorkspace({
               <label className="text-sm font-medium text-slate-700" htmlFor="veiculo">
                 Frota
               </label>
-              <select
-                id="veiculo"
-                value={selectedId}
-                aria-label="Selecionar frota"
-                onChange={(event) => {
-                  setSelectedId(event.target.value);
+              <VehicleSearchSelect
+                veiculos={veiculos}
+                selectedId={selectedId}
+                onSelect={(id) => {
+                  setSelectedId(id);
                   setSelectedPositions([]);
                 }}
-                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-              >
-                {veiculos.map((veiculo) => (
-                  <option key={veiculo.id} value={veiculo.id}>
-                    {veiculo.codigo_frota} - {veiculo.placa ?? "Sem placa"} - {veiculo.modelo ?? "Sem modelo"}
-                  </option>
-                ))}
-              </select>
+              />
 
               {selected ? (
                 <div className="grid gap-3 sm:grid-cols-2">
