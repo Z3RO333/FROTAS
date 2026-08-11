@@ -102,18 +102,20 @@ export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
 
       <div className="space-y-1.5">
         <Label htmlFor="setor">Setor</Label>
-        <Input
+        <select
           id="setor"
           name="setor"
-          list="setores-frota"
           defaultValue={setorAtual}
-          placeholder="Ex: Transporte, Oficina, Expedição"
           aria-invalid={state.field === "setor" || undefined}
-          className={state.field === "setor" ? "border-red-400 focus-visible:ring-red-500" : undefined}
-        />
-        <datalist id="setores-frota">
-          {opcoesSetores.map((setor) => <option key={setor} value={setor} />)}
-        </datalist>
+          className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+            state.field === "setor" ? "border-red-400 focus-visible:ring-red-500" : "border-input"
+          }`}
+        >
+          <option value="">Selecione um setor...</option>
+          {opcoesSetores.map((setor) => (
+            <option key={setor} value={setor}>{setor}</option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1.5">
