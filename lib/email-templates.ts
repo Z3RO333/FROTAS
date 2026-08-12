@@ -489,8 +489,8 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
 export type RelatorioOperacionalDiarioInput = {
   totalChecklists: number;
   totalApontamentos: number;
-  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[];
-  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[];
+  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[];
+  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[];
   pendenciasPorFrota: {
     frota_id: number;
     frota_geral: string | null;
@@ -514,23 +514,33 @@ function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string;
 
 function frotasChecklistTable(
   titulo: string,
-  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[],
-  vazioMsg: string
+  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[],
+  vazioMsg: string,
+  mostrarQtdChecklists: boolean
 ): string {
   const linhas = frotas
     .map((f, index) => {
       const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      const qtdCell = mostrarQtdChecklists
+        ? `<td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${
+            f.checklists > 1
+              ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border-radius:999px;padding:2px 8px;font-weight:700;">${f.checklists}x</span>`
+              : "1"
+          }</td>`
+        : "";
       return `<tr style="background:${bg};">
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.frota_id)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.setor)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${escapeHtml(normalizeCdNome(f.localizacao))}</td>
+        ${qtdCell}
       </tr>`;
     })
     .join("");
+  const colCount = mostrarQtdChecklists ? 5 : 4;
   const corpo =
     linhas ||
-    `<tr><td colspan="4" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
+    `<tr><td colspan="${colCount}" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
 
   return `
     <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 8px;">${escapeHtml(titulo)} (${frotas.length})</div>
@@ -540,6 +550,7 @@ function frotasChecklistTable(
         <th style="padding:10px 8px;text-align:left;">Placa</th>
         <th style="padding:10px 8px;text-align:left;">Setor</th>
         <th style="padding:10px 8px;text-align:left;">CD</th>
+        ${mostrarQtdChecklists ? `<th style="padding:10px 8px;text-align:left;">Checklists</th>` : ""}
       </tr></thead>
       <tbody>${corpo}</tbody>
     </table>`;
@@ -598,7 +609,7 @@ export function renderRelatorioOperacionalDiario(
             ${summaryCell("Frotas em dia", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia, 33.33)}
           </tr>
         </table>
-        ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.")}
+        ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.", true)}
       </td>
     </tr>
     <tr>

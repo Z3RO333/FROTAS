@@ -28,6 +28,18 @@ describe("splitFrotasPorChecklist", () => {
     expect(result.naoFizeram.map((f) => f.frota_id)).toEqual([1]);
   });
 
+  it("conta quantos checklists cada frota fez no dia, para sinalizar duplicidade", () => {
+    const frotasAtivas = [
+      { id: 1, frota_geral: "10", placa: "AAA-0001", localizacao: "CD Manaus", setor: "Expedição" },
+      { id: 2, frota_geral: "20", placa: "BBB-0002", localizacao: "CD Manaus", setor: "Expedição" },
+    ];
+
+    const result = splitFrotasPorChecklist(frotasAtivas, [2, 2, 2]);
+
+    expect(result.fizeram.find((f) => f.frota_id === 2)?.checklists).toBe(3);
+    expect(result.naoFizeram.find((f) => f.frota_id === 1)?.checklists).toBe(0);
+  });
+
   it("sorts each group alphabetically by frota_geral, falling back to placa then id", () => {
     const frotasAtivas = [
       { id: 1, frota_geral: null, placa: "ZZZ-0001", localizacao: null, setor: null },
