@@ -204,15 +204,15 @@ export default async function FrotasDisponibilidadesPage({
               <Table>
                 <TableHeader className="bg-slate-50">
                   <TableRow>
+                    <TableHead>Frota</TableHead>
                     <TableHead>Placa</TableHead>
-                    <TableHead>Modelo</TableHead>
-                    <TableHead>CD</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Envio</TableHead>
-                    <TableHead className="text-right">Tempo parado</TableHead>
-                    <TableHead>Local atual</TableHead>
-                    <TableHead>Responsavel</TableHead>
-                    <TableHead className="text-right">Atalho</TableHead>
+                    <TableHead>Unidade</TableHead>
+                    <TableHead>Setor</TableHead>
+                    <TableHead>Tipo OS</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Início</TableHead>
+                    <TableHead>Prev. saída</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -224,26 +224,24 @@ export default async function FrotasDisponibilidadesPage({
                           className="inline-flex items-center gap-1.5 font-mono font-semibold text-blue-700 hover:underline"
                           title="Abrir visão 360 da frota"
                         >
-                          {frota.placa ?? frota.frota_geral ?? `#${frota.id}`}
+                          {frota.frota_geral ?? `#${frota.id}`}
                           <ExternalLink className="h-3.5 w-3.5 opacity-60 transition-opacity group-hover:opacity-100" />
                         </Link>
                       </TableCell>
-                      <TableCell>{frota.modelo ?? "-"}</TableCell>
+                      <TableCell>{frota.placa ?? "-"}</TableCell>
                       <TableCell>{frota.cd_nome}</TableCell>
+                      <TableCell>{frota.setor ?? "-"}</TableCell>
+                      <TableCell>{frota.tipo ?? "-"}</TableCell>
                       <TableCell className="max-w-[220px] truncate" title={frota.motivo ?? undefined}>
-                        {frota.motivo ?? frota.tipo ?? "-"}
+                        {frota.motivo ?? "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
+                          {frota.status}
+                        </Badge>
                       </TableCell>
                       <TableCell>{formatDate(frota.data_envio)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {frota.tempo_parado_dias != null ? `${frota.tempo_parado_dias} dia(s)` : "-"}
-                      </TableCell>
-                      <TableCell>{frota.local_atual ?? "-"}</TableCell>
-                      <TableCell>{frota.responsavel ?? "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/frotas/${frota.id}`}>Ver 360</Link>
-                        </Button>
-                      </TableCell>
+                      <TableCell>{formatDate(frota.previsao_retorno)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
