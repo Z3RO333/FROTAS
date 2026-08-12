@@ -9,8 +9,13 @@ import {
   deleteEmailSchedule,
   toggleEmailSchedule,
 } from "@/lib/repos/email-schedule";
-import { listFrotasForReport } from "@/lib/repos/frotas";
-import { sendRelatorioGeral } from "@/lib/email";
+import {
+  getDisponibilidadeResumo,
+  getPontosAtencao,
+  listFrotasEmManutencao,
+  asCdResumo,
+} from "@/lib/repos/disponibilidade";
+import { sendDisponibilidadeEmail } from "@/lib/email";
 import { publicActionError } from "@/lib/public-error";
 
 const ALLOWED_EMAIL_DOMAIN = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
@@ -35,8 +40,20 @@ export async function enviarRelatorioDisponibilidadeCDAction(
     const raw = formData.get("destinatarios");
     if (typeof raw !== "string") return { ok: false, error: "Destinatários obrigatórios." };
     const destinatarios = EmailListSchema.parse(raw);
-    const frotas = await listFrotasForReport(cdNome ? { cd: cdNome } : {});
-    const result = await sendRelatorioGeral({ destinatarios, frotas, enviadoPor: user.email, cdNome });
+    const [resumoRaw, manutencoes, pontos] = await Promise.all([
+      getDisponibilidadeResumo(cdNome),
+      listFrotasEmManutencao(cdNome, 80),
+      getPontosAtencao(30, cdNome),
+    ]);
+    const resumo = asCdResumo(resumoRaw, cdNome ?? "Todos os CDs");
+    const result = await sendDisponibilidadeEmail({
+      destinatarios,
+      resumo,
+      manutencoes,
+      pontos,
+      enviadoPor: user.email,
+      cdNome,
+    });
     return result.ok ? { ok: true } : { ok: false, error: (result as { error?: string }).error ?? "Erro ao enviar." };
   } catch (error) {
     if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };
