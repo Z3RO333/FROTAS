@@ -3,7 +3,7 @@ export { normalizeCdNome } from "@/lib/cd-utils";
 import { normalizeCdNome } from "@/lib/cd-utils";
 
 const VEICULOS_DISPONIBILIDADE_SELECT =
-  "id,codigo_frota,placa,modelo,local,status,status_operacional,ativo,vendido,km_atualizado_em,ultimo_checklist_em,ultimo_motorista_nome,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_iniciado_por,manutencao_prev_retorno";
+  "id,codigo_frota,placa,modelo,local,setor,status,status_operacional,ativo,vendido,km_atualizado_em,ultimo_checklist_em,ultimo_motorista_nome,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_iniciado_por,manutencao_prev_retorno";
 
 type VeiculoDisponibilidadeRow = {
   id: number;
@@ -11,6 +11,7 @@ type VeiculoDisponibilidadeRow = {
   placa: string | null;
   modelo: string | null;
   local: string | null;
+  setor: string | null;
   status: string | null;
   status_operacional: string | null;
   ativo: boolean | null;
@@ -72,6 +73,8 @@ export type FrotaManutencaoDisponibilidade = {
   placa: string | null;
   modelo: string | null;
   cd_nome: string;
+  setor: string | null;
+  status: "PENDENTE";
   motivo: string | null;
   tipo: string | null;
   data_envio: string | null;
@@ -106,6 +109,25 @@ function diasDesde(value: string | null, agora = Date.now()): number | null {
   const time = new Date(value).getTime();
   if (!Number.isFinite(time)) return null;
   return Math.max(0, Math.floor((agora - time) / 86_400_000));
+}
+
+export function mapFrotaManutencao(row: VeiculoDisponibilidadeRow, agora: number): FrotaManutencaoDisponibilidade {
+  return {
+    id: row.id,
+    frota_geral: row.codigo_frota,
+    placa: row.placa,
+    modelo: row.modelo,
+    cd_nome: normalizeCdNome(row.local),
+    setor: row.setor ?? row.local,
+    status: "PENDENTE",
+    motivo: row.manutencao_motivo,
+    tipo: row.manutencao_tipo,
+    data_envio: row.manutencao_iniciado_em,
+    tempo_parado_dias: diasDesde(row.manutencao_iniciado_em, agora),
+    local_atual: row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino ?? row.local,
+    responsavel: row.ultimo_motorista_nome ?? row.manutencao_iniciado_por,
+    previsao_retorno: row.manutencao_prev_retorno,
+  };
 }
 
 function buildResumo(rows: VeiculoDisponibilidadeRow[], cd_nome: string): DisponibilidadeCD {
@@ -294,20 +316,15 @@ export async function listFrotasEmManutencao(
   return rows
     .filter((row) => isManutencao(row))
     .filter((row) => !cdNome || normalizeCdNome(row.local) === cdNome)
-    .map((row) => ({
-      id: row.id,
-      frota_geral: row.codigo_frota,
-      placa: row.placa,
-      modelo: row.modelo,
-      cd_nome: normalizeCdNome(row.local),
-      motivo: row.manutencao_motivo,
-      tipo: row.manutencao_tipo,
-      data_envio: row.manutencao_iniciado_em,
-      tempo_parado_dias: diasDesde(row.manutencao_iniciado_em, agora),
-      local_atual: row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino ?? row.local,
-      responsavel: row.ultimo_motorista_nome ?? row.manutencao_iniciado_por,
-      previsao_retorno: row.manutencao_prev_retorno,
-    }))
+    .map((row) => mapFrotaManutencao(row, agora))
     .sort((a, b) => (b.tempo_parado_dias ?? -1) - (a.tempo_parado_dias ?? -1))
     .slice(0, limite);
+}
+
+export function asCdResumo(resumo: DisponibilidadeCD | DisponibilidadeGeral, cdNome: string): DisponibilidadeCD {
+  return "cd_nome" in resumo ? resumo : { cd_nome: cdNome, ...resumo };
+}
+
+export function resumoTexto(cd: DisponibilidadeCD): string {
+  return `${cd.cd_nome}: ${cd.percentual_disponibilidade}% disponível, ${cd.disponiveis}/${cd.total} frotas disponíveis, ${cd.em_manutencao} em manutenção, ${cd.indisponiveis} indisponíveis, ${cd.pontos_atencao} ponto(s) de atenção.`;
 }
