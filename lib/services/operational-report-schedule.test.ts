@@ -29,11 +29,11 @@ function schedule(overrides: Partial<EmailSchedule> = {}): EmailSchedule {
 describe("getOperationalScheduleAudiences", () => {
   it("mantém um envio geral quando não há setores", () => {
     expect(getOperationalScheduleAudiences(schedule())).toEqual([
-      { setor: null, destinatarios: ["geral@bemol.com.br"] },
+      { setores: null, destinatarios: ["geral@bemol.com.br"] },
     ]);
   });
 
-  it("vincula cada setor somente aos seus destinatários", () => {
+  it("agrupa setores com destinatários diferentes em envios separados", () => {
     const result = getOperationalScheduleAudiences(schedule({
       setores_incluidos: ["EXPEDIÇÃO", "OFICINA"],
       destinatarios_por_setor: {
@@ -43,8 +43,42 @@ describe("getOperationalScheduleAudiences", () => {
     }));
 
     expect(result).toEqual([
-      { setor: "EXPEDIÇÃO", destinatarios: ["expedicao@bemol.com.br"] },
-      { setor: "OFICINA", destinatarios: ["oficina@bemol.com.br", "gestor@bemol.com.br"] },
+      { setores: ["EXPEDIÇÃO"], destinatarios: ["expedicao@bemol.com.br"] },
+      { setores: ["OFICINA"], destinatarios: ["oficina@bemol.com.br", "gestor@bemol.com.br"] },
+    ]);
+  });
+
+  it("consolida setores que compartilham exatamente os mesmos destinatários em 1 único envio", () => {
+    const result = getOperationalScheduleAudiences(schedule({
+      setores_incluidos: ["SETOR A", "SETOR B", "SETOR C"],
+      destinatarios_por_setor: {
+        "SETOR A": ["gestor@bemol.com.br", "manutencao@bemol.com.br"],
+        "SETOR B": ["manutencao@bemol.com.br", "gestor@bemol.com.br"],
+        "SETOR C": ["gestor@bemol.com.br", "manutencao@bemol.com.br"],
+      },
+    }));
+
+    expect(result).toEqual([
+      {
+        setores: ["SETOR A", "SETOR B", "SETOR C"],
+        destinatarios: ["gestor@bemol.com.br", "manutencao@bemol.com.br"],
+      },
+    ]);
+  });
+
+  it("mistura grupos consolidados e grupos separados quando destinatários divergem parcialmente", () => {
+    const result = getOperationalScheduleAudiences(schedule({
+      setores_incluidos: ["SETOR A", "SETOR B", "SETOR C"],
+      destinatarios_por_setor: {
+        "SETOR A": ["gestor@bemol.com.br"],
+        "SETOR B": ["gestor@bemol.com.br"],
+        "SETOR C": ["outro@bemol.com.br"],
+      },
+    }));
+
+    expect(result).toEqual([
+      { setores: ["SETOR A", "SETOR B"], destinatarios: ["gestor@bemol.com.br"] },
+      { setores: ["SETOR C"], destinatarios: ["outro@bemol.com.br"] },
     ]);
   });
 
@@ -53,7 +87,16 @@ describe("getOperationalScheduleAudiences", () => {
       setores_incluidos: ["TRANSPORTE"],
       destinatarios_por_setor: {},
     }))).toEqual([
-      { setor: "TRANSPORTE", destinatarios: ["geral@bemol.com.br"] },
+      { setores: ["TRANSPORTE"], destinatarios: ["geral@bemol.com.br"] },
+    ]);
+  });
+
+  it("agrupa setores legados sem override, que caem todos nos destinatários gerais", () => {
+    expect(getOperationalScheduleAudiences(schedule({
+      setores_incluidos: ["TRANSPORTE", "OFICINA"],
+      destinatarios_por_setor: {},
+    }))).toEqual([
+      { setores: ["TRANSPORTE", "OFICINA"], destinatarios: ["geral@bemol.com.br"] },
     ]);
   });
 });
