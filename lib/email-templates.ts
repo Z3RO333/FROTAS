@@ -14,6 +14,7 @@ import type { PlanejamentoOverview } from "@/lib/repos/planejamento";
 import { formatReportDate } from "@/lib/report-date";
 import { calcularIdade } from "@/lib/rules";
 import { normalizeCdNome } from "@/lib/cd-utils";
+import type { DisponibilidadeCD, FrotaManutencaoDisponibilidade, PontoAtencao } from "@/lib/repos/disponibilidade";
 
 type ReportOptions = {
   logoImageSrc?: string;
@@ -92,6 +93,31 @@ function maintenanceType(value: string | null | undefined): string {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
 }
+
+function formatDateTimeBr(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Manaus",
+  }).format(date);
+}
+
+function mesReferencia(date: Date): string {
+  const raw = new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Manaus",
+  }).format(date);
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function pontoSeveridadeTone(severidade: "ATENCAO" | "CRITICO"): { bg: string; color: string; border: string } {
+  return severidade === "CRITICO"
+    ? { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" }
+    : { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
+}
+
+const PENDENTE_TONE = { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
 
 function row(label: string, value: string | number | null | undefined): string {
   return `<tr><td style="padding:8px 12px;color:${MUTED};font-size:12px;border-bottom:1px solid #e2e8f0;">${escapeHtml(
@@ -635,6 +661,103 @@ export function renderRelatorioOperacionalDiario(
             <th style="padding:10px 8px;text-align:left;">Observação</th>
           </tr></thead>
           <tbody>${observacoesCorpo}</tbody>
+        </table>
+      </td>
+    </tr>`);
+}
+
+export type DisponibilidadeEmailInput = {
+  resumo: DisponibilidadeCD;
+  manutencoes: FrotaManutencaoDisponibilidade[];
+  pontos: PontoAtencao[];
+};
+
+export function renderDisponibilidadeEmail(
+  input: DisponibilidadeEmailInput,
+  dataRef: Date,
+  options: ReportOptions = {}
+): string {
+  const { resumo, manutencoes, pontos } = input;
+
+  const manutencaoLinhas = manutencoes
+    .map((f, index) => {
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.id)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.cd_nome)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.setor)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.tipo)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:${MUTED};font-size:12px;max-width:260px;">${display(f.motivo)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${badge(f.status, PENDENTE_TONE)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(dateDisplay(f.data_envio))}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(dateDisplay(f.previsao_retorno))}</td>
+      </tr>`;
+    })
+    .join("");
+  const manutencaoCorpo =
+    manutencaoLinhas ||
+    `<tr><td colspan="9" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma frota em manutenção neste CD.</td></tr>`;
+
+  const pontosLinhas = pontos
+    .map((p, index) => {
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${badge(p.severidade, pontoSeveridadeTone(p.severidade))}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(p.placa ?? p.frota_geral ?? p.frota_id)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(p.titulo)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:${MUTED};font-size:12px;">${display(p.descricao)}</td>
+      </tr>`;
+    })
+    .join("");
+  const pontosCorpo =
+    pontosLinhas ||
+    `<tr><td colspan="4" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhum ponto de atenção automático para este CD.</td></tr>`;
+
+  return shell(`
+    ${header(
+      "Disponibilidade de Frotas",
+      `Unidade: ${resumo.cd_nome} · Referência: ${mesReferencia(dataRef)} · Gerado em ${formatDateTimeBr(dataRef)}`,
+      options
+    )}
+    <tr>
+      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
+          <tr>
+            ${summaryCell("Total de veículos", formatNumber(resumo.total), BLUE, undefined, 25)}
+            ${summaryCell("Disponíveis", formatNumber(resumo.disponiveis), "#059669", undefined, 25)}
+            ${summaryCell("Em manutenção", formatNumber(resumo.em_manutencao), "#ea580c", undefined, 25)}
+            ${summaryCell("Taxa de disponibilidade", `${resumo.percentual_disponibilidade}%`, "#2563eb", undefined, 25)}
+          </tr>
+        </table>
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Veículos em manutenção</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Frota</th>
+            <th style="padding:10px 8px;text-align:left;">Placa</th>
+            <th style="padding:10px 8px;text-align:left;">Unidade</th>
+            <th style="padding:10px 8px;text-align:left;">Setor</th>
+            <th style="padding:10px 8px;text-align:left;">Tipo OS</th>
+            <th style="padding:10px 8px;text-align:left;">Descrição</th>
+            <th style="padding:10px 8px;text-align:left;">Status</th>
+            <th style="padding:10px 8px;text-align:left;">Início</th>
+            <th style="padding:10px 8px;text-align:left;">Prev. saída</th>
+          </tr></thead>
+          <tbody>${manutencaoCorpo}</tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 10px;">Pontos de atenção</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Severidade</th>
+            <th style="padding:10px 8px;text-align:left;">Frota</th>
+            <th style="padding:10px 8px;text-align:left;">Ponto</th>
+            <th style="padding:10px 8px;text-align:left;">Descrição</th>
+          </tr></thead>
+          <tbody>${pontosCorpo}</tbody>
         </table>
       </td>
     </tr>`);
