@@ -9,7 +9,7 @@ import { sendRelatorioOperacionalDiario } from "@/lib/email";
 import { getOperationalScheduleAudiences } from "@/lib/email-schedule-audiences";
 
 export type OperationalScheduleSendResult = {
-  setor: string | null;
+  setores: string[] | null;
   destinatarios: string[];
   totalChecklists: number;
   totalApontamentos: number;
@@ -36,21 +36,21 @@ export async function sendOperationalScheduleReports({
   for (const audience of audiences) {
     if (audience.destinatarios.length === 0) {
       results.push({
-        setor: audience.setor,
+        setores: audience.setores,
         destinatarios: [],
         totalChecklists: 0,
         totalApontamentos: 0,
         frotasFizeram: 0,
         frotasNaoFizeram: 0,
         enviado: false,
-        erro: audience.setor
-          ? `Setor ${audience.setor} sem destinatários válidos.`
+        erro: audience.setores
+          ? `Setor(es) ${audience.setores.join(", ")} sem destinatários válidos.`
           : "Agenda sem destinatários gerais válidos.",
       });
       continue;
     }
 
-    const setores = audience.setor ? [audience.setor] : undefined;
+    const setores = audience.setores ?? undefined;
     const [totalChecklists, frotasChecklist, pendenciasPorFrota, observacoesPorFrota] = await Promise.all([
       getChecklistsRealizadosNoDia(calendarDate, setores),
       getFrotasComSemChecklistNoDia(calendarDate, setores),
@@ -66,8 +66,8 @@ export async function sendOperationalScheduleReports({
       dataRef,
       enviadoPor,
       scheduleId: schedule.id,
-      anexarResumoPdf: audience.setor === null,
-      contextoAssunto: audience.setor ?? undefined,
+      anexarResumoPdf: audience.setores === null,
+      contextoAssunto: audience.setores?.join(" + "),
       input: {
         totalChecklists,
         totalApontamentos,
@@ -79,7 +79,7 @@ export async function sendOperationalScheduleReports({
     });
 
     results.push({
-      setor: audience.setor,
+      setores: audience.setores,
       destinatarios: audience.destinatarios,
       totalChecklists,
       totalApontamentos,
