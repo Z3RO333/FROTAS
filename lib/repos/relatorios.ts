@@ -46,6 +46,7 @@ export type FrotaResumoChecklist = {
   placa: string | null;
   localizacao: string | null;
   setor: string | null;
+  checklists: number;
 };
 
 function frotaSortKey(f: { frota_geral: string | null; placa: string | null; frota_id: number }): [string, string] {
@@ -71,7 +72,8 @@ export function splitFrotasPorChecklist(
   frotasAtivas: { id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[],
   frotaIdsComChecklist: number[]
 ): { fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] } {
-  const comChecklist = new Set(frotaIdsComChecklist);
+  const qtdPorFrota = new Map<number, number>();
+  for (const id of frotaIdsComChecklist) qtdPorFrota.set(id, (qtdPorFrota.get(id) ?? 0) + 1);
   const fizeram: FrotaResumoChecklist[] = [];
   const naoFizeram: FrotaResumoChecklist[] = [];
 
@@ -82,8 +84,9 @@ export function splitFrotasPorChecklist(
       placa: frota.placa,
       localizacao: frota.localizacao,
       setor: effectiveSetor(frota),
+      checklists: qtdPorFrota.get(frota.id) ?? 0,
     };
-    if (comChecklist.has(frota.id)) fizeram.push(resumo);
+    if (qtdPorFrota.has(frota.id)) fizeram.push(resumo);
     else naoFizeram.push(resumo);
   }
 
