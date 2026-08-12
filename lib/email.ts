@@ -1,5 +1,7 @@
 import sg from "@sendgrid/mail";
+import { EMAIL_LOGO_URL } from "@/lib/email-constants";
 import {
+  renderDisponibilidadeEmail,
   renderRelatorioGeral,
   renderRelatorioIndividual,
   renderRelatorioOperacionalDiario,
@@ -7,6 +9,7 @@ import {
   renderSinistroNotification,
   renderSocorroNotification,
   type DashboardReportInput,
+  type DisponibilidadeEmailInput,
   type RelatorioOperacionalDiarioInput,
   type SinistroNotificationInput,
   type SocorroNotificationInput,
@@ -18,12 +21,6 @@ import { getEmailFrom } from "@/lib/email-from";
 import { buildRelatorioOperacionalResumoPdf } from "@/lib/relatorio-pdf";
 
 const FROM = getEmailFrom();
-// Outlook (motor Word) renderiza mal imagens embutidas via cid/attachment — usamos URL publica hospedada.
-// Hospedada no Supabase Storage (bucket "email-assets", publico) em vez do dominio *.azurewebsites.net:
-// o filtro anti-phishing do Microsoft 365 (Defender/Safe Links) bloqueia silenciosamente imagens
-// vindas de dominios genericos de PaaS (azurewebsites.net, herokuapp.com, etc.).
-const EMAIL_LOGO_URL =
-  "https://nwoqastjgkgsifmxdqwp.supabase.co/storage/v1/object/public/email-assets/bemol-manutencao-logo-email.png";
 
 type SendResult = { ok: true } | { ok: false; error: string };
 
@@ -107,6 +104,53 @@ export async function sendRelatorioGeral(args: {
     console.error("Erro no envio do relatório geral", msg);
     await safeLogEmail({
       tipo: "geral",
+      destinatarios,
+      assunto,
+      enviadoPor: args.enviadoPor,
+      status: "erro",
+      erroMsg: msg,
+    });
+    return { ok: false, error: publicEmailErrorMessage(msg) };
+  }
+}
+
+export async function sendDisponibilidadeEmail(
+  args: DisponibilidadeEmailInput & {
+    destinatarios: string[];
+    enviadoPor: string;
+    cdNome?: string;
+  }
+): Promise<SendResult> {
+  const sentAt = new Date();
+  const cdLabel = args.cdNome ? ` — ${args.cdNome}` : "";
+  const assunto = `Disponibilidade de frotas${cdLabel} - ${formatReportDate(sentAt)}`;
+  const html = renderDisponibilidadeEmail(
+    { resumo: args.resumo, manutencoes: args.manutencoes, pontos: args.pontos },
+    sentAt,
+    { logoImageSrc: EMAIL_LOGO_URL, cdNome: args.cdNome }
+  );
+  const destinatarios = args.destinatarios.join(",");
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: args.destinatarios,
+      subject: assunto,
+      html,
+    });
+    await safeLogEmail({
+      tipo: "disponibilidade_cd",
+      destinatarios,
+      assunto,
+      enviadoPor: args.enviadoPor,
+      status: "enviado",
+    });
+    return { ok: true };
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("Erro no envio do relatório de disponibilidade", msg);
+    await safeLogEmail({
+      tipo: "disponibilidade_cd",
       destinatarios,
       assunto,
       enviadoPor: args.enviadoPor,
