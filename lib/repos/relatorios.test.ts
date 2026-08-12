@@ -134,10 +134,11 @@ describe("extrairObservacoesValidas", () => {
 
 describe("filtraPorSetores", () => {
   const frotas = [
-    { frota_id: 1, setor: "EXPEDIÇÃO MANAUS" },
-    { frota_id: 2, setor: "MARKETPLACE" },
-    { frota_id: 3, setor: "CD TURISMO/ MERCADO" },
-    { frota_id: 4, setor: null },
+    { frota_id: 1, setor: "EXPEDIÇÃO MANAUS", localizacao: "CD Manaus" },
+    { frota_id: 2, setor: "MARKETPLACE", localizacao: "CD Manaus" },
+    { frota_id: 3, setor: "CD TURISMO/ MERCADO", localizacao: "CD Tarumã" },
+    { frota_id: 4, setor: null, localizacao: null },
+    { frota_id: 5, setor: null, localizacao: "CD TARUMÃ LEGADO" },
   ];
 
   it("returns all fleets unchanged when setores is undefined or empty", () => {
@@ -155,8 +156,13 @@ describe("filtraPorSetores", () => {
     expect(result.map((f) => f.frota_id)).toEqual([2]);
   });
 
-  it("excludes fleets with null setor when a setor filter is active", () => {
+  it("excludes fleets with null setor and null localizacao when a setor filter is active", () => {
     const result = filtraPorSetores(frotas, ["EXPEDIÇÃO MANAUS"]);
     expect(result.some((f) => f.frota_id === 4)).toBe(false);
+  });
+
+  it("falls back to localizacao when setor is null, so legacy fleets aren't dropped from reports", () => {
+    const result = filtraPorSetores(frotas, ["CD TARUMÃ LEGADO"]);
+    expect(result.map((f) => f.frota_id)).toEqual([5]);
   });
 });

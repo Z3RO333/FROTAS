@@ -81,7 +81,7 @@ export function splitFrotasPorChecklist(
       frota_geral: frota.frota_geral,
       placa: frota.placa,
       localizacao: frota.localizacao,
-      setor: frota.setor,
+      setor: effectiveSetor(frota),
     };
     if (comChecklist.has(frota.id)) fizeram.push(resumo);
     else naoFizeram.push(resumo);
@@ -308,17 +308,30 @@ export async function getEvolucao7Dias(): Promise<EvolucaoDiaria[]> {
   return Promise.all(promises);
 }
 
-export function filtraPorSetores<T extends { setor: string | null }>(frotas: T[], setores?: string[]): T[] {
+// Setor é preenchido no cadastro, mas frotas legadas/recém-criadas podem ficar
+// sem valor. Local (CD/unidade) é o melhor proxy disponível nesses casos —
+// sem esse fallback, a frota simplesmente some dos relatórios agrupados por setor.
+function effectiveSetor(f: { setor: string | null; localizacao: string | null }): string | null {
+  return f.setor ?? f.localizacao;
+}
+
+export function filtraPorSetores<T extends { setor: string | null; localizacao: string | null }>(
+  frotas: T[],
+  setores?: string[]
+): T[] {
   if (!setores || setores.length === 0) return frotas;
   const alvo = new Set(setores.map((s) => s.trim().toUpperCase()));
-  return frotas.filter((f) => f.setor && alvo.has(f.setor.trim().toUpperCase()));
+  return frotas.filter((f) => {
+    const setor = effectiveSetor(f);
+    return setor != null && alvo.has(setor.trim().toUpperCase());
+  });
 }
 
 async function getFrotaIdsEscopo(setores?: string[]): Promise<Set<number> | null> {
   if (!setores || setores.length === 0) return null;
   const frotas = await listFrotasForReport();
   const escopo = filtraPorSetores(
-    frotas.map((f) => ({ id: f.id, setor: f.setor })),
+    frotas.map((f) => ({ id: f.id, setor: f.setor, localizacao: f.localizacao })),
     setores
   );
   return new Set(escopo.map((f) => f.id));

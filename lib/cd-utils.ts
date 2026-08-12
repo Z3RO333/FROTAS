@@ -10,7 +10,8 @@ export function normalizeCdNome(value: string | null | undefined): string {
     .replace(/[ñ]/gi, "n");
   const normalized = withoutAccents.replace(/\s+/g, " ").trim().toUpperCase();
 
-  if (normalized === "CD TARUMA" || normalized === "CD TARUMA - AM" || normalized === "TARUMA") {
+  if (normalized === "CD TARUMA" || normalized === "CD TARUMA - AM" || normalized === "TARUMA" ||
+      normalized.startsWith("CD TURISMO") || normalized === "CD FARMA" || normalized === "CD MERCADO") {
     return "CD Tarumã";
   }
 
@@ -30,8 +31,7 @@ export function normalizeCdNome(value: string | null | undefined): string {
      "ASSISTENCIA TECNICA","MERCADO","TABATINGA"].includes(normalized)
   ) { return "CD Manaus"; }
 
-  if (normalized.startsWith("CD TURISMO") || normalized === "CD FARMA" ||
-      normalized === "CD MERCADO" || normalized === "CD III" || normalized === "CD 3") {
+  if (normalized === "CD III" || normalized === "CD 3") {
     return "CD III";
   }
   if (normalized.startsWith("RO -") || normalized.includes("PORTO VELHO") ||
