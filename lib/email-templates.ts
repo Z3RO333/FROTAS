@@ -1,7 +1,6 @@
 import {
   CONDICAO_LABELS,
   STATUS_OPERACIONAL_LABELS,
-  cadastroIncompleto,
   condicaoFrota,
   motivosAtencao,
   statusOperacional,
@@ -84,14 +83,6 @@ function dateDisplay(value: string | null | undefined): string | null {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("pt-BR");
-}
-
-function maintenanceType(value: string | null | undefined): string {
-  if (!value) return "Não informado";
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
 }
 
 function formatDateTimeBr(date: Date): string {
@@ -275,111 +266,6 @@ function header(title: string, subtitle: string, options: ReportOptions): string
         </table>
       </td>
     </tr>`;
-}
-
-export function renderRelatorioGeral(frotas: Frota[], dataRef: Date, options: ReportOptions = {}): string {
-  const total = frotas.length;
-  const disponiveis = frotas.filter((f) => statusOperacional(f) === "disponivel").length;
-  const indisponiveis = frotas.filter((f) => statusOperacional(f) === "indisponivel").length;
-  const manutencao = frotas.filter((f) => statusOperacional(f) === "manutencao").length;
-  const atencao = frotas.filter((f) => condicaoFrota(f) === "atencao").length;
-  const criticos = frotas.filter((f) => condicaoFrota(f) === "critico").length;
-  const acima7 = frotas.filter((f) => {
-    const idade = calcularIdade(f.ano_fabricacao);
-    return idade != null && idade >= 7;
-  }).length;
-  const cadastro = frotas.filter(cadastroIncompleto).length;
-  const atencaoTotal = atencao + criticos;
-  const frotasEmManutencao = frotas.filter((f) => statusOperacional(f) === "manutencao");
-
-  const linhas = frotasEmManutencao
-    .map((f, index) => {
-      const motivo = f.manutencao_motivo?.trim() || "Motivo não informado";
-      const entrada = dateDisplay(f.manutencao_iniciado_em) ?? "Não informado";
-      const saida = dateDisplay(f.manutencao_prev_retorno) ?? "Sem previsão";
-      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-      return `
-        <tr style="background:${bg};">
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;font-weight:800;color:${INK};">${display(f.frota_geral ?? f.id)}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(f.placa)}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(maintenanceType(f.manutencao_tipo))}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:middle;color:${MUTED};font-size:12px;max-width:280px;">${display(motivo)}</td>
-          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(entrada)}</td>
-          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:13px;">${display(saida)}</td>
-        </tr>`;
-    })
-    .join("");
-  const tabelaFrotasEmManutencao =
-    linhas ||
-    `<tr><td colspan="6" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma frota em manutenção no momento.</td></tr>`;
-
-  const tituloRelatorio = options.cdNome
-    ? `Disponibilidade de frotas — ${options.cdNome}`
-    : "Disponibilidade de frotas";
-
-  return shell(`
-    ${header(
-      tituloRelatorio,
-      `${formatReportDate(dataRef)} · ${formatNumber(total)} frota(s) em operação`,
-      options
-    )}
-    <tr>
-      <td style="background:#ffffff;border:1px solid ${BORDER};border-top:0;padding:22px 24px 8px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-bottom:14px;">
-          <tr>
-            <td style="background:#f8fbff;border:1px solid ${BORDER};border-radius:12px;padding:16px 18px;">
-              <div style="font-size:12px;font-weight:700;letter-spacing:.04em;color:${BLUE};text-transform:uppercase;">Resumo operacional</div>
-              <div style="font-size:30px;line-height:38px;font-weight:800;color:${INK};margin-top:4px;">${formatNumber(
-                disponiveis
-              )} de ${formatNumber(total)} frotas disponíveis</div>
-              <div style="font-size:13px;color:${MUTED};line-height:20px;">${formatNumber(
-                atencaoTotal
-              )} frota(s) exigem atenção operacional por idade, status base ou cadastro incompleto.</div>
-            </td>
-            <td style="width:180px;padding-left:14px;">
-              <div style="background:${BLUE_2};border-radius:12px;padding:16px 18px;color:#ffffff;text-align:center;">
-                <div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#dbeafe;">Disponibilidade</div>
-                <div style="font-size:34px;line-height:40px;font-weight:800;margin-top:2px;">${percent(
-                  disponiveis,
-                  total
-                )}</div>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:0 -6px 18px;">
-          <tr>
-            ${summaryCell("Total", formatNumber(total), BLUE)}
-            ${summaryCell("Disponíveis", formatNumber(disponiveis), "#059669", percent(disponiveis, total))}
-            ${summaryCell("Indisponíveis", formatNumber(indisponiveis), "#dc2626")}
-            ${summaryCell("Manutenção", formatNumber(manutencao), "#ea580c")}
-          </tr>
-          <tr>
-            ${summaryCell("Acima de 7 anos", formatNumber(acima7), "#f97316")}
-            ${summaryCell("Cadastro incompleto", formatNumber(cadastro), "#334155")}
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
-        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Frotas em manutenção</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid #dbe7f5;border-radius:10px;overflow:hidden;">
-          <thead>
-            <tr style="background:${BLUE};color:#ffffff;">
-              <th style="padding:10px 8px;text-align:left;">Frota</th>
-              <th style="padding:10px 8px;text-align:left;">Placa</th>
-              <th style="padding:10px 8px;text-align:left;">Tipo</th>
-              <th style="padding:10px 8px;text-align:left;">Motivo da manutenção</th>
-              <th style="padding:10px 8px;text-align:center;">Entrada</th>
-              <th style="padding:10px 8px;text-align:center;">Prev. saída</th>
-            </tr>
-          </thead>
-          <tbody>${tabelaFrotasEmManutencao}</tbody>
-        </table>
-      </td>
-    </tr>`);
 }
 
 export function renderRelatorioPainelExecutivo(

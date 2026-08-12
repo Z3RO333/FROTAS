@@ -2,7 +2,6 @@ import sg from "@sendgrid/mail";
 import { EMAIL_LOGO_URL } from "@/lib/email-constants";
 import {
   renderDisponibilidadeEmail,
-  renderRelatorioGeral,
   renderRelatorioIndividual,
   renderRelatorioOperacionalDiario,
   renderRelatorioPainelExecutivo,
@@ -67,51 +66,6 @@ function publicEmailErrorMessage(message: string): string {
     return "Não foi possível enviar. Verifique os destinatários informados.";
   }
   return "Não foi possível enviar o relatório agora. Verifique a configuração de e-mail.";
-}
-
-export async function sendRelatorioGeral(args: {
-  destinatarios: string[];
-  frotas: Frota[];
-  enviadoPor: string;
-  cdNome?: string;
-}): Promise<SendResult> {
-  const sentAt = new Date();
-  const cdLabel = args.cdNome ? ` — ${args.cdNome}` : "";
-  const assunto = `Disponibilidade de frotas${cdLabel} - ${formatReportDate(sentAt)}`;
-  const html = renderRelatorioGeral(args.frotas, sentAt, {
-    logoImageSrc: EMAIL_LOGO_URL,
-    cdNome: args.cdNome,
-  });
-  const destinatarios = args.destinatarios.join(",");
-
-  try {
-    await mailClient().send({
-      from: FROM,
-      to: args.destinatarios,
-      subject: assunto,
-      html,
-    });
-    await safeLogEmail({
-      tipo: "geral",
-      destinatarios,
-      assunto,
-      enviadoPor: args.enviadoPor,
-      status: "enviado",
-    });
-    return { ok: true };
-  } catch (e) {
-    const msg = sendGridErrorMessage(e);
-    console.error("Erro no envio do relatório geral", msg);
-    await safeLogEmail({
-      tipo: "geral",
-      destinatarios,
-      assunto,
-      enviadoPor: args.enviadoPor,
-      status: "erro",
-      erroMsg: msg,
-    });
-    return { ok: false, error: publicEmailErrorMessage(msg) };
-  }
 }
 
 export async function sendDisponibilidadeEmail(
