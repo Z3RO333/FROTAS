@@ -15,6 +15,7 @@ import {
 } from "@/lib/email-templates";
 import type { Frota } from "@/lib/repos/frotas";
 import { logEmail } from "@/lib/repos/email-logs";
+import { resumoTexto } from "@/lib/repos/disponibilidade";
 import { formatReportDate } from "@/lib/report-date";
 import { getEmailFrom } from "@/lib/email-from";
 import { buildRelatorioOperacionalResumoPdf } from "@/lib/relatorio-pdf";
@@ -98,6 +99,8 @@ export async function sendDisponibilidadeEmail(
       assunto,
       enviadoPor: args.enviadoPor,
       status: "enviado",
+      cdNome: args.cdNome ?? null,
+      resumo: resumoTexto(args.resumo),
     });
     return { ok: true };
   } catch (e) {
@@ -110,6 +113,8 @@ export async function sendDisponibilidadeEmail(
       enviadoPor: args.enviadoPor,
       status: "erro",
       erroMsg: msg,
+      cdNome: args.cdNome ?? null,
+      resumo: resumoTexto(args.resumo),
     });
     return { ok: false, error: publicEmailErrorMessage(msg) };
   }

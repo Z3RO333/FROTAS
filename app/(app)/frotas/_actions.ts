@@ -227,7 +227,7 @@ export async function enviarRelatorioGeralAction(formData: FormData): Promise<Re
     const destinatarios = parseDestinatarios(formData);
     const [resumoRaw, manutencoes, pontos] = await Promise.all([
       getDisponibilidadeGeral(),
-      listFrotasEmManutencao(undefined, 80),
+      listFrotasEmManutencao(undefined, 500),
       getPontosAtencao(30, undefined),
     ]);
     const resumo = asCdResumo(resumoRaw, "Todos os CDs");
