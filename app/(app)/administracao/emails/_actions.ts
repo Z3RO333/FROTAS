@@ -21,6 +21,7 @@ import {
 import { sendRelatorioDiarioIa } from "@/lib/email";
 import { sendOperationalScheduleReports } from "@/lib/services/operational-report-schedule";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
+import { updateDestinatarios, type NotificacaoEvento } from "@/lib/repos/notificacao-destinatarios";
 import { logEmail } from "@/lib/repos/email-logs";
 import { getEmailFrom } from "@/lib/email-from";
 import { reportCalendarDate, reportDayUtcRange, previousBusinessDay } from "@/lib/report-date";
@@ -321,5 +322,28 @@ export async function deleteScheduleAction(id: number): Promise<ActionResult> {
     return { ok: true, message: "Programação removida" };
   } catch (error) {
     return { ok: false, error: publicActionError(error, "Erro ao remover programação") };
+  }
+}
+
+export async function updateNotificacaoDestinatariosAction(
+  evento: NotificacaoEvento,
+  chave: string | null,
+  formData: FormData
+): Promise<ActionResult> {
+  const user = await requireAppUser();
+  if (!canManageEmailSchedules(user.perfil)) redirect("/");
+
+  try {
+    const raw = formData.get("destinatarios");
+    const emails = typeof raw === "string" ? raw.split(",").map((e) => e.trim()).filter(Boolean) : [];
+    const schema = chave === null ? RequiredCorporateEmailListSchema : CorporateEmailListSchema;
+    const destinatarios = schema.parse(emails);
+
+    await updateDestinatarios(evento, chave, destinatarios, user.email);
+    revalidatePath("/administracao/emails");
+    return { ok: true, message: "Destinatários atualizados" };
+  } catch (error) {
+    if (error instanceof z.ZodError) return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };
+    return { ok: false, error: publicActionError(error, "Erro ao atualizar destinatários") };
   }
 }

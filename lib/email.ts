@@ -16,6 +16,7 @@ import {
 import type { Frota } from "@/lib/repos/frotas";
 import { logEmail } from "@/lib/repos/email-logs";
 import { resumoTexto } from "@/lib/repos/disponibilidade";
+import { getDestinatarios } from "@/lib/repos/notificacao-destinatarios";
 import { formatReportDate } from "@/lib/report-date";
 import { getEmailFrom } from "@/lib/email-from";
 import { buildRelatorioOperacionalResumoPdf } from "@/lib/relatorio-pdf";
@@ -314,30 +315,13 @@ export async function sendRelatorioIndividual(args: {
   }
 }
 
-function parseEmailList(value: string | undefined): string[] {
-  return (value ?? "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-const SOCORRO_AREA_EMAIL_MAP: Record<string, string> = {
-  Exposicao: "SOCORRO_AREA_EMAIL_EXPOSICAO",
-  Market: "SOCORRO_AREA_EMAIL_MARKET",
-  "E-commerce": "SOCORRO_AREA_EMAIL_ECOMMERCE",
-  Farma: "SOCORRO_AREA_EMAIL_FARMA",
-  Operacao: "SOCORRO_AREA_EMAIL_OPERACAO",
-  Outros: "SOCORRO_AREA_EMAIL_OUTROS",
-};
-
 export async function sendSocorroNotification(input: SocorroNotificationInput): Promise<void> {
-  const manutencaoEmails = parseEmailList(process.env.FROTAS_MANUTENCAO_EMAILS);
-  const monitoramento = "monitoramentofrotas@bemol.com.br";
+  const [geraisEmails, areaEmails] = await Promise.all([
+    getDestinatarios("SOCORRO_GERAL"),
+    getDestinatarios("SOCORRO_AREA", input.setor),
+  ]);
 
-  const areaEnvVar = SOCORRO_AREA_EMAIL_MAP[input.setor];
-  const areaEmails = areaEnvVar ? parseEmailList(process.env[areaEnvVar]) : [];
-
-  const destinatarios = [...new Set([...manutencaoEmails, monitoramento, ...areaEmails])].filter(Boolean);
+  const destinatarios = [...new Set([...geraisEmails, ...areaEmails])].filter(Boolean);
   if (destinatarios.length === 0) {
     console.warn("[socorro] nenhum destinatario configurado para notificacao");
     return;
@@ -379,9 +363,8 @@ export async function sendSocorroNotification(input: SocorroNotificationInput): 
 }
 
 export async function sendSinistroNotification(input: SinistroNotificationInput): Promise<void> {
-  const manutencaoEmails = parseEmailList(process.env.FROTAS_MANUTENCAO_EMAILS);
-  const monitoramento = "monitoramentofrotas@bemol.com.br";
-  const destinatarios = [...new Set([...manutencaoEmails, monitoramento])].filter(Boolean);
+  const geraisEmails = await getDestinatarios("SINISTRO_GERAL");
+  const destinatarios = [...new Set(geraisEmails)].filter(Boolean);
 
   if (destinatarios.length === 0) {
     console.warn("[sinistro] nenhum destinatario configurado para notificacao");

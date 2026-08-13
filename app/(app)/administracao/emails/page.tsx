@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
 import { listEmailSchedules } from "@/lib/repos/email-schedule";
 import { setoresDistintos } from "@/lib/repos/frotas";
+import { listNotificacaoDestinatarios } from "@/lib/repos/notificacao-destinatarios";
 import { createScheduleAction } from "./_actions";
 import { ScheduleForm } from "./ScheduleForm";
 import { ScheduleRow } from "./ScheduleRow";
+import { NotificacaoDestinatariosSection } from "./NotificacaoDestinatariosSection";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +20,11 @@ export default async function EmailsPage({
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
   const sp = await searchParams;
-  const [schedules, setoresDisponiveis] = await Promise.all([listEmailSchedules(), setoresDistintos()]);
+  const [schedules, setoresDisponiveis, notificacaoDestinatarios] = await Promise.all([
+    listEmailSchedules(),
+    setoresDistintos(),
+    listNotificacaoDestinatarios(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -40,6 +46,8 @@ export default async function EmailsPage({
           {sp.erro}
         </div>
       )}
+
+      <NotificacaoDestinatariosSection destinatarios={notificacaoDestinatarios} />
 
       <ScheduleForm action={createScheduleAction} setoresDisponiveis={setoresDisponiveis} />
 
