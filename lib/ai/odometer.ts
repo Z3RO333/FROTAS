@@ -1,5 +1,5 @@
-import OpenAI, { AzureOpenAI } from "openai";
 import { z } from "zod";
+import { getVisionClient, getVisionModel } from "@/lib/ai/vision-client";
 
 // ------- Schemas -------
 
@@ -76,35 +76,6 @@ const FALLBACK_READING: OdometerReading = {
   regiao_detectada: "desconhecido",
 };
 
-// ------- Cliente OpenAI / Azure OpenAI -------
-// Inicializado eager no module-level pra eliminar latência de cold-start
-
-const client: OpenAI | null = (() => {
-  const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT?.trim();
-  const azureKey = process.env.AZURE_OPENAI_API_KEY?.trim();
-  const azureDeployment =
-    process.env.AZURE_OPENAI_VISION_DEPLOYMENT?.trim() ?? process.env.AZURE_OPENAI_DEPLOYMENT?.trim();
-
-  if (azureEndpoint && azureKey && azureDeployment) {
-    // AzureOpenAI monta a URL correta /openai/deployments/{deployment}/chat/completions
-    return new AzureOpenAI({
-      apiKey: azureKey,
-      endpoint: azureEndpoint.replace(/\/$/, ""),
-      apiVersion: process.env.AZURE_OPENAI_API_VERSION ?? "2025-01-01-preview",
-      deployment: azureDeployment,
-      timeout: 60_000,
-      maxRetries: 1,
-    });
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return null;
-  return new OpenAI({ apiKey, timeout: 60_000, maxRetries: 1 });
-})();
-
-function getOpenAIClient(): OpenAI | null {
-  return client;
-}
 
 // ------- Cache LRU simples por hash da imagem -------
 // O mesmo motorista frequentemente refaz foto do mesmo painel.
@@ -138,13 +109,6 @@ function setCachedOcr(hash: string, result: OdometerReading): void {
   OCR_CACHE.set(hash, { result, expiresAt: Date.now() + OCR_CACHE_TTL_MS });
 }
 
-function getVisionModel(): string {
-  return (
-    process.env.AZURE_OPENAI_VISION_DEPLOYMENT ??
-    process.env.OPENAI_VISION_MODEL ??
-    "gpt-4o"
-  );
-}
 
 // ------- Pré-processamento de imagem -------
 // Reduz a imagem para no máximo 800px de largura antes de enviar para a IA.
@@ -231,7 +195,7 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
   if (cached) return cached;
 
   // Primary: OpenAI Vision (gpt-4o/gpt-4.1-mini/gpt-5-mini via Azure ou direto).
-  const openai = getOpenAIClient();
+  const openai = getVisionClient();
   if (!openai) {
     return {
       ...FALLBACK_READING,
