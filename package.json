@@ -14,10 +14,12 @@
     "import": "tsx scripts/import-xlsx.ts",
     "import:unidades": "tsx scripts/import-relatorio-unidades.ts",
     "migrate:pneus": "tsx scripts/migrate-supabase-pneus.ts",
-    "migrate:docs": "tsx scripts/migrate-supabase-docs.ts"
+    "migrate:docs": "tsx scripts/migrate-supabase-docs.ts",
+    "backfill:crlv": "tsx scripts/backfill-crlv-ocr.ts"
   },
   "dependencies": {
     "@auth/core": "0.41.3",
+    "@napi-rs/canvas": "^1.0.7",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
@@ -38,6 +40,7 @@
     "next-themes": "^0.4.6",
     "openai": "^6.37.0",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.2.108",
     "postcss": "8.5.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

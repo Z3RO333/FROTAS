@@ -16,6 +16,8 @@ import {
 } from "@/lib/repos/manutencao/documents";
 import { validateAggregateFileSize, validatePdfFile } from "@/lib/upload-validation";
 import { publicActionError } from "@/lib/public-error";
+import { readCrlvVencimento } from "@/lib/ai/crlv-ocr";
+import { resolveCrlvVencimento } from "@/lib/ai/resolve-crlv-vencimento";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const optionalDate = z
@@ -51,6 +53,19 @@ export async function createDocumentAction(formData: FormData): Promise<Document
 
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
+
+    const crlvResolved = crlvFile
+      ? resolveCrlvVencimento(
+          await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())),
+          input.crlv_vencimento
+        )
+      : {
+          crlv_vencimento: input.crlv_vencimento,
+          crlv_vencimento_origem: input.crlv_vencimento ? ("MANUAL" as const) : null,
+          crlv_vencimento_confianca: null,
+          crlv_revisar_manualmente: false,
+        };
+
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
     const placa = normalizePlate(input.placa);
@@ -68,7 +83,7 @@ export async function createDocumentAction(formData: FormData): Promise<Document
           dut_url: replacement.dut_url,
           crlv_url: replacement.crlv_url,
           dut_vencimento: input.dut_vencimento,
-          crlv_vencimento: input.crlv_vencimento,
+          ...crlvResolved,
         });
       } catch (error) {
         await removeDocumentFiles(replacement.uploadedPaths).catch((cleanupError) => {
@@ -97,6 +112,7 @@ export async function createDocumentAction(formData: FormData): Promise<Document
           placa,
           dut_url: dutPath,
           crlv_url: crlvPath,
+          ...crlvResolved,
         },
         user.email
       );
@@ -128,6 +144,24 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
 
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
+
+    const manualDateChanged =
+      input.crlv_vencimento !== undefined && input.crlv_vencimento !== current.crlv_vencimento;
+
+    const crlvResolved = crlvFile
+      ? resolveCrlvVencimento(
+          await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())),
+          input.crlv_vencimento ?? current.crlv_vencimento
+        )
+      : manualDateChanged
+        ? {
+            crlv_vencimento: input.crlv_vencimento ?? null,
+            crlv_vencimento_origem: input.crlv_vencimento ? ("MANUAL" as const) : null,
+            crlv_vencimento_confianca: null,
+            crlv_revisar_manualmente: false,
+          }
+        : undefined;
+
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
     const placa = input.placa ?? current.placa;
@@ -140,6 +174,7 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
         placa: input.placa ? normalizePlate(input.placa) : undefined,
         dut_url: replacement.dut_url,
         crlv_url: replacement.crlv_url,
+        ...crlvResolved,
       });
     } catch (error) {
       await removeDocumentFiles(replacement.uploadedPaths).catch((cleanupError) => {

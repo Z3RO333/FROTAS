@@ -82,6 +82,9 @@ export interface DocumentRecord {
   crlv_url: string | null;
   dut_vencimento: string | null;
   crlv_vencimento: string | null;
+  crlv_vencimento_origem: "MANUAL" | "IA" | null;
+  crlv_vencimento_confianca: number | null;
+  crlv_revisar_manualmente: boolean;
   created_at: string;
   created_by: string | null;
   updated_at?: string | null;
