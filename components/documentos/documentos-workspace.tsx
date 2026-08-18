@@ -506,6 +506,11 @@ function DocumentMobileCard({
         <div className="space-y-1">
           <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
           <VencimentoLabel value={document.crlv_vencimento} />
+          {document.crlv_revisar_manualmente ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
+              Revisar CRLV
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">

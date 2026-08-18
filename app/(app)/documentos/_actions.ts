@@ -145,12 +145,22 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
 
+    const manualDateChanged =
+      input.crlv_vencimento !== undefined && input.crlv_vencimento !== current.crlv_vencimento;
+
     const crlvResolved = crlvFile
       ? resolveCrlvVencimento(
           await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())),
           input.crlv_vencimento ?? current.crlv_vencimento
         )
-      : undefined;
+      : manualDateChanged
+        ? {
+            crlv_vencimento: input.crlv_vencimento ?? null,
+            crlv_vencimento_origem: input.crlv_vencimento ? ("MANUAL" as const) : null,
+            crlv_vencimento_confianca: null,
+            crlv_revisar_manualmente: false,
+          }
+        : undefined;
 
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
