@@ -106,16 +106,16 @@ export function ChecklistFilters({
           </div>
         </FilterField>
 
-        <FilterField label="Localização">
+        <FilterField label="Setor">
           <Select
             value={localizacao || "all"}
             onValueChange={(v) => applyChanges({ localizacao: v === "all" ? "" : v })}
           >
-            <SelectTrigger aria-label="Filtrar por localização">
-              <SelectValue>{localizacao || "Todas as localizações"}</SelectValue>
+            <SelectTrigger aria-label="Filtrar por setor">
+              <SelectValue>{localizacao || "Todos os setores"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as localizações</SelectItem>
+              <SelectItem value="all">Todos os setores</SelectItem>
               {localizacoes.map((loc) => (
                 <SelectItem key={loc} value={loc}>
                   {loc}

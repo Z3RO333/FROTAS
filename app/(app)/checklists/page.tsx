@@ -74,7 +74,7 @@ export default async function ChecklistsAdminPage({
                   <th className="px-4 py-3">Data</th>
                   <th className="px-4 py-3">Frota</th>
                   <th className="px-4 py-3">Placa</th>
-                  <th className="px-4 py-3">Rota</th>
+                  <th className="px-4 py-3">Setor</th>
                   <th className="px-4 py-3">Motorista</th>
                   <th className="px-4 py-3 text-right">KM</th>
                   <th className="px-4 py-3">Status</th>
@@ -149,7 +149,7 @@ export default async function ChecklistsAdminPage({
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                         <MobileInfo icon={<Truck />} label="Placa" value={checklist.placa ?? "-"} />
                         <MobileInfo icon={<Gauge />} label="KM" value={formatNumber(checklist.km_informado)} />
-                        <MobileInfo icon={<MapPin />} label="Rota" value={checklist.rota ?? "Não informada"} />
+                        <MobileInfo icon={<MapPin />} label="Setor" value={checklist.rota ?? "Não informado"} />
                         <MobileInfo
                           icon={<UserRound />}
                           label="Motorista"

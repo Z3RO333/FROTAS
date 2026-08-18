@@ -3,11 +3,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScheduleForm, TIPO_LABELS } from "./ScheduleForm";
 import type { EmailSchedule } from "@/lib/repos/email-schedule";
 import {
@@ -95,7 +101,7 @@ export function ScheduleRow({
             : ""}
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
           Editar
         </Button>
@@ -109,27 +115,26 @@ export function ScheduleRow({
           {pendingKind === "disparar" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Disparar agora
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pendingKind !== null}
-          onClick={() => run("toggle", () => toggleScheduleAction(schedule.id, schedule.ativo))}
-        >
-          {pendingKind === "toggle" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {schedule.ativo ? "Pausar" : "Ativar"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="text-red-600 hover:text-red-700"
-          disabled={pendingKind !== null}
-          onClick={handleRemover}
-        >
-          {pendingKind === "remover" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Remover
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm" className="px-2" disabled={pendingKind !== null}>
+              {pendingKind === "toggle" || pendingKind === "remover" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
+              <span className="sr-only">Mais ações</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => run("toggle", () => toggleScheduleAction(schedule.id, schedule.ativo))}>
+              {schedule.ativo ? "Pausar" : "Ativar"}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600 focus:text-red-700" onClick={handleRemover}>
+              Remover
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

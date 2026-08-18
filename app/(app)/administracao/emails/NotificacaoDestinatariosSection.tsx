@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,15 +43,22 @@ function DestinatarioRow({ row }: { row: Row }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-white p-3">
-      <span className="w-48 shrink-0 text-sm font-medium">{row.label}</span>
+    <div className="grid grid-cols-1 items-center gap-2 border-b py-2.5 last:border-b-0 sm:grid-cols-[12rem_1fr_auto]">
+      <span className="text-sm font-medium">{row.label}</span>
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="email1@bemol.com.br, email2@bemol.com.br"
-        className="min-w-64 flex-1"
+        className="min-w-0"
       />
-      <Button type="button" size="sm" variant="outline" disabled={pending} onClick={handleSave}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={pending}
+        onClick={handleSave}
+        className="justify-self-start sm:justify-self-auto"
+      >
         {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Salvar
       </Button>
@@ -65,21 +72,36 @@ export function NotificacaoDestinatariosSection({
   destinatarios: NotificacaoDestinatario[];
 }) {
   const rows = buildRows(destinatarios);
+  const [open, setOpen] = useState(false);
+  const configurados = rows.filter((r) => r.destinatarios.length > 0).length;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Destinatários de eventos (Socorro / Sinistro)</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Quem recebe o e-mail assim que um motorista registra um pedido de socorro ou um sinistro. O motorista não
-          escolhe nada disso — é só o admin quem configura aqui.
-        </p>
+      <CardHeader
+        className="cursor-pointer select-none"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle>Destinatários de eventos (Socorro / Sinistro)</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Quem recebe o e-mail assim que um motorista registra um pedido de socorro ou um sinistro. O motorista
+              não escolhe nada disso — é só o admin quem configura aqui.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+            <span>{configurados}/{rows.length} configurados</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {rows.map((row) => (
-          <DestinatarioRow key={`${row.evento}:${row.chave ?? ""}`} row={row} />
-        ))}
-      </CardContent>
+      {open && (
+        <CardContent>
+          {rows.map((row) => (
+            <DestinatarioRow key={`${row.evento}:${row.chave ?? ""}`} row={row} />
+          ))}
+        </CardContent>
+      )}
     </Card>
   );
 }

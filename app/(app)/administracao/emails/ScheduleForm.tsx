@@ -57,13 +57,14 @@ export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = 
   const isRelatorioSetorizado = tipo === "RELATORIO_OPERACIONAL_DIARIO";
 
   return (
-    <div className={onCancel ? "" : "rounded-xl border bg-white p-6 shadow-sm"}>
+    <div className={onCancel ? "" : "rounded-lg border bg-card p-6 shadow-sm"}>
       {!onCancel && (
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Nova programação</h2>
+        <div className="mb-5 space-y-1">
+          <h2 className="text-lg font-semibold leading-none tracking-tight">Nova programação</h2>
+          <p className="text-sm text-muted-foreground">Crie uma rotina de envio automático de relatórios por e-mail.</p>
         </div>
       )}
-      <form action={action} className="grid gap-4 sm:grid-cols-2">
+      <form action={action} className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         {isEdit && <input type="hidden" name="id" value={schedule!.id} />}
 
         <div className="space-y-1.5">

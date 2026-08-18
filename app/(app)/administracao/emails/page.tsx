@@ -53,8 +53,8 @@ export default async function EmailsPage({
 
       <ScheduleForm action={createScheduleAction} setoresDisponiveis={setoresDisponiveis} frotasPorCd={frotasPorCd} />
 
-      {/* Lista */}
       <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Programações ({schedules.length})</h2>
         {schedules.length === 0 && (
           <p className="text-sm text-muted-foreground">Nenhuma programação configurada ainda.</p>
         )}
