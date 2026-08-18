@@ -1,5 +1,4 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
-import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
 import { reportCalendarDate } from "@/lib/report-date";
 import { listFrotasForReport } from "@/lib/repos/frotas";
@@ -510,6 +509,10 @@ function paradaKey(frotaNumero: string | null, placa: string | null): string {
   return (frotaNumero || placa || "").trim().toUpperCase();
 }
 
+function normalizeIdentificador(value: string | null | undefined): string {
+  return (value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function paradaManual(row: VeiculoParadoRow): ParadaRow {
   const destino = row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino;
   return {
@@ -535,60 +538,63 @@ function paradaManual(row: VeiculoParadoRow): ParadaRow {
   };
 }
 
+// Frotas com status=manutencao AGORA (fonte viva — mesma da aba Veículos filtrada
+// por "Em manutenção"). Separado de getParadas() porque fact_frotas_paradas é uma
+// planilha importada uma vez e nunca mais atualizada — a maioria das linhas lá
+// aponta pra frotas que já voltaram à operação há tempos. O Radar de Preventivas
+// usa só esta função pra não misturar frota real com fantasma da planilha.
+export async function listFrotasEmManutencaoAgora(): Promise<ParadaRow[]> {
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select(
+      "id,codigo_frota,placa,local,status,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_prev_retorno"
+    )
+    .eq("status", "manutencao")
+    .eq("ativo", true)
+    .eq("vendido", false)
+    .order("manutencao_iniciado_em", { ascending: false, nullsFirst: false });
+  if (error) throw new Error(`listFrotasEmManutencaoAgora: ${error.message}`);
+  return ((data ?? []) as VeiculoParadoRow[]).map(paradaManual);
+}
+
 export async function getParadas(): Promise<ParadaRow[]> {
-  const [importadasResult, manutencaoResult] = await Promise.all([
+  const [importadasResult, manuaisAgora] = await Promise.all([
     supabaseManutencao
       .from("fact_frotas_paradas")
       .select("*")
       .order("ia_criticidade", { nullsFirst: false })
       .order("id"),
-    supabaseManutencao
-      .from("veiculos")
-      .select(
-        "id,codigo_frota,placa,local,status,manutencao_motivo,manutencao_tipo,manutencao_oficina,manutencao_destino,manutencao_destino_detalhe,manutencao_iniciado_em,manutencao_prev_retorno"
-      )
-      .eq("status", "manutencao")
-      .eq("ativo", true)
-      .eq("vendido", false)
-      .order("manutencao_iniciado_em", { ascending: false, nullsFirst: false }),
+    listFrotasEmManutencaoAgora(),
   ]);
-  const paradasError = importadasResult.error ?? manutencaoResult.error;
-  if (paradasError) throw new Error(`getParadas: ${paradasError.message}`);
+  if (importadasResult.error) throw new Error(`getParadas: ${importadasResult.error.message}`);
 
   const importadas = (importadasResult.data ?? []) as ParadaRow[];
   const existentes = new Set(importadas.map((r) => paradaKey(r.frota_numero, r.placa)).filter(Boolean));
-  const manuais = ((manutencaoResult.data ?? []) as VeiculoParadoRow[])
-    .filter((r) => !existentes.has(paradaKey(r.codigo_frota, r.placa)))
-    .map(paradaManual);
+  const manuais = manuaisAgora.filter((r) => !existentes.has(paradaKey(r.frota_numero, r.placa)));
 
-  // Lookup veiculo_id for imported rows via frota_numero/placa
-  const frotaNums = importadas.map((r) => safePostgrestTerm(r.frota_numero ?? "")).filter(Boolean);
-  const placas = importadas.map((r) => safePostgrestTerm(r.placa ?? "")).filter(Boolean);
+  // Lookup veiculo_id for imported rows via frota_numero/placa. Normaliza (sem
+  // traço/espaço) dos dois lados — a planilha importada às vezes guarda a placa
+  // sem o traço que o cadastro do veículo tem ("PHM1144" vs "PHM-1144"), e uma
+  // comparação exata perdia o match.
   const veiculoMap = new Map<string, number>();
-  if (frotaNums.length > 0 || placas.length > 0) {
+  if (importadas.length > 0) {
     const { data: veiculos, error: veiculosError } = await supabaseManutencao
       .from("veiculos")
       .select("id,codigo_frota,placa")
-      .or(
-        [
-          frotaNums.length > 0 ? `codigo_frota.in.(${frotaNums.map((f) => `"${f}"`).join(",")})` : null,
-          placas.length > 0 ? `placa.in.(${placas.map((p) => `"${p}"`).join(",")})` : null,
-        ]
-          .filter(Boolean)
-          .join(",")
-      );
+      .eq("ativo", true)
+      .eq("vendido", false);
     if (veiculosError) throw new Error(`getParadas veiculos: ${veiculosError.message}`);
     for (const v of veiculos ?? []) {
-      if (v.codigo_frota) veiculoMap.set(v.codigo_frota.trim().toUpperCase(), v.id);
-      if (v.placa) veiculoMap.set(v.placa.trim().toUpperCase(), v.id);
+      if (v.codigo_frota) veiculoMap.set(normalizeIdentificador(v.codigo_frota), v.id);
+      if (v.placa) veiculoMap.set(normalizeIdentificador(v.placa), v.id);
     }
   }
 
   const importadasComId = importadas.map((r) => ({
     ...r,
     veiculo_id:
-      (r.frota_numero && veiculoMap.get(r.frota_numero.trim().toUpperCase())) ||
-      (r.placa && veiculoMap.get(r.placa.trim().toUpperCase())) ||
+      veiculoMap.get(normalizeIdentificador(r.frota_numero)) ??
+      veiculoMap.get(normalizeIdentificador(r.placa)) ??
       null,
   }));
 

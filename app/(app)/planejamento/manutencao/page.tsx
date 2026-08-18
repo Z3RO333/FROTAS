@@ -15,7 +15,7 @@ import {
 import type { LucideProps } from "lucide-react";
 import { Fragment } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { getParadas, type ParadaRow } from "@/lib/repos/planejamento";
+import { listFrotasEmManutencaoAgora, type ParadaRow } from "@/lib/repos/planejamento";
 import { getManutencaoStatus, TIPO_SERVICO_APP, type ManutencaoStatusRow } from "@/lib/repos/manutencao/status";
 import { listServicosRecentes, listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
 import type { TipoServico } from "@/lib/repos/manutencao/types";
@@ -96,7 +96,7 @@ export default async function ManutencaoPage() {
   const [rows, servicosRecentes, paradas, veiculosParaServico] = await Promise.all([
     getManutencaoStatus(),
     listServicosRecentes(100),
-    getParadas(),
+    listFrotasEmManutencaoAgora(),
     listVeiculosParaServico(),
   ]);
   const today = reportCalendarDate();
