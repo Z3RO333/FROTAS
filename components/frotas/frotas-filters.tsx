@@ -114,7 +114,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
             <Input
               value={buscaFrota}
               onChange={(event) => setBuscaFrota(event.target.value)}
-              placeholder="Buscar por frota..."
+              placeholder="Nº da frota (exato)..."
               className="pl-9"
             />
           </div>

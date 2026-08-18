@@ -103,9 +103,9 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         if (filtro === "SEM_DUT" && doc.dut_url) return false;
         if (filtro === "SEM_CRLV" && doc.crlv_url) return false;
       }
-      // Busca separada — frota (número) e placa/modelo não se misturam, senão
-      // digitar "2" trazia tanto frotas quanto placas com "2" no meio.
-      if (termFrota && !normalizeSearch(doc.frota).includes(termFrota)) return false;
+      // Busca separada — frota (número) é exata (senão "2" trazia 20, 218...),
+      // placa/modelo continua parcial.
+      if (termFrota && normalizeSearch(doc.frota) !== termFrota) return false;
       if (termPlaca && !normalizeSearch(`${doc.placa} ${doc.modelo}`).includes(termPlaca)) return false;
       return true;
     });
@@ -148,7 +148,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
       </PageHero>
 
       <FilterBar sticky>
-        <FilterSearch value={queryFrota} onChange={setQueryFrota} placeholder="Buscar por frota…" className="sm:max-w-[160px]" />
+        <FilterSearch value={queryFrota} onChange={setQueryFrota} placeholder="Nº da frota (exato)…" className="sm:max-w-[160px]" />
         <FilterSearch value={queryPlaca} onChange={setQueryPlaca} placeholder="Buscar por placa ou modelo…" />
         <div className="flex flex-wrap items-center gap-1.5">
           <FilterChip

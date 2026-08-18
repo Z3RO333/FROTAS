@@ -354,10 +354,11 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   if (f.status) next = next.eq("status", f.status);
   if (f.semKm) next = next.is("km_atual", null);
   // Buscas separadas — frota (número) e placa não se misturam, senão digitar
-  // "2" trazia tanto frotas quanto placas com "2" no meio.
+  // "2" trazia tanto frotas quanto placas com "2" no meio. Frota é busca
+  // exata (não parcial): "2" deve trazer só a frota 2, não 20, 218, 234...
   if (f.frota) {
     const s = safePostgrestTerm(f.frota);
-    if (s) next = next.ilike("codigo_frota", `%${s}%`);
+    if (s) next = next.eq("codigo_frota", s);
   }
   if (f.placa) {
     const s = safePostgrestTerm(f.placa);
