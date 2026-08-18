@@ -126,7 +126,7 @@ export default async function FrotasDisponibilidadesPage({
               triggerVariant="outline"
             />
             <Button asChild variant="outline">
-              <Link href="/frotas">Tabela de frotas</Link>
+              <Link href="/frotas">Tabela de Frotas</Link>
             </Button>
           </div>
         }

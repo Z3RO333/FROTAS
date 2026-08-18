@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EmailSchedule } from "@/lib/repos/email-schedule";
+import { CDS_OPERACIONAIS } from "@/lib/cds";
 
 export const TIPO_LABELS: Record<string, string> = {
   DISPONIBILIDADE: "Disponibilidade",
@@ -41,6 +42,9 @@ export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = 
   const [tipo, setTipo] = useState<string>(schedule?.tipo ?? "DISPONIBILIDADE");
   const [setoresSelecionados, setSetoresSelecionados] = useState(
     () => new Set(schedule?.setores_incluidos ?? [])
+  );
+  const [cdsSelecionados, setCdsSelecionados] = useState(
+    () => new Set(schedule?.cds_incluidos ?? [])
   );
   const [emailsPorSetor, setEmailsPorSetor] = useState<Record<string, string>>(() =>
     Object.fromEntries((schedule?.setores_incluidos ?? []).map((setor) => [
@@ -137,8 +141,29 @@ export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = 
         )}
 
         <div className="space-y-1.5">
-          <Label htmlFor="cds_incluidos">CDs incluídos (vazio = todos)</Label>
-          <Input id="cds_incluidos" name="cds_incluidos" placeholder="CD Manaus, CD Boa Vista" defaultValue={schedule?.cds_incluidos.join(", ")} />
+          <Label>CDs incluídos (vazio = todos)</Label>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-md border border-input bg-background px-3 py-2">
+            {CDS_OPERACIONAIS.map((cd) => (
+              <label key={cd} className="flex cursor-pointer items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  name="cds_incluidos"
+                  value={cd}
+                  checked={cdsSelecionados.has(cd)}
+                  onChange={(event) => {
+                    setCdsSelecionados((current) => {
+                      const next = new Set(current);
+                      if (event.target.checked) next.add(cd);
+                      else next.delete(cd);
+                      return next;
+                    });
+                  }}
+                  className="h-4 w-4 rounded border-input"
+                />
+                {cd}
+              </label>
+            ))}
+          </div>
         </div>
 
         {isRelatorioSetorizado && (

@@ -81,7 +81,7 @@ export default async function FrotasPage({
     <div className="space-y-5">
       <PageHeader
         eyebrow="Operação"
-        title="Tabela de frotas"
+        title="Tabela de Frotas"
         description={`${total} frota(s) encontrada(s)${sp.cd ? ` em ${sp.cd}` : sp.localizacao ? ` em ${sp.localizacao}` : ""}.`}
         icon={List}
         severity="INFO"

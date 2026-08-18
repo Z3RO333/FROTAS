@@ -49,7 +49,7 @@ export default async function ChecklistsAdminPage({
     <div className="space-y-5">
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700 sm:text-sm">Administração</p>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Checklists de frotas</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Checklists de Frotas</h1>
         <p className="text-sm text-muted-foreground">Acompanhe vistorias, pendências e divergências por período, frota ou placa.</p>
       </div>
 

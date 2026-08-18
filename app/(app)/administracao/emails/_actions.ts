@@ -59,10 +59,7 @@ const ScheduleSchema = z.object({
   dia_semana: z.coerce.number().int().min(0).max(6).nullable(),
   dia_mes: z.coerce.number().int().min(1).max(31).nullable(),
   hora_envio: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM"),
-  cds_incluidos: z
-    .string()
-    .transform((s) => [...new Set(s.split(",").map((e) => e.trim()).filter(Boolean))])
-    .pipe(z.array(z.string().max(120)).max(100)),
+  cds_incluidos: z.array(z.string().max(120)).max(100),
   setores_incluidos: z.array(z.string().max(120)).max(100),
   destinatarios_por_setor: z.record(z.string().max(120), RequiredCorporateEmailListSchema),
 }).superRefine((schedule, context) => {
@@ -102,7 +99,7 @@ function scheduleFormRaw(formData: FormData) {
     dia_semana: formData.get("dia_semana") || null,
     dia_mes: formData.get("dia_mes") || null,
     hora_envio: formData.get("hora_envio"),
-    cds_incluidos: formData.get("cds_incluidos") ?? "",
+    cds_incluidos: formData.getAll("cds_incluidos").map(String),
     setores_incluidos: setores,
     destinatarios_por_setor: destinatariosPorSetor,
   };
