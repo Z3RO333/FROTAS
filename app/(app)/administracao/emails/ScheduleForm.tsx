@@ -26,6 +26,7 @@ type ScheduleFormProps = {
   action: (formData: FormData) => void | Promise<void>;
   onCancel?: () => void;
   setoresDisponiveis?: string[];
+  frotasPorCd?: Record<string, { total: number; amostra: string[] }>;
 };
 
 function SubmitButton({ label }: { label: string }) {
@@ -37,7 +38,7 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = [] }: ScheduleFormProps) {
+export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = [], frotasPorCd = {} }: ScheduleFormProps) {
   const [frequencia, setFrequencia] = useState<string>(schedule?.frequencia ?? "DIARIO");
   const [tipo, setTipo] = useState<string>(schedule?.tipo ?? "DISPONIBILIDADE");
   const [setoresSelecionados, setSetoresSelecionados] = useState(
@@ -164,6 +165,27 @@ export function ScheduleForm({ schedule, action, onCancel, setoresDisponiveis = 
               </label>
             ))}
           </div>
+          {cdsSelecionados.size > 0 && (
+            <div className="space-y-1 rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2 text-xs text-slate-600">
+              {Array.from(cdsSelecionados).map((cd) => {
+                const info = frotasPorCd[cd];
+                if (!info || info.total === 0) {
+                  return (
+                    <p key={cd}>
+                      <span className="font-medium text-slate-700">{cd}:</span> nenhuma frota encontrada.
+                    </p>
+                  );
+                }
+                const restante = info.total - info.amostra.length;
+                return (
+                  <p key={cd}>
+                    <span className="font-medium text-slate-700">{cd}:</span> {info.total} frota(s) — {info.amostra.join(", ")}
+                    {restante > 0 ? ` +${restante}` : ""}
+                  </p>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {isRelatorioSetorizado && (

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { canManageEmailSchedules, requireAppUser } from "@/lib/rbac";
 import { listEmailSchedules } from "@/lib/repos/email-schedule";
 import { setoresDistintos } from "@/lib/repos/frotas";
+import { getFrotasPorCd } from "@/lib/repos/disponibilidade";
 import { listNotificacaoDestinatarios } from "@/lib/repos/notificacao-destinatarios";
 import { createScheduleAction } from "./_actions";
 import { ScheduleForm } from "./ScheduleForm";
@@ -20,10 +21,11 @@ export default async function EmailsPage({
   const user = await requireAppUser();
   if (!canManageEmailSchedules(user.perfil)) redirect("/");
   const sp = await searchParams;
-  const [schedules, setoresDisponiveis, notificacaoDestinatarios] = await Promise.all([
+  const [schedules, setoresDisponiveis, notificacaoDestinatarios, frotasPorCd] = await Promise.all([
     listEmailSchedules(),
     setoresDistintos(),
     listNotificacaoDestinatarios(),
+    getFrotasPorCd(),
   ]);
 
   return (
@@ -49,7 +51,7 @@ export default async function EmailsPage({
 
       <NotificacaoDestinatariosSection destinatarios={notificacaoDestinatarios} />
 
-      <ScheduleForm action={createScheduleAction} setoresDisponiveis={setoresDisponiveis} />
+      <ScheduleForm action={createScheduleAction} setoresDisponiveis={setoresDisponiveis} frotasPorCd={frotasPorCd} />
 
       {/* Lista */}
       <div className="space-y-3">
@@ -57,7 +59,7 @@ export default async function EmailsPage({
           <p className="text-sm text-muted-foreground">Nenhuma programação configurada ainda.</p>
         )}
         {schedules.map((s) => (
-          <ScheduleRow key={s.id} schedule={s} setoresDisponiveis={setoresDisponiveis} />
+          <ScheduleRow key={s.id} schedule={s} setoresDisponiveis={setoresDisponiveis} frotasPorCd={frotasPorCd} />
         ))}
       </div>
     </div>

@@ -23,9 +23,11 @@ type PendingKind = "disparar" | "toggle" | "remover" | null;
 export function ScheduleRow({
   schedule,
   setoresDisponiveis = [],
+  frotasPorCd = {},
 }: {
   schedule: EmailSchedule;
   setoresDisponiveis?: string[];
+  frotasPorCd?: Record<string, { total: number; amostra: string[] }>;
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -140,6 +142,7 @@ export function ScheduleRow({
             action={handleUpdate}
             onCancel={() => setEditOpen(false)}
             setoresDisponiveis={setoresDisponiveis}
+            frotasPorCd={frotasPorCd}
           />
         </DialogContent>
       </Dialog>

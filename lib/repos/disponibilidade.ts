@@ -182,6 +182,20 @@ export async function listCDsDisponibilidade(): Promise<string[]> {
   );
 }
 
+export async function getFrotasPorCd(): Promise<Record<string, { total: number; amostra: string[] }>> {
+  const rows = await listVeiculosDisponibilidade();
+  const grouped = new Map<string, string[]>();
+
+  for (const row of rows) {
+    const cd = normalizeCdNome(row.local);
+    grouped.set(cd, [...(grouped.get(cd) ?? []), row.codigo_frota ?? row.placa ?? `#${row.id}`]);
+  }
+
+  return Object.fromEntries(
+    Array.from(grouped.entries()).map(([cd, nomes]) => [cd, { total: nomes.length, amostra: nomes.slice(0, 8) }])
+  );
+}
+
 export async function getDisponibilidadePorCD(): Promise<DisponibilidadeCD[]> {
   const rows = await listVeiculosDisponibilidade();
   const grouped = new Map<string, VeiculoDisponibilidadeRow[]>();
