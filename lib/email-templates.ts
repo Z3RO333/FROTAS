@@ -401,8 +401,8 @@ export function renderRelatorioIndividual(frota: Frota, options: ReportOptions =
 export type RelatorioOperacionalDiarioInput = {
   totalChecklists: number;
   totalApontamentos: number;
-  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[];
-  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[];
+  frotasFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number; km_informado: number | null }[];
+  frotasNaoFizeram: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number; km_informado: number | null }[];
   pendenciasPorFrota: {
     frota_id: number;
     frota_geral: string | null;
@@ -426,7 +426,7 @@ function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string;
 
 function frotasChecklistTable(
   titulo: string,
-  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number }[],
+  frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number; km_informado: number | null }[],
   vazioMsg: string,
   mostrarQtdChecklists: boolean
 ): string {
@@ -444,12 +444,13 @@ function frotasChecklistTable(
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(f.frota_geral ?? f.frota_id)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.placa)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(f.setor)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;">${f.km_informado != null ? formatNumber(f.km_informado) : "-"}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${escapeHtml(normalizeCdNome(f.localizacao))}</td>
         ${qtdCell}
       </tr>`;
     })
     .join("");
-  const colCount = mostrarQtdChecklists ? 5 : 4;
+  const colCount = mostrarQtdChecklists ? 6 : 5;
   const corpo =
     linhas ||
     `<tr><td colspan="${colCount}" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">${escapeHtml(vazioMsg)}</td></tr>`;
@@ -461,6 +462,7 @@ function frotasChecklistTable(
         <th style="padding:10px 8px;text-align:left;">Frota</th>
         <th style="padding:10px 8px;text-align:left;">Placa</th>
         <th style="padding:10px 8px;text-align:left;">Setor</th>
+        <th style="padding:10px 8px;text-align:right;">KM</th>
         <th style="padding:10px 8px;text-align:left;">CD</th>
         ${mostrarQtdChecklists ? `<th style="padding:10px 8px;text-align:left;">Checklists</th>` : ""}
       </tr></thead>

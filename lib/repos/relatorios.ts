@@ -47,6 +47,7 @@ export type FrotaResumoChecklist = {
   localizacao: string | null;
   setor: string | null;
   checklists: number;
+  km_informado: number | null;
 };
 
 function frotaSortKey(f: { frota_geral: string | null; placa: string | null; frota_id: number }): [string, string] {
@@ -70,7 +71,8 @@ function compareFrotaKeys(a: [string, string], b: [string, string]): number {
 
 export function splitFrotasPorChecklist(
   frotasAtivas: { id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null }[],
-  frotaIdsComChecklist: number[]
+  frotaIdsComChecklist: number[],
+  kmPorFrota: Map<number, number | null> = new Map()
 ): { fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] } {
   const qtdPorFrota = new Map<number, number>();
   for (const id of frotaIdsComChecklist) qtdPorFrota.set(id, (qtdPorFrota.get(id) ?? 0) + 1);
@@ -85,6 +87,7 @@ export function splitFrotasPorChecklist(
       localizacao: frota.localizacao,
       setor: effectiveSetor(frota),
       checklists: qtdPorFrota.get(frota.id) ?? 0,
+      km_informado: kmPorFrota.get(frota.id) ?? null,
     };
     if (qtdPorFrota.has(frota.id)) fizeram.push(resumo);
     else naoFizeram.push(resumo);
@@ -372,36 +375,40 @@ export async function getFrotasComSemChecklistNoDia(
 ): Promise<{ fizeram: FrotaResumoChecklist[]; naoFizeram: FrotaResumoChecklist[] }> {
   const { start, end } = reportDayUtcRange(date);
 
-  async function fetchAllChecklistFrotaIds(): Promise<number[]> {
-    const rows: { frota_id: number }[] = [];
+  async function fetchAllChecklistRows(): Promise<{ frota_id: number; km_informado: number | null }[]> {
+    const rows: { frota_id: number; km_informado: number | null }[] = [];
     const chunkSize = 1000;
     for (let from = 0; ; from += chunkSize) {
       const { data, error } = await supabaseManutencao
         .from("checklists_frota")
-        .select("frota_id")
+        .select("frota_id,km_informado")
         .gte("data_checklist", start)
         .lt("data_checklist", end)
         .order("id", { ascending: true })
         .range(from, from + chunkSize - 1);
       if (error) throw new Error(`getFrotasComSemChecklistNoDia: ${error.message}`);
-      const chunk = (data ?? []) as { frota_id: number }[];
+      const chunk = (data ?? []) as { frota_id: number; km_informado: number | null }[];
       rows.push(...chunk);
       if (chunk.length < chunkSize) break;
     }
-    return rows.map((r) => Number(r.frota_id));
+    return rows.map((r) => ({ frota_id: Number(r.frota_id), km_informado: r.km_informado }));
   }
 
-  const [frotasAtivas, frotaIdsComChecklist] = await Promise.all([
+  const [frotasAtivas, checklistRows] = await Promise.all([
     listFrotasForReport(),
-    fetchAllChecklistFrotaIds(),
+    fetchAllChecklistRows(),
   ]);
+
+  const frotaIdsComChecklist = checklistRows.map((r) => r.frota_id);
+  const kmPorFrota = new Map<number, number | null>();
+  for (const r of checklistRows) kmPorFrota.set(r.frota_id, r.km_informado);
 
   const frotasEscopo = filtraPorSetores(
     frotasAtivas.map((f) => ({ id: f.id, frota_geral: f.frota_geral, placa: f.placa, localizacao: f.localizacao, setor: f.setor })),
     setores
   );
 
-  return splitFrotasPorChecklist(frotasEscopo, frotaIdsComChecklist);
+  return splitFrotasPorChecklist(frotasEscopo, frotaIdsComChecklist, kmPorFrota);
 }
 
 export async function getPendenciasCriadasNoDiaPorFrota(date: string, setores?: string[]): Promise<PendenciaGrupoFrota[]> {
