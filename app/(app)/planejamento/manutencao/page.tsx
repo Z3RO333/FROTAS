@@ -13,8 +13,9 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
-import type { ComponentType } from "react";
-import { getManutencao } from "@/lib/repos/planejamento";
+import { Fragment } from "react";
+import type { ComponentType, ReactNode } from "react";
+import { getManutencao, getParadas, type ParadaRow } from "@/lib/repos/planejamento";
 import { listServicosRecentes } from "@/lib/repos/manutencao/servicos";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -59,11 +60,51 @@ const SERVICO_APP_LABELS: Record<string, string> = {
   bateria: "Bateria",
 };
 
+const CLASSIFICACAO_ICONS: Record<string, ComponentType<LucideProps>> = {
+  PREVENTIVA: ClipboardCheck,
+  CORRETIVA: Wrench,
+  EMERGENCIAL: AlertTriangle,
+  OUTRA: Cog,
+};
+
+function classificacaoLabel(classificacao: string | null): string {
+  if (!classificacao) return "Não classificado";
+  const key = classificacao.trim().toUpperCase();
+  const labels: Record<string, string> = {
+    PREVENTIVA: "Preventiva",
+    CORRETIVA: "Corretiva",
+    EMERGENCIAL: "Emergencial",
+    OUTRA: "Outra",
+  };
+  return labels[key] ?? classificacao;
+}
+
+function paradaAtrasada(row: ParadaRow, hoje: Date): boolean {
+  if (!row.prev_saida) return false;
+  return new Date(`${row.prev_saida}T00:00:00`) < hoje;
+}
+
 export default async function ManutencaoPage() {
-  const [rows, servicosRecentes] = await Promise.all([
+  const [rows, servicosRecentes, paradas] = await Promise.all([
     getManutencao(),
     listServicosRecentes(100),
+    getParadas(),
   ]);
+
+  const hoje = new Date();
+  const paradasPorClassificacao = paradas.reduce<Record<string, ParadaRow[]>>((acc, r) => {
+    const key = r.classificacao?.trim().toUpperCase() || "OUTRA";
+    acc[key] ??= [];
+    acc[key].push(r);
+    return acc;
+  }, {});
+  const paradasSummary = Object.entries(paradasPorClassificacao)
+    .map(([classificacao, items]) => ({
+      classificacao,
+      total: items.length,
+      atrasadas: items.filter((r) => paradaAtrasada(r, hoje)).length,
+    }))
+    .sort((a, b) => b.total - a.total);
 
   const byTipo = rows.reduce<Record<string, typeof rows>>((acc, r) => {
     acc[r.tipo_servico] ??= [];
@@ -164,6 +205,146 @@ export default async function ManutencaoPage() {
               );
             })}
         </div>
+      </section>
+
+      {/* Frotas atualmente em manutenção (paradas), categorizadas por tipo */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <span className="h-1 w-6 rounded-full bg-amber-500" />
+          Em manutenção agora ({paradas.length})
+        </h2>
+
+        {paradas.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-12 text-center text-sm text-slate-500">
+            Nenhuma frota em manutenção no momento.
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {paradasSummary.map((s) => {
+                const Icon = CLASSIFICACAO_ICONS[s.classificacao] ?? Wrench;
+                const severity = s.atrasadas > 0 ? "CRITICO" : "ATENCAO";
+                const tone = SEVERITY[severity];
+                return (
+                  <div
+                    key={s.classificacao}
+                    className="group relative overflow-hidden rounded-xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] transition-all duration-150 hover:-translate-y-[1px] hover:shadow-[0_2px_0_rgba(15,23,42,0.04),0_16px_32px_-12px_rgba(15,23,42,0.22)]"
+                  >
+                    <span className={cn("pointer-events-none absolute inset-x-0 top-0 h-[3px]", tone.bar)} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          {classificacaoLabel(s.classificacao)}
+                        </p>
+                        <div className="mt-2 flex items-end gap-2">
+                          <span className={cn("text-3xl font-semibold tabular-nums", tone.icon)}>{s.total}</span>
+                        </div>
+                        {s.atrasadas > 0 && (
+                          <div className="mt-1 text-[11px] text-red-700">
+                            {s.atrasadas} com retorno atrasado
+                          </div>
+                        )}
+                      </div>
+                      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", tone.tile)}>
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] md:block">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="p-3 text-left">Frota</th>
+                      <th className="p-3 text-left">Placa</th>
+                      <th className="p-3 text-left">Setor</th>
+                      <th className="p-3 text-left">Tipo</th>
+                      <th className="p-3 text-left">Motivo</th>
+                      <th className="p-3 text-left">Oficina</th>
+                      <th className="p-3 text-left">Início</th>
+                      <th className="p-3 text-left">Prev. retorno</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paradas.map((r, i) => {
+                      const atrasada = paradaAtrasada(r, hoje);
+                      const Wrapper = r.veiculo_id
+                        ? ({ children }: { children: ReactNode }) => (
+                            <Link href={`/frotas/${r.veiculo_id}`} className="contents">
+                              {children}
+                            </Link>
+                          )
+                        : Fragment;
+                      return (
+                        <tr key={`p-${i}`} className="transition-colors hover:bg-blue-50/40">
+                          <td className="p-3 font-medium text-slate-900">
+                            <Wrapper>{r.frota_numero ?? "—"}</Wrapper>
+                          </td>
+                          <td className="p-3 font-mono text-xs text-slate-700">{r.placa ?? "—"}</td>
+                          <td className="p-3 text-xs text-slate-500">{r.setor ?? "—"}</td>
+                          <td className="p-3 text-xs text-slate-600">{classificacaoLabel(r.classificacao)}</td>
+                          <td className="max-w-xs truncate p-3 text-xs text-slate-600" title={r.descricao_original}>
+                            {r.descricao_original}
+                          </td>
+                          <td className="p-3 text-xs text-slate-500">{r.oficina ?? "—"}</td>
+                          <td className="p-3 text-xs tabular-nums text-slate-600">{r.inicio_em ?? "—"}</td>
+                          <td className={cn("p-3 text-xs tabular-nums", atrasada ? "font-medium text-red-600" : "text-slate-600")}>
+                            {r.prev_saida ?? "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:hidden">
+              {paradas.map((r, i) => {
+                const atrasada = paradaAtrasada(r, hoje);
+                return (
+                  <div
+                    key={`pm-${i}`}
+                    className={cn(
+                      "rounded-xl border border-l-4 bg-white p-4 shadow-[0_1px_0_rgba(15,23,42,0.04)]",
+                      atrasada ? "border-l-red-500" : "border-l-amber-500"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-slate-900">
+                            {r.frota_numero ?? r.placa ?? "—"}
+                          </span>
+                          {r.placa && (
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-700">
+                              {r.placa}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {classificacaoLabel(r.classificacao)}
+                          {r.setor ? ` · ${r.setor}` : ""}
+                        </p>
+                        <p className="mt-1 truncate text-xs text-slate-600">{r.descricao_original}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className="text-slate-500">Início: {r.inicio_em ?? "—"}</span>
+                      <span className={cn("font-medium", atrasada ? "text-red-600" : "text-slate-500")}>
+                        Prev.: {r.prev_saida ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Lista de itens com atenção */}
