@@ -226,6 +226,11 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                   <div className="space-y-1">
                     <DocumentActions signedUrl={doc.crlv_signed_url} downloadUrl={doc.crlv_download_url} label="CRLV" />
                     <VencimentoLabel value={doc.crlv_vencimento} />
+                    {doc.crlv_revisar_manualmente ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
+                        Revisar CRLV
+                      </span>
+                    ) : null}
                   </div>
                 </TableCell>
                 <TableCell className="text-xs tabular-nums text-slate-500">
