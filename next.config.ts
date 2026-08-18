@@ -30,7 +30,7 @@ const config: NextConfig = {
       ...(ALLOWED_ORIGINS.length > 0 ? { allowedOrigins: ALLOWED_ORIGINS } : {}),
     },
   },
-  serverExternalPackages: ["@databricks/sql", "@resvg/resvg-js"],
+  serverExternalPackages: ["@databricks/sql", "@resvg/resvg-js", "@napi-rs/canvas"],
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
