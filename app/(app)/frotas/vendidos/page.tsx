@@ -42,7 +42,8 @@ export default async function FrotasVendidasPage({
   const idadeMin = sp.idadeMin ? Number.parseInt(sp.idadeMin, 10) : undefined;
 
   const filters = {
-    search: sp.search,
+    frota: sp.frota,
+    placa: sp.placa,
     modelo: sp.modelo,
     localizacao: sp.localizacao,
     cd: sp.cd,

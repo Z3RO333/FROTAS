@@ -37,7 +37,8 @@ const CONDICOES = [
 export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [buscaFrota, setBuscaFrota] = useState(searchParams.get("frota") ?? "");
+  const [buscaPlaca, setBuscaPlaca] = useState(searchParams.get("placa") ?? "");
   const [, startTransition] = useTransition();
 
   const applyChanges = useCallback((changes: Record<string, string>) => {
@@ -58,16 +59,25 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
   }, [applyChanges]);
 
   useEffect(() => {
-    setSearch(searchParams.get("search") ?? "");
+    setBuscaFrota(searchParams.get("frota") ?? "");
+    setBuscaPlaca(searchParams.get("placa") ?? "");
   }, [searchParams]);
 
   useEffect(() => {
-    const current = searchParams.get("search") ?? "";
-    if (search === current) return;
+    const current = searchParams.get("frota") ?? "";
+    if (buscaFrota === current) return;
 
-    const handle = window.setTimeout(() => update("search", search.trim()), 350);
+    const handle = window.setTimeout(() => update("frota", buscaFrota.trim()), 350);
     return () => window.clearTimeout(handle);
-  }, [search, searchParams, update]);
+  }, [buscaFrota, searchParams, update]);
+
+  useEffect(() => {
+    const current = searchParams.get("placa") ?? "";
+    if (buscaPlaca === current) return;
+
+    const handle = window.setTimeout(() => update("placa", buscaPlaca.trim()), 350);
+    return () => window.clearTimeout(handle);
+  }, [buscaPlaca, searchParams, update]);
 
   const cdAtual = searchParams.get("cd") ?? "all";
 
@@ -98,13 +108,23 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
       </div>
 
       <div className="rounded-lg border bg-white p-3 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[minmax(220px,1.2fr)_repeat(5,minmax(150px,.8fr))_auto]">
+        <div className="grid gap-3 lg:grid-cols-[minmax(140px,.7fr)_minmax(160px,.9fr)_repeat(5,minmax(150px,.8fr))_auto]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar placa, chassi, modelo, localização..."
+              value={buscaFrota}
+              onChange={(event) => setBuscaFrota(event.target.value)}
+              placeholder="Buscar por frota..."
+              className="pl-9"
+            />
+          </div>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={buscaPlaca}
+              onChange={(event) => setBuscaPlaca(event.target.value)}
+              placeholder="Buscar por placa ou chassi..."
               className="pl-9"
             />
           </div>

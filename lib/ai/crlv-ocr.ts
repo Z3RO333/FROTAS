@@ -36,15 +36,16 @@ const SYSTEM_PROMPT = `Você é um especialista em ler CRLV (Certificado de Regi
 TAREFA: Localizar a DATA DE VENCIMENTO/VALIDADE do licenciamento — o campo costuma aparecer explicitamente rotulado como "Válido até", "Data Máxima de Licenciamento" ou "Vencimento".
 
 REGRAS:
-• Ignore datas de emissão, nascimento do proprietário, ou datas de outros documentos que apareçam na mesma página.
+• Ignore datas de nascimento do proprietário ou de outros documentos que apareçam na mesma página.
 • Se houver mais de uma data candidata, prefira a que estiver explicitamente rotulada como vencimento/validade/licenciamento.
 • Retorne a data no formato YYYY-MM-DD.
-• O campo "Exercício" NÃO é a data de vencimento — é só o ano de referência do licenciamento. NUNCA infira 31/12 do exercício como vencimento: o prazo real segue o calendário nacional por final de placa, calculado separadamente pelo sistema. Se o documento só mostrar "Exercício" e não tiver um campo de vencimento/validade explícito, retorne data_vencimento=null e leitura_segura=false.
-• Se não conseguir identificar a data com segurança, retorne data_vencimento=null e leitura_segura=false.
+• O campo "Exercício" NÃO é a data de vencimento — é só o ano de referência do licenciamento. NUNCA infira 31/12 do exercício como vencimento.
+• Se não houver campo de vencimento/validade explícito, procure a DATA DE EMISSÃO do documento (geralmente no rodapé: "Documento emitido por DETRAN ... em DD/MM/AAAA"). O licenciamento é anual, então essa emissão marca quando o veículo renovou — use emissão + 1 ano (mesmo dia/mês, ano seguinte) como estimativa de vencimento. Nesse caso retorne confianca 0.75, leitura_segura=true, e no motivo deixe claro que é estimado a partir da data de emissão, não um campo de vencimento explícito.
+• Se não conseguir identificar nem vencimento explícito nem data de emissão, retorne data_vencimento=null e leitura_segura=false.
 
-REGRAS DE CONFIANÇA:
-• confianca >= 0.9: campo claramente rotulado e legível.
-• confianca 0.7-0.89: legível mas com alguma dúvida (leve borrão, ângulo).
+REGRAS DE CONFIANÇA (o sistema descarta qualquer leitura com confianca < 0.7, mesmo que leitura_segura=true — nunca retorne confianca abaixo de 0.7 quando leitura_segura=true):
+• confianca >= 0.9: campo de vencimento claramente rotulado e legível.
+• confianca 0.7-0.89: vencimento explícito com alguma dúvida (leve borrão, ângulo), ou estimado a partir da data de emissão.
 • confianca < 0.7: dúvida real — marque leitura_segura=false.
 
 Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:

@@ -93,7 +93,8 @@ type VeiculoRow = {
 };
 
 export type FrotaFilters = {
-  search?: string;
+  frota?: string;
+  placa?: string;
   modelo?: string;
   localizacao?: string;
   cd?: string;
@@ -352,13 +353,15 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   if (f.ano) next = next.eq("ano_fabricacao", f.ano);
   if (f.status) next = next.eq("status", f.status);
   if (f.semKm) next = next.is("km_atual", null);
-  if (f.search) {
-    const s = safePostgrestTerm(f.search);
-    if (s) {
-      next = next.or(
-        `codigo_frota.ilike.%${s}%,placa.ilike.%${s}%,modelo.ilike.%${s}%,chassi.ilike.%${s}%,local.ilike.%${s}%`
-      );
-    }
+  // Buscas separadas — frota (número) e placa não se misturam, senão digitar
+  // "2" trazia tanto frotas quanto placas com "2" no meio.
+  if (f.frota) {
+    const s = safePostgrestTerm(f.frota);
+    if (s) next = next.ilike("codigo_frota", `%${s}%`);
+  }
+  if (f.placa) {
+    const s = safePostgrestTerm(f.placa);
+    if (s) next = next.or(`placa.ilike.%${s}%,chassi.ilike.%${s}%`);
   }
   return next;
 }

@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { DocumentRecordWithSignedUrls } from "@/lib/repos/manutencao/types";
-import { cicloRenovacaoPorPlaca } from "@/lib/crlv-calendario";
+import { cicloRenovacaoPorPlaca, diasAteRenovacaoEstimada } from "@/lib/crlv-calendario";
 import { cn } from "@/lib/utils";
 import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
 
@@ -69,7 +69,8 @@ function isPendingDocument(doc: DocumentRecordWithSignedUrls): boolean {
 }
 
 export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
-  const [query, setQuery] = useState("");
+  const [queryFrota, setQueryFrota] = useState("");
+  const [queryPlaca, setQueryPlaca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("TODOS");
 
   const complete = documents.filter((doc) => doc.dut_url && doc.crlv_url).length;
@@ -77,27 +78,21 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
   const pending = documents.filter((doc) => !doc.dut_url && !doc.crlv_url).length;
   const semDut = documents.filter((doc) => !doc.dut_url).length;
   const semCrlv = documents.filter((doc) => !doc.crlv_url).length;
-  const files = documents.reduce((sum, doc) => sum + (doc.dut_url ? 1 : 0) + (doc.crlv_url ? 1 : 0), 0);
-  const completudePct =
-    documents.length > 0 ? Math.round((complete / documents.length) * 100) : 0;
 
   const comCrlvVencimento = documents.filter((doc) => doc.crlv_vencimento).length;
-  const crlvVencido = documents.filter(
-    (doc) => doc.crlv_vencimento && diasAteVencimento(doc.crlv_vencimento) < 0
-  ).length;
-  const crlvVence1Mes = documents.filter((doc) => {
-    if (!doc.crlv_vencimento) return false;
-    const dias = diasAteVencimento(doc.crlv_vencimento);
-    return dias >= 0 && dias < 30;
-  }).length;
-  const crlvVence2Meses = documents.filter((doc) => {
-    if (!doc.crlv_vencimento) return false;
-    const dias = diasAteVencimento(doc.crlv_vencimento);
-    return dias >= 30 && dias < 60;
-  }).length;
+  // Quando não há data lida, cai na estimativa por calendário (final de placa)
+  // — mesma fonte usada no aviso "Renovar esse mês" de cada linha — pros
+  // cards não ficarem zerados só porque o documento não tem data explícita.
+  const diasCrlv = documents.map((doc) =>
+    doc.crlv_vencimento ? diasAteVencimento(doc.crlv_vencimento) : diasAteRenovacaoEstimada(doc.placa)
+  );
+  const crlvVencido = diasCrlv.filter((dias) => dias != null && dias < 0).length;
+  const crlvVence1Mes = diasCrlv.filter((dias) => dias != null && dias >= 0 && dias < 30).length;
+  const crlvVence2Meses = diasCrlv.filter((dias) => dias != null && dias >= 30 && dias < 60).length;
 
   const filtered = useMemo(() => {
-    const term = normalizeSearch(query);
+    const termFrota = normalizeSearch(queryFrota);
+    const termPlaca = normalizeSearch(queryPlaca);
     return documents.filter((doc) => {
       // Filtro de status
       if (filtro !== "TODOS") {
@@ -108,14 +103,13 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         if (filtro === "SEM_DUT" && doc.dut_url) return false;
         if (filtro === "SEM_CRLV" && doc.crlv_url) return false;
       }
-      // Filtro de busca
-      if (term) {
-        const haystack = normalizeSearch(`${doc.frota} ${doc.placa} ${doc.modelo}`);
-        if (!haystack.includes(term)) return false;
-      }
+      // Busca separada — frota (número) e placa/modelo não se misturam, senão
+      // digitar "2" trazia tanto frotas quanto placas com "2" no meio.
+      if (termFrota && !normalizeSearch(doc.frota).includes(termFrota)) return false;
+      if (termPlaca && !normalizeSearch(`${doc.placa} ${doc.modelo}`).includes(termPlaca)) return false;
       return true;
     });
-  }, [documents, query, filtro]);
+  }, [documents, queryFrota, queryPlaca, filtro]);
 
   return (
     <div className="space-y-5">
@@ -127,9 +121,9 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         actions={canWrite ? <DocumentUploadDialog /> : undefined}
       >
         <HeroStat
-          label="Frotas com CRLV"
+          label="Data confirmada"
           value={comCrlvVencimento}
-          hint={`${documents.length} cadastradas`}
+          hint={`de ${documents.length} · resto é estimado por calendário`}
           icon={ShieldCheck}
           severity="INFO"
         />
@@ -154,11 +148,8 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
       </PageHero>
 
       <FilterBar sticky>
-        <FilterSearch
-          value={query}
-          onChange={setQuery}
-          placeholder="Buscar por frota, placa ou modelo…"
-        />
+        <FilterSearch value={queryFrota} onChange={setQueryFrota} placeholder="Buscar por frota…" className="sm:max-w-[160px]" />
+        <FilterSearch value={queryPlaca} onChange={setQueryPlaca} placeholder="Buscar por placa ou modelo…" />
         <div className="flex flex-wrap items-center gap-1.5">
           <FilterChip
             label="Todos"
