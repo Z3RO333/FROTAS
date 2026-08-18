@@ -7,7 +7,8 @@ import {
 } from "@/lib/repos/disponibilidade";
 import { renderDisponibilidadeEmail } from "@/lib/email-templates";
 import { EMAIL_LOGO_URL } from "@/lib/email-constants";
-import { getLavagem, getManutencao, getParadas } from "@/lib/repos/planejamento";
+import { getLavagem, getParadas } from "@/lib/repos/planejamento";
+import { getManutencaoStatus } from "@/lib/repos/manutencao/status";
 import { getCustosPorPeriodo } from "@/lib/repos/custos";
 import { listAlertasAbertos } from "@/lib/repos/alertas";
 import { listTacografoPorFrota } from "@/lib/repos/tacografo";
@@ -89,7 +90,7 @@ export function buildTable(title: string, rows: ReportRow[], generatedAt: Date):
 
 export async function buildOperationalEmail(tipo: string, generatedAt: Date): Promise<{ html: string; resumo: string }> {
   if (tipo === "PREVENTIVAS_ATRASO") {
-    const rows = (await getManutencao()).filter((row) => row.status !== "NO_PRAZO").map((row) => ({
+    const rows = (await getManutencaoStatus()).filter((row) => row.status === "VENCIDO").map((row) => ({
       Frota: row.frota_numero ?? row.equipamento,
       Placa: row.placa,
       Serviço: row.tipo_servico,

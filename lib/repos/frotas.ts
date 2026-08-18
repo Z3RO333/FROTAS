@@ -5,6 +5,7 @@ import type { StatusFrota } from "@/lib/rules";
 import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
 import { CDS_OPERACIONAIS } from "@/lib/cds";
+import { getManutencaoStatus } from "@/lib/repos/manutencao/status";
 
 export type Frota = {
   id: number;
@@ -469,16 +470,19 @@ export async function getKpisPorFiltro(localizacao: string): Promise<KpisFiltro>
 export async function kpis(): Promise<Kpis> {
   // Uma única query SQL agrega tudo no banco — sem transferir rows para JS
   // Antes: allFrotas() carregava ~300 rows; agora retorna 1 JSON
-  const [kpiResult, prevResult] = await Promise.all([
+  const [kpiResult, manutRows, lavagemResult] = await Promise.all([
     supabaseManutencao.rpc("get_frotas_kpis"),
+    // Status ao vivo (histórico real em servicos_app) — não a planilha congelada.
+    getManutencaoStatus(),
     supabaseManutencao
       .from("fact_manutencao_programada")
       .select("tipo_servico, status")
-      .in("status", ["VENCIDO", "PROXIMO_VENCIMENTO"]),
+      .eq("tipo_servico", "LAVAGEM")
+      .eq("status", "VENCIDO"),
   ]);
 
   const raw = (kpiResult.data ?? {}) as Record<string, number | null>;
-  const prev = prevResult.data ?? [];
+  const lavagemAtrasada = (lavagemResult.data ?? []).length;
 
   const total_ativos = Number(raw.total_ativos ?? 0);
   const total_disponiveis = Number(raw.total_disponiveis ?? 0);
@@ -497,11 +501,11 @@ export async function kpis(): Promise<Kpis> {
     total_cadastro_incompleto: Number(raw.total_cadastro_incompleto ?? 0),
     idade_media: raw.idade_media != null ? Number(raw.idade_media) : null,
     km_medio: raw.km_medio != null ? Number(raw.km_medio) : null,
-    preventiva_atrasada: prev.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length,
-    alinhamento_atrasado: prev.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length,
-    arcondicionado_atrasado: prev.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length,
-    tacografo_atrasado: prev.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length,
-    lavagem_atrasada: prev.filter((p) => p.tipo_servico === "LAVAGEM" && p.status === "VENCIDO").length,
+    preventiva_atrasada: manutRows.filter((p) => p.tipo_servico === "PREVENTIVA_MOTOR" && p.status === "VENCIDO").length,
+    alinhamento_atrasado: manutRows.filter((p) => p.tipo_servico === "ALINHAMENTO" && p.status === "VENCIDO").length,
+    arcondicionado_atrasado: manutRows.filter((p) => p.tipo_servico === "AR_CONDICIONADO" && p.status === "VENCIDO").length,
+    tacografo_atrasado: manutRows.filter((p) => p.tipo_servico === "TACOGRAFO" && p.status === "VENCIDO").length,
+    lavagem_atrasada: lavagemAtrasada,
     disponibilidade_pct: total_ativos > 0
       ? Math.round((total_disponiveis / total_ativos) * 100)
       : 0,

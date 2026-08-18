@@ -35,3 +35,26 @@ export function calculateDateSchedule(
     status: difference > 0 ? "VENCIDO" : "NO_PRAZO",
   };
 }
+
+export type KmSchedule = {
+  nextKm: number | null;
+  overdueKm: number;
+  status: "NO_PRAZO" | "VENCIDO" | "SEM_REGISTRO";
+};
+
+export function calculateKmSchedule(
+  performedKm: number | null | undefined,
+  intervalKm: number | null | undefined,
+  currentKm: number | null | undefined
+): KmSchedule {
+  if (performedKm == null) return { nextKm: null, overdueKm: 0, status: "SEM_REGISTRO" };
+
+  const safeInterval = intervalKm && intervalKm > 0 ? Math.trunc(intervalKm) : 10_000;
+  const nextKm = performedKm + safeInterval;
+  // Sem KM atual não dá pra provar atraso — tratar como no prazo em vez de
+  // arriscar falso positivo (mesma lição do CRLV: dado ausente não é vencido).
+  if (currentKm == null) return { nextKm, overdueKm: 0, status: "NO_PRAZO" };
+
+  const overdueKm = currentKm - nextKm;
+  return { nextKm, overdueKm: Math.max(0, overdueKm), status: overdueKm > 0 ? "VENCIDO" : "NO_PRAZO" };
+}

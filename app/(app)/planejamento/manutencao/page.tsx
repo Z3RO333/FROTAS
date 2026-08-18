@@ -15,8 +15,11 @@ import {
 import type { LucideProps } from "lucide-react";
 import { Fragment } from "react";
 import type { ComponentType, ReactNode } from "react";
-import { getManutencao, getParadas, type ParadaRow } from "@/lib/repos/planejamento";
-import { listServicosRecentes } from "@/lib/repos/manutencao/servicos";
+import { getParadas, type ParadaRow } from "@/lib/repos/planejamento";
+import { getManutencaoStatus, TIPO_SERVICO_APP, type ManutencaoStatusRow } from "@/lib/repos/manutencao/status";
+import { listServicosRecentes, listVeiculosParaServico } from "@/lib/repos/manutencao/servicos";
+import type { TipoServico } from "@/lib/repos/manutencao/types";
+import { reportCalendarDate } from "@/lib/report-date";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
@@ -24,6 +27,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { SEVERITY, severityFromStatus } from "@/lib/design/tokens";
 import { cn, formatDate } from "@/lib/utils";
 import { ServiceNavigation } from "@/components/manutencao/service-navigation";
+import { RetornarOperacaoDialog } from "@/components/frotas/manutencao/retornar-operacao-dialog";
+import {
+  RegistrarServicoDialogProvider,
+  RegistrarServicoTrigger,
+} from "@/components/manutencao/registrar-servico-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -85,11 +93,13 @@ function paradaAtrasada(row: ParadaRow, hoje: Date): boolean {
 }
 
 export default async function ManutencaoPage() {
-  const [rows, servicosRecentes, paradas] = await Promise.all([
-    getManutencao(),
+  const [rows, servicosRecentes, paradas, veiculosParaServico] = await Promise.all([
+    getManutencaoStatus(),
     listServicosRecentes(100),
     getParadas(),
+    listVeiculosParaServico(),
   ]);
+  const today = reportCalendarDate();
 
   const hoje = new Date();
   const paradasPorClassificacao = paradas.reduce<Record<string, ParadaRow[]>>((acc, r) => {
@@ -116,17 +126,18 @@ export default async function ManutencaoPage() {
     tipo,
     total: items.length,
     ok: items.filter((i) => i.status === "NO_PRAZO").length,
-    atrasado: items.filter((i) => i.status !== "NO_PRAZO" && i.status !== null).length,
-    sem_data: items.filter((i) => !i.data_realizada).length,
+    atrasado: items.filter((i) => i.status === "VENCIDO").length,
+    sem_registro: items.filter((i) => i.status === "SEM_REGISTRO").length,
   }));
 
-  const atrasadas = rows.filter((r) => r.status !== "NO_PRAZO" && r.status !== null);
+  const atrasadas = rows.filter((r) => r.status === "VENCIDO");
 
   const totalAtrasado = atrasadas.length;
   const totalNoPrazo = rows.filter((r) => r.status === "NO_PRAZO").length;
-  const totalSemData = rows.filter((r) => !r.data_realizada).length;
+  const totalSemRegistro = rows.filter((r) => r.status === "SEM_REGISTRO").length;
 
   return (
+    <RegistrarServicoDialogProvider veiculos={veiculosParaServico} today={today}>
     <div className="space-y-6">
       <PageHeader
         eyebrow="Manutenção"
@@ -153,10 +164,10 @@ export default async function ManutencaoPage() {
         />
         <MetricCard
           label="Sem registro"
-          value={totalSemData}
+          value={totalSemRegistro}
           icon={CalendarClock}
           severity="ATENCAO"
-          hint="Nunca tiveram data lançada"
+          hint="Nunca tiveram serviço lançado"
         />
       </MetricGrid>
 
@@ -173,7 +184,7 @@ export default async function ManutencaoPage() {
             .sort((a, b) => b.atrasado - a.atrasado)
             .map((s) => {
               const Icon = TIPO_ICONS[s.tipo] ?? Wrench;
-              const severity = s.atrasado > 0 ? "CRITICO" : s.sem_data > 0 ? "ATENCAO" : "OK";
+              const severity = s.atrasado > 0 ? "CRITICO" : s.sem_registro > 0 ? "ATENCAO" : "OK";
               const tone = SEVERITY[severity];
               return (
                 <div
@@ -194,7 +205,7 @@ export default async function ManutencaoPage() {
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
                         <span className="text-emerald-700">{s.ok} no prazo</span>
-                        {s.sem_data > 0 && <span className="text-amber-700">{s.sem_data} sem data</span>}
+                        {s.sem_registro > 0 && <span className="text-amber-700">{s.sem_registro} sem registro</span>}
                       </div>
                     </div>
                     <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", tone.tile)}>
@@ -267,6 +278,7 @@ export default async function ManutencaoPage() {
                       <th className="p-3 text-left">Oficina</th>
                       <th className="p-3 text-left">Início</th>
                       <th className="p-3 text-left">Prev. retorno</th>
+                      <th className="p-3 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -294,6 +306,15 @@ export default async function ManutencaoPage() {
                           <td className="p-3 text-xs tabular-nums text-slate-600">{r.inicio_em ?? "—"}</td>
                           <td className={cn("p-3 text-xs tabular-nums", atrasada ? "font-medium text-red-600" : "text-slate-600")}>
                             {r.prev_saida ?? "—"}
+                          </td>
+                          <td className="p-3 text-right">
+                            {r.veiculo_id && (
+                              <RetornarOperacaoDialog
+                                frotaId={r.veiculo_id}
+                                frotaLabel={r.frota_numero ?? r.placa ?? String(r.veiculo_id)}
+                                size="sm"
+                              />
+                            )}
                           </td>
                         </tr>
                       );
@@ -339,6 +360,15 @@ export default async function ManutencaoPage() {
                         Prev.: {r.prev_saida ?? "—"}
                       </span>
                     </div>
+                    {r.veiculo_id && (
+                      <div className="mt-3 flex justify-end">
+                        <RetornarOperacaoDialog
+                          frotaId={r.veiculo_id}
+                          frotaLabel={r.frota_numero ?? r.placa ?? String(r.veiculo_id)}
+                          size="sm"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -380,6 +410,7 @@ export default async function ManutencaoPage() {
                       <th className="p-3 text-left">Última data</th>
                       <th className="p-3 text-right">Desvio</th>
                       <th className="p-3 text-left">Status</th>
+                      <th className="p-3 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -412,6 +443,9 @@ export default async function ManutencaoPage() {
                           </td>
                           <td className="p-3">
                             <StatusBadge status={r.status} />
+                          </td>
+                          <td className="p-3 text-right">
+                            <RegistrarTrigger row={r} />
                           </td>
                         </tr>
                       );
@@ -497,20 +531,29 @@ export default async function ManutencaoPage() {
         <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
       </Link>
     </div>
+    </RegistrarServicoDialogProvider>
   );
 }
 
-type ManutencaoRowMin = {
-  frota_numero: string | null;
-  placa: string | null;
-  setor: string | null;
-  tipo_servico: string;
-  data_realizada: string | null;
-  desvio: number | null;
-  status: string | null;
-};
+function RegistrarTrigger({ row, className }: { row: ManutencaoStatusRow; className?: string }) {
+  const tipoServico = TIPO_SERVICO_APP[row.tipo_servico] as TipoServico | undefined;
+  if (!tipoServico || !row.frota_numero) return null;
+  return (
+    <RegistrarServicoTrigger
+      vehicle={{ codigo_frota: row.frota_numero, placa: row.placa }}
+      tipoServico={tipoServico}
+      ariaLabel={`Registrar ${TIPO_LABELS[row.tipo_servico] ?? row.tipo_servico} da frota ${row.frota_numero}`}
+      className={cn(
+        "inline-flex h-7 items-center gap-1 rounded-md bg-blue-50 px-2 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-200 transition-colors hover:bg-blue-100",
+        className
+      )}
+    >
+      Registrar
+    </RegistrarServicoTrigger>
+  );
+}
 
-function AtencaoCard({ row }: { row: ManutencaoRowMin }) {
+function AtencaoCard({ row }: { row: ManutencaoStatusRow }) {
   const Icon = TIPO_ICONS[row.tipo_servico] ?? Wrench;
   const severity = severityFromStatus(row.status);
   const tone = SEVERITY[severity];
@@ -554,6 +597,9 @@ function AtencaoCard({ row }: { row: ManutencaoRowMin }) {
             {row.desvio.toLocaleString("pt-BR")} km
           </span>
         )}
+      </div>
+      <div className="mt-3 flex justify-end">
+        <RegistrarTrigger row={row} />
       </div>
     </div>
   );

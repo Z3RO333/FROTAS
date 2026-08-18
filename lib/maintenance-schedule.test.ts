@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDateSchedule, calendarDate } from "./maintenance-schedule";
+import { calculateDateSchedule, calculateKmSchedule, calendarDate } from "./maintenance-schedule";
 
 describe("calculateDateSchedule", () => {
   it("calcula a próxima lavagem pelo intervalo da frota", () => {
@@ -31,5 +31,35 @@ describe("calculateDateSchedule", () => {
 describe("calendarDate", () => {
   it("preserva a data civil de um timestamp", () => {
     expect(calendarDate("2026-08-10T23:30:00-04:00")).toBe("2026-08-10");
+  });
+});
+
+describe("calculateKmSchedule", () => {
+  it("calcula o próximo km e reconhece que ainda está no prazo", () => {
+    expect(calculateKmSchedule(50_000, 10_000, 55_000)).toEqual({
+      nextKm: 60_000,
+      overdueKm: 0,
+      status: "NO_PRAZO",
+    });
+  });
+
+  it("marca vencido quando o km atual já passou do próximo serviço", () => {
+    expect(calculateKmSchedule(50_000, 10_000, 62_000)).toEqual({
+      nextKm: 60_000,
+      overdueKm: 2_000,
+      status: "VENCIDO",
+    });
+  });
+
+  it("marca frota sem histórico de serviço", () => {
+    expect(calculateKmSchedule(null, 10_000, 62_000).status).toBe("SEM_REGISTRO");
+  });
+
+  it("sem km atual não arrisca falso positivo — assume no prazo", () => {
+    expect(calculateKmSchedule(50_000, 10_000, null)).toEqual({
+      nextKm: 60_000,
+      overdueKm: 0,
+      status: "NO_PRAZO",
+    });
   });
 });
