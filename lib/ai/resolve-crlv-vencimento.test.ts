@@ -5,6 +5,7 @@ import type { CrlvReading } from "./crlv-ocr";
 function reading(overrides: Partial<CrlvReading> = {}): CrlvReading {
   return {
     data_vencimento: "2026-05-15",
+    data_emissao: null,
     confianca: 0.95,
     leitura_segura: true,
     motivo: null,
