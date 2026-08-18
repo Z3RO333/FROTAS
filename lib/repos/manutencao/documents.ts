@@ -60,6 +60,44 @@ export async function listAllDocuments(): Promise<DocumentRecordWithSignedUrls[]
   return Promise.all(rows.map(withSignedUrls));
 }
 
+// Frotas ativas que nunca tiveram nenhum PDF enviado não têm linha na tabela
+// `documents` — sem isso elas somem da Central de Documentos e dos contadores,
+// como se a frota nem existisse. Aqui completa com uma linha "pendente"
+// (id sintético, sem URLs) pra cada frota ativa sem documento correspondente.
+export async function listAllDocumentsForFrotasAtivas(
+  frotasAtivas: Array<{ frota_geral: string | null; placa: string | null; modelo: string | null }>
+): Promise<DocumentRecordWithSignedUrls[]> {
+  const documentos = await listAllDocuments();
+  const porFrota = new Map(documentos.map((d) => [d.frota, d]));
+
+  const pendentes: DocumentRecordWithSignedUrls[] = [];
+  for (const frota of frotasAtivas) {
+    if (!frota.frota_geral || porFrota.has(frota.frota_geral)) continue;
+    pendentes.push({
+      id: `pending:${frota.frota_geral}`,
+      frota: frota.frota_geral,
+      placa: frota.placa ?? "",
+      modelo: frota.modelo ?? "",
+      dut_url: null,
+      crlv_url: null,
+      dut_vencimento: null,
+      crlv_vencimento: null,
+      crlv_vencimento_origem: null,
+      crlv_vencimento_confianca: null,
+      crlv_revisar_manualmente: false,
+      created_at: "",
+      created_by: null,
+      updated_at: null,
+      dut_signed_url: null,
+      crlv_signed_url: null,
+      dut_download_url: null,
+      crlv_download_url: null,
+    });
+  }
+
+  return [...documentos, ...pendentes];
+}
+
 export async function createDocument(
   input: DocumentUpsertInput,
   createdBy: string

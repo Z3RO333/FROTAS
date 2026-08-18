@@ -33,12 +33,13 @@ export function applyConfidenceThreshold(reading: CrlvReading): CrlvReading {
 
 const SYSTEM_PROMPT = `Você é um especialista em ler CRLV (Certificado de Registro e Licenciamento de Veículo) brasileiro, incluindo o modelo digital CRLV-e.
 
-TAREFA: Localizar a DATA DE VENCIMENTO/VALIDADE do licenciamento — o campo costuma aparecer como "Válido até", "Data Máxima de Licenciamento", "Vencimento" ou "Exercício" (nesse último caso, o vencimento é 31/12 do ano indicado).
+TAREFA: Localizar a DATA DE VENCIMENTO/VALIDADE do licenciamento — o campo costuma aparecer explicitamente rotulado como "Válido até", "Data Máxima de Licenciamento" ou "Vencimento".
 
 REGRAS:
 • Ignore datas de emissão, nascimento do proprietário, ou datas de outros documentos que apareçam na mesma página.
 • Se houver mais de uma data candidata, prefira a que estiver explicitamente rotulada como vencimento/validade/licenciamento.
 • Retorne a data no formato YYYY-MM-DD.
+• O campo "Exercício" NÃO é a data de vencimento — é só o ano de referência do licenciamento. NUNCA infira 31/12 do exercício como vencimento: o prazo real segue o calendário nacional por final de placa, calculado separadamente pelo sistema. Se o documento só mostrar "Exercício" e não tiver um campo de vencimento/validade explícito, retorne data_vencimento=null e leitura_segura=false.
 • Se não conseguir identificar a data com segurança, retorne data_vencimento=null e leitura_segura=false.
 
 REGRAS DE CONFIANÇA:

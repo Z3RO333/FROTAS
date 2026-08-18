@@ -61,6 +61,13 @@ function statusDoDoc(doc: DocumentRecordWithSignedUrls): "COMPLETO" | "PARCIAL" 
   return "PENDENTE";
 }
 
+// Linhas sintéticas de frotas ativas que nunca tiveram documento cadastrado
+// (ver listAllDocumentsForFrotasAtivas) — não existem na tabela `documents`,
+// então editar precisa criar em vez de atualizar, e não há nada pra excluir.
+function isPendingDocument(doc: DocumentRecordWithSignedUrls): boolean {
+  return doc.id.startsWith("pending:");
+}
+
 export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
   const [query, setQuery] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("TODOS");
@@ -259,7 +266,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                   <TableCell>
                     <div className="flex justify-end gap-1">
                       <DocumentEditDialog document={doc} />
-                      <DocumentDeleteDialog document={doc} />
+                      {isPendingDocument(doc) ? null : <DocumentDeleteDialog document={doc} />}
                     </div>
                   </TableCell>
                 ) : null}
@@ -375,12 +382,15 @@ function DocumentEditDialog({ document }: { document: DocumentRecordWithSignedUr
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const isPending = isPendingDocument(document);
 
   function submit(formData: FormData) {
     startTransition(async () => {
-      const result = await updateDocumentAction(document.id, formData);
+      const result = isPending
+        ? await createDocumentAction(formData)
+        : await updateDocumentAction(document.id, formData);
       handleActionResult(result, {
-        success: "Documento atualizado",
+        success: isPending ? "Documento enviado" : "Documento atualizado",
         onSuccess: () => {
           formRef.current?.reset();
           setOpen(false);
@@ -393,14 +403,30 @@ function DocumentEditDialog({ document }: { document: DocumentRecordWithSignedUr
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label={`Editar documentos da frota ${document.frota}`}>
-          <Pencil className="h-4 w-4" aria-hidden="true" />
+        <Button
+          type="button"
+          variant={isPending ? "secondary" : "outline"}
+          size={isPending ? "sm" : "icon"}
+          aria-label={`${isPending ? "Enviar" : "Editar"} documentos da frota ${document.frota}`}
+        >
+          {isPending ? (
+            <>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              Enviar PDFs
+            </>
+          ) : (
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Editar documento</DialogTitle>
-          <DialogDescription>Envie um novo PDF apenas se quiser substituir o arquivo atual.</DialogDescription>
+          <DialogTitle>{isPending ? "Novo documento" : "Editar documento"}</DialogTitle>
+          <DialogDescription>
+            {isPending
+              ? "Essa frota ainda não tem PDFs cadastrados."
+              : "Envie um novo PDF apenas se quiser substituir o arquivo atual."}
+          </DialogDescription>
         </DialogHeader>
         <form ref={formRef} action={submit} className="grid gap-4 sm:grid-cols-2">
           <Field name="frota" label="Frota" defaultValue={document.frota} required />
@@ -538,7 +564,7 @@ function DocumentMobileCard({
       {canWrite ? (
         <div className="mt-3 flex justify-end gap-1">
           <DocumentEditDialog document={document} />
-          <DocumentDeleteDialog document={document} />
+          {isPendingDocument(document) ? null : <DocumentDeleteDialog document={document} />}
         </div>
       ) : null}
     </article>
