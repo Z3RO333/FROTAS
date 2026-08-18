@@ -6,6 +6,7 @@ import { listFrotasForReport } from "@/lib/repos/frotas";
 
 export type PlanejamentoOverview = {
   crlv_vencidos: number;
+  crlv_ja_vencidos: number;
   sem_dut: number;
   manut_atrasadas: number;
   manut_ok: number;
@@ -167,15 +168,18 @@ export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
 
   const hoje = new Date();
   let crlvVencidos = 0;
+  let crlvJaVencidos = 0;
   let semDut = 0;
   for (const frota of frotasAtivas) {
     const doc = frota.frota_geral ? docPorFrota.get(frota.frota_geral) : undefined;
     if (crlvRealmenteVencido(doc?.placa ?? frota.placa, doc?.crlv_vencimento ?? null, hoje)) crlvVencidos += 1;
+    if (doc?.crlv_vencimento && new Date(`${doc.crlv_vencimento}T00:00:00`) < hoje) crlvJaVencidos += 1;
     if (!doc?.dut_url) semDut += 1;
   }
 
   return {
     crlv_vencidos: crlvVencidos,
+    crlv_ja_vencidos: crlvJaVencidos,
     sem_dut: semDut,
     manut_atrasadas: manutRows.filter((r) => r.status !== "NO_PRAZO" && r.status !== null).length,
     manut_ok: manutRows.filter((r) => r.status === "NO_PRAZO").length,

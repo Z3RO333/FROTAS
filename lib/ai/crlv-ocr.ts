@@ -63,10 +63,13 @@ export async function readCrlvVencimento(pdfBuffer: Buffer): Promise<CrlvReading
   try {
     const png = await renderFirstPageToPng(pdfBuffer);
     const imageUrl = `data:image/png;base64,${png.toString("base64")}`;
+    const model = getVisionModel();
 
     const response = await client.chat.completions.create({
-      model: getVisionModel(),
-      temperature: 0.1,
+      model,
+      // Modelos da família gpt-5 só aceitam o temperature padrão (1) — mandar
+      // 0.1 derruba a chamada com 400 unsupported_value.
+      ...(model.startsWith("gpt-5") ? {} : { temperature: 0.1 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },

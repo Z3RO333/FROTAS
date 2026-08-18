@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Download,
-  FileCheck2,
   FileX2,
   Layers,
   Pencil,
@@ -74,6 +73,21 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
   const completudePct =
     documents.length > 0 ? Math.round((complete / documents.length) * 100) : 0;
 
+  const comCrlvVencimento = documents.filter((doc) => doc.crlv_vencimento).length;
+  const crlvVencido = documents.filter(
+    (doc) => doc.crlv_vencimento && diasAteVencimento(doc.crlv_vencimento) < 0
+  ).length;
+  const crlvVence1Mes = documents.filter((doc) => {
+    if (!doc.crlv_vencimento) return false;
+    const dias = diasAteVencimento(doc.crlv_vencimento);
+    return dias >= 0 && dias < 30;
+  }).length;
+  const crlvVence2Meses = documents.filter((doc) => {
+    if (!doc.crlv_vencimento) return false;
+    const dias = diasAteVencimento(doc.crlv_vencimento);
+    return dias >= 30 && dias < 60;
+  }).length;
+
   const filtered = useMemo(() => {
     const term = normalizeSearch(query);
     return documents.filter((doc) => {
@@ -105,25 +119,29 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         actions={canWrite ? <DocumentUploadDialog /> : undefined}
       >
         <HeroStat
-          label="Completude geral"
-          value={`${completudePct}%`}
-          hint={`${complete}/${documents.length} completas`}
+          label="Frotas com CRLV"
+          value={comCrlvVencimento}
+          hint={`${documents.length} cadastradas`}
           icon={ShieldCheck}
-          severity={completudePct === 100 ? "OK" : completudePct >= 70 ? "ATENCAO" : "CRITICO"}
-        />
-        <HeroStat label="Registros" value={total} icon={Layers} severity="INFO" />
-        <HeroStat
-          label="Arquivos PDF"
-          value={files}
-          icon={FileCheck2}
-          severity="OK"
+          severity="INFO"
         />
         <HeroStat
-          label="Pendências"
-          value={partial + pending}
-          hint={`${semDut} sem DUT · ${semCrlv} sem CRLV`}
+          label="Vence em 1 mês"
+          value={crlvVence1Mes}
           icon={AlertTriangle}
-          severity={partial + pending > 0 ? "CRITICO" : "OK"}
+          severity={crlvVence1Mes > 0 ? "ATENCAO" : "OK"}
+        />
+        <HeroStat
+          label="Vence em 2 meses"
+          value={crlvVence2Meses}
+          icon={AlertTriangle}
+          severity={crlvVence2Meses > 0 ? "ATENCAO" : "OK"}
+        />
+        <HeroStat
+          label="CRLV vencido"
+          value={crlvVencido}
+          icon={FileX2}
+          severity={crlvVencido > 0 ? "CRITICO" : "OK"}
         />
       </PageHero>
 

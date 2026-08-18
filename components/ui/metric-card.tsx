@@ -13,6 +13,7 @@ type Props = {
   severity?: SeverityKey;
   href?: string;
   trend?: { value: number; label?: string };
+  badge?: { label: string; icon?: ComponentType<LucideProps> };
   className?: string;
 };
 
@@ -24,6 +25,7 @@ export function MetricCard({
   severity = "NEUTRO",
   href,
   trend,
+  badge,
   className,
 }: Props) {
   const tone = SEVERITY[severity];
@@ -77,6 +79,12 @@ export function MetricCard({
               )}
               {hint && <span className="truncate">{hint}</span>}
             </div>
+          )}
+          {badge && (
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200">
+              {badge.icon && <badge.icon className="h-3 w-3" aria-hidden="true" />}
+              {badge.label}
+            </span>
           )}
         </div>
         {Icon && (

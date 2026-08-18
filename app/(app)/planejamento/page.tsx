@@ -42,12 +42,17 @@ export default async function PlanejamentoPage() {
         </h2>
         <MetricGrid cols={6}>
           <MetricCard
-            label="CRLV vencido"
+            label="CRLV"
             value={k.crlv_vencidos}
             icon={FileText}
             severity="CRITICO"
             href="/documentos"
             hint="Renovação anual"
+            badge={
+              k.crlv_ja_vencidos > 0
+                ? { icon: AlertTriangle, label: `${k.crlv_ja_vencidos} já vencido${k.crlv_ja_vencidos === 1 ? "" : "s"}` }
+                : undefined
+            }
           />
           <MetricCard
             label="Sem DUT"
