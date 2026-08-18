@@ -11,6 +11,9 @@ export type DocumentUpsertInput = Pick<DocumentRecord, "frota" | "placa" | "mode
   crlv_url?: string | null;
   dut_vencimento?: string | null;
   crlv_vencimento?: string | null;
+  crlv_vencimento_origem?: "MANUAL" | "IA" | null;
+  crlv_vencimento_confianca?: number | null;
+  crlv_revisar_manualmente?: boolean;
 };
 
 export async function listDocuments(filters: {
