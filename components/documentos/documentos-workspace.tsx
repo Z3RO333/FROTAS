@@ -43,6 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { DocumentRecordWithSignedUrls } from "@/lib/repos/manutencao/types";
+import { cicloRenovacaoPorPlaca } from "@/lib/crlv-calendario";
 import { cn } from "@/lib/utils";
 import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
 
@@ -243,7 +244,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
                 <TableCell>
                   <div className="space-y-1">
                     <DocumentActions signedUrl={doc.crlv_signed_url} downloadUrl={doc.crlv_download_url} label="CRLV" />
-                    <VencimentoLabel value={doc.crlv_vencimento} />
+                    <VencimentoLabel value={doc.crlv_vencimento} placaParaCiclo={doc.placa} />
                     {doc.crlv_revisar_manualmente ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
                         Revisar CRLV
@@ -523,7 +524,7 @@ function DocumentMobileCard({
         </div>
         <div className="space-y-1">
           <DocumentActions signedUrl={document.crlv_signed_url} downloadUrl={document.crlv_download_url} label="CRLV" />
-          <VencimentoLabel value={document.crlv_vencimento} />
+          <VencimentoLabel value={document.crlv_vencimento} placaParaCiclo={document.placa} />
           {document.crlv_revisar_manualmente ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200">
               Revisar CRLV
@@ -581,8 +582,21 @@ function diasAteVencimento(value: string): number {
   return (new Date(`${value}T00:00:00`).getTime() - Date.now()) / 86400000;
 }
 
-function VencimentoLabel({ value }: { value: string | null | undefined }) {
+function VencimentoLabel({
+  value,
+  placaParaCiclo,
+}: {
+  value: string | null | undefined;
+  /** Placa usada pra estimar o mês de renovação (CONTRAN) quando ainda não há data lida — só faz sentido pro CRLV. */
+  placaParaCiclo?: string | null;
+}) {
   if (!value) {
+    const ciclo = placaParaCiclo ? cicloRenovacaoPorPlaca(placaParaCiclo) : null;
+    if (ciclo) {
+      const toneClass =
+        ciclo.tone === "critico" ? "text-red-600" : ciclo.tone === "atencao" ? "text-amber-600" : "text-slate-400";
+      return <span className={cn("block text-[10px] font-medium", toneClass)}>{ciclo.texto}</span>;
+    }
     return <span className="block text-[10px] text-slate-400">Sem vencimento</span>;
   }
   const dias = diasAteVencimento(value);

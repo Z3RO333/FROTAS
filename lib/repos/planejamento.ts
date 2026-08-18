@@ -3,6 +3,7 @@ import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
 import { reportCalendarDate } from "@/lib/report-date";
 import { listFrotasForReport } from "@/lib/repos/frotas";
+import { mesLicenciamentoPorPlaca } from "@/lib/crlv-calendario";
 
 export type PlanejamentoOverview = {
   crlv_vencidos: number;
@@ -113,17 +114,6 @@ export type EstepeRow = {
   tem_estepe: boolean | null;
   data_verificacao: string | null;
 };
-
-// Calendário nacional de licenciamento (CONTRAN): o mês de vencimento do CRLV
-// segue o final da placa — final 1 = janeiro, final 2 = fevereiro... final 9 =
-// setembro, final 0 = outubro.
-function mesLicenciamentoPorPlaca(placa: string | null): number | null {
-  const digitos = (placa ?? "").replace(/\D/g, "");
-  if (!digitos) return null;
-  const ultimo = Number(digitos[digitos.length - 1]);
-  if (Number.isNaN(ultimo)) return null;
-  return ultimo === 0 ? 10 : ultimo;
-}
 
 // O campo crlv_vencimento (Central de Documentos) só é atualizado quando alguém
 // sobe o novo CRLV depois da renovação anual — não dá pra tratar como uma data de
