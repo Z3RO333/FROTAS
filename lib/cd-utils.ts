@@ -15,7 +15,7 @@ export function normalizeCdNome(value: string | null | undefined): string {
     return "CD Tarumã";
   }
 
-  if (normalized.startsWith("MANUTENCAO")) return "Manutenção";
+  if (normalized.startsWith("MANUTENCAO")) return "CD Tarumã";
 
   if (
     normalized === "CD1" || normalized === "CD MANAUS" || normalized === "CD E-COMMERCE" ||
@@ -31,9 +31,6 @@ export function normalizeCdNome(value: string | null | undefined): string {
      "ASSISTENCIA TECNICA","MERCADO","TABATINGA"].includes(normalized)
   ) { return "CD Manaus"; }
 
-  if (normalized === "CD III" || normalized === "CD 3") {
-    return "CD III";
-  }
   if (normalized.startsWith("RO -") || normalized.includes("PORTO VELHO") ||
       normalized === "ARIQUEMES" || normalized.includes("JIPARANA")) {
     return "CD Porto Velho";

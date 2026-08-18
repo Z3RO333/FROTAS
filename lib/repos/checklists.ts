@@ -20,6 +20,7 @@ import { recordChecklistEnviado } from "@/lib/services/veiculo-eventos";
 import { getAppUrl } from "@/lib/app-url";
 import { reportCalendarDate, reportDayUtcRange, shiftCalendarDate } from "@/lib/report-date";
 import { matchesVehicleSearch } from "@/lib/checklists/vehicle-search";
+import { normalizeCdNome } from "@/lib/cd-utils";
 
 type VeiculoLite = {
   id: number;
@@ -139,6 +140,7 @@ export type PortariaRow = {
   frota_geral: string | null;
   placa: string | null;
   modelo: string | null;
+  cd_nome: string;
   status_frota: string | null;
   checklist_id: number | null;
   motorista_id: string | null;
@@ -542,7 +544,7 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
       supabaseManutencao
         .from("veiculos")
         .select(
-          "id,codigo_frota,placa,modelo,status,vendido,ativo,manutencao_motivo,manutencao_prev_retorno,manutencao_bloqueia_checklist"
+          "id,codigo_frota,placa,modelo,local,status,vendido,ativo,manutencao_motivo,manutencao_prev_retorno,manutencao_bloqueia_checklist"
         )
         .eq("ativo", true)
         .eq("vendido", false)
@@ -599,6 +601,7 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
         frota_geral: veiculo.codigo_frota,
         placa: veiculo.placa,
         modelo: veiculo.modelo,
+        cd_nome: normalizeCdNome(veiculo.local),
         status_frota: veiculo.status,
         checklist_id: checklist?.id ?? null,
         motorista_id: checklist?.motorista_id ?? null,

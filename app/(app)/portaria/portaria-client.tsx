@@ -9,6 +9,7 @@ import {
 import type { LucideProps } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FilterBar, FilterSearch, FilterChip } from "@/components/ui/filter-bar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatNumber } from "@/lib/utils";
 import type { SeverityKey } from "@/lib/design/tokens";
 import { VeiculoSheet } from "./veiculo-sheet";
@@ -53,6 +54,8 @@ export function PortariaClient({ rows, erro, canApproveExit }: Props) {
   const [queryFrota, setQueryFrota] = useState("");
   const [queryPlaca, setQueryPlaca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("LIBERADA_SAIDA");
+  const [filtroCd, setFiltroCd] = useState("");
+  const cds = Array.from(new Set(rows.map((r) => r.cd_nome))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
   const [detalhe, setDetalhe] = useState<ChecklistDetalhePortaria | null>(null);
@@ -65,6 +68,7 @@ export function PortariaClient({ rows, erro, canApproveExit }: Props) {
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
     if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
     if (filtroStatus !== "TODAS" && r.status_portaria !== filtroStatus) return false;
+    if (filtroCd && r.cd_nome !== filtroCd) return false;
     return true;
   });
 
@@ -109,6 +113,19 @@ export function PortariaClient({ rows, erro, canApproveExit }: Props) {
           onChange={setQueryPlaca}
           placeholder="Placa…"
         />
+        <Select value={filtroCd || "all"} onValueChange={(v) => setFiltroCd(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por CD">
+            <SelectValue>{filtroCd || "Todos os CDs"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os CDs</SelectItem>
+            {cds.map((cd) => (
+              <SelectItem key={cd} value={cd}>
+                {cd}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex flex-wrap items-center gap-1.5">
           {FILTER_TABS.map((tab) => {
             const count =
