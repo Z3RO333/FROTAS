@@ -3,10 +3,10 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileText,
+  FileWarning,
   Gauge,
   ShieldAlert,
   Sparkles,
-  Timer,
   TrendingUp,
   Truck,
   Wrench,
@@ -22,8 +22,7 @@ export default async function PlanejamentoPage() {
 
   const dispPct = k.disp_hoje != null ? `${(k.disp_hoje * 100).toFixed(1)}%` : "—";
   const metaPct = k.disp_meta != null ? `${(k.disp_meta * 100).toFixed(0)}%` : "90%";
-  const noData =
-    k.crlv_vencidos + k.tacografo_vencidos + k.manut_atrasadas + k.lavagem_atrasada + k.pneus_total === 0;
+  const noData = k.crlv_vencidos + k.manut_atrasadas + k.lavagem_atrasada + k.pneus_total === 0;
 
   if (noData) {
     return (
@@ -51,11 +50,12 @@ export default async function PlanejamentoPage() {
             hint="Renovação anual"
           />
           <MetricCard
-            label="Tacógrafo vencido"
-            value={k.tacografo_vencidos}
-            icon={Timer}
-            severity="CRITICO"
-            href="/planejamento/manutencao/tacografo"
+            label="Sem DUT"
+            value={k.sem_dut}
+            icon={FileWarning}
+            severity="ATENCAO"
+            href="/documentos"
+            hint="Frotas sem documento"
           />
           <MetricCard
             label="Manutenções atrasadas"

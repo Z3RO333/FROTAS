@@ -2,12 +2,11 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
 import { reportCalendarDate } from "@/lib/report-date";
-import { listTacografoPorFrota } from "@/lib/repos/tacografo";
+import { listFrotasForReport } from "@/lib/repos/frotas";
 
 export type PlanejamentoOverview = {
   crlv_vencidos: number;
-  docs_preventiva: number;
-  tacografo_vencidos: number;
+  sem_dut: number;
   manut_atrasadas: number;
   manut_ok: number;
   lavagem_atrasada: number;
@@ -114,31 +113,70 @@ export type EstepeRow = {
   data_verificacao: string | null;
 };
 
+// Calendário nacional de licenciamento (CONTRAN): o mês de vencimento do CRLV
+// segue o final da placa — final 1 = janeiro, final 2 = fevereiro... final 9 =
+// setembro, final 0 = outubro.
+function mesLicenciamentoPorPlaca(placa: string | null): number | null {
+  const digitos = (placa ?? "").replace(/\D/g, "");
+  if (!digitos) return null;
+  const ultimo = Number(digitos[digitos.length - 1]);
+  if (Number.isNaN(ultimo)) return null;
+  return ultimo === 0 ? 10 : ultimo;
+}
+
+// O campo crlv_vencimento (Central de Documentos) só é atualizado quando alguém
+// sobe o novo CRLV depois da renovação anual — não dá pra tratar como uma data de
+// validade simples, porque o ano cadastrado só reflete a renovação mais recente
+// quando já é o ano do ciclo devido pra aquele final de placa. Por isso cruza com
+// o calendário: se o mês de licenciamento da placa já passou este ano e o ano
+// cadastrado ainda não é o ano atual, está vencido de verdade.
+function crlvRealmenteVencido(placa: string | null, crlvVencimento: string | null, hoje: Date): boolean {
+  const mes = mesLicenciamentoPorPlaca(placa);
+  if (mes == null) return false;
+
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
+  const anoCicloDevido = mesAtual >= mes ? anoAtual : anoAtual - 1;
+
+  if (!crlvVencimento) return true;
+  const anoRegistro = new Date(`${crlvVencimento}T00:00:00`).getFullYear();
+  return anoRegistro < anoCicloDevido;
+}
+
 export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
-  const [docs, manut, lavagem, pneus, estepes, kit, disp, tacografo] = await Promise.all([
-    supabaseManutencao.from("fact_documentos_frota").select("status,tipo_documento").eq("tipo_documento", "CRLV"),
+  const [frotasAtivas, documentos, manut, lavagem, pneus, estepes, kit, disp] = await Promise.all([
+    listFrotasForReport(),
+    supabaseManutencao.from("documents").select("frota,placa,dut_url,crlv_vencimento"),
     supabaseManutencao.from("fact_manutencao_programada").select("status"),
     getLavagem(),
     supabaseManutencao.from("fact_pneus").select("id", { count: "exact", head: true }),
     supabaseManutencao.from("fact_estepes").select("tem_estepe"),
     supabaseManutencao.from("fact_kit_seguranca").select("triangulo_ok,extintor_ok,macaco_ok,chave_roda_ok"),
     supabaseManutencao.from("fact_disponibilidade_diaria").select("disponibilidade,meta").order("data", { ascending: false }).limit(1),
-    listTacografoPorFrota(),
   ]);
-  const overviewError = docs.error ?? manut.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
+  const overviewError = documentos.error ?? manut.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
   if (overviewError) throw new Error(`getPlanejamentoOverview: ${overviewError.message}`);
 
-  const docsRows = (docs.data ?? []) as Array<{ status: string | null; tipo_documento: string | null }>;
+  const docRows = (documentos.data ?? []) as Array<{ frota: string | null; placa: string | null; dut_url: string | null; crlv_vencimento: string | null }>;
+  const docPorFrota = new Map(docRows.map((d) => [d.frota, d]));
   const manutRows = (manut.data ?? []) as Array<{ status: string | null }>;
   const lavRows = lavagem;
   const estRows = (estepes.data ?? []) as Array<{ tem_estepe: boolean | null }>;
   const kitRows = (kit.data ?? []) as Array<{ triangulo_ok: boolean | null; extintor_ok: boolean | null; macaco_ok: boolean | null; chave_roda_ok: boolean | null }>;
   const dispRow = (disp.data ?? [])[0] as { disponibilidade: number | null; meta: number | null } | undefined;
 
+  const hoje = new Date();
+  let crlvVencidos = 0;
+  let semDut = 0;
+  for (const frota of frotasAtivas) {
+    const doc = frota.frota_geral ? docPorFrota.get(frota.frota_geral) : undefined;
+    if (crlvRealmenteVencido(doc?.placa ?? frota.placa, doc?.crlv_vencimento ?? null, hoje)) crlvVencidos += 1;
+    if (!doc?.dut_url) semDut += 1;
+  }
+
   return {
-    crlv_vencidos: docsRows.filter((r) => r.status === "VENCIDO").length,
-    docs_preventiva: docsRows.filter((r) => r.status && r.status !== "VENCIDO" && r.status !== "NO_PRAZO").length,
-    tacografo_vencidos: tacografo.filter((f) => f.status === "VENCIDO").length,
+    crlv_vencidos: crlvVencidos,
+    sem_dut: semDut,
     manut_atrasadas: manutRows.filter((r) => r.status !== "NO_PRAZO" && r.status !== null).length,
     manut_ok: manutRows.filter((r) => r.status === "NO_PRAZO").length,
     lavagem_atrasada: lavRows.filter((r) => (r.atraso_dias ?? 0) > 0).length,

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogIn } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Clock, DoorOpen, LogIn } from "lucide-react";
 import { canApprovePortariaExit, requirePortariaUser } from "@/lib/rbac";
 import { listPortariaToday } from "@/lib/repos/checklists";
 import { PortariaClient } from "./portaria-client";
@@ -21,9 +21,6 @@ export default async function PortariaPage({
     checklistsHoje: rows.filter((r) => r.checklist_id).length,
     liberadas: rows.filter((r) => r.status_portaria === "LIBERADA_SAIDA").length,
     saidasRegistradas: rows.filter((r) => r.status_portaria === "SAIDA_REGISTRADA").length,
-    bloqueadas:
-      rows.filter((r) => r.status_portaria === "BLOQUEADA_CHECKLIST").length +
-      rows.filter((r) => r.status_portaria === "BLOQUEADA_MANUTENCAO").length,
     pendentes: rows.filter((r) => r.status_portaria === "PENDENTE_CHECKLIST").length,
   };
 
@@ -31,13 +28,13 @@ export default async function PortariaPage({
     <div className="space-y-5">
       <PageHeader
         eyebrow="Portaria"
-        title="Liberação de frotas"
+        title="Liberação de Frotas"
         description={`Hoje: ${formatDate(new Date())} · ${rows.length} frota(s) ativa(s).`}
         icon={DoorOpen}
         severity="INFO"
       />
 
-      <MetricGrid cols={5}>
+      <MetricGrid cols={4}>
         <MetricCard
           label="Checklists hoje"
           value={kpis.checklistsHoje}
@@ -55,12 +52,6 @@ export default async function PortariaPage({
           value={kpis.saidasRegistradas}
           icon={LogIn}
           severity="INFO"
-        />
-        <MetricCard
-          label="Bloqueadas"
-          value={kpis.bloqueadas}
-          icon={AlertTriangle}
-          severity="CRITICO"
         />
         <MetricCard
           label="Pendentes"
