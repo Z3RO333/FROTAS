@@ -2,10 +2,12 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { safePostgrestTerm } from "@/lib/postgrest-filter";
 import { calculateDateSchedule, calendarDate } from "@/lib/maintenance-schedule";
 import { reportCalendarDate } from "@/lib/report-date";
+import { listTacografoPorFrota } from "@/lib/repos/tacografo";
 
 export type PlanejamentoOverview = {
-  docs_vencidos: number;
+  crlv_vencidos: number;
   docs_preventiva: number;
+  tacografo_vencidos: number;
   manut_atrasadas: number;
   manut_ok: number;
   lavagem_atrasada: number;
@@ -113,14 +115,15 @@ export type EstepeRow = {
 };
 
 export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
-  const [docs, manut, lavagem, pneus, estepes, kit, disp] = await Promise.all([
-    supabaseManutencao.from("fact_documentos_frota").select("status,tipo_documento").neq("tipo_documento", "TACOGRAFO"),
+  const [docs, manut, lavagem, pneus, estepes, kit, disp, tacografo] = await Promise.all([
+    supabaseManutencao.from("fact_documentos_frota").select("status,tipo_documento").eq("tipo_documento", "CRLV"),
     supabaseManutencao.from("fact_manutencao_programada").select("status"),
     getLavagem(),
     supabaseManutencao.from("fact_pneus").select("id", { count: "exact", head: true }),
     supabaseManutencao.from("fact_estepes").select("tem_estepe"),
     supabaseManutencao.from("fact_kit_seguranca").select("triangulo_ok,extintor_ok,macaco_ok,chave_roda_ok"),
     supabaseManutencao.from("fact_disponibilidade_diaria").select("disponibilidade,meta").order("data", { ascending: false }).limit(1),
+    listTacografoPorFrota(),
   ]);
   const overviewError = docs.error ?? manut.error ?? pneus.error ?? estepes.error ?? kit.error ?? disp.error;
   if (overviewError) throw new Error(`getPlanejamentoOverview: ${overviewError.message}`);
@@ -133,8 +136,9 @@ export async function getPlanejamentoOverview(): Promise<PlanejamentoOverview> {
   const dispRow = (disp.data ?? [])[0] as { disponibilidade: number | null; meta: number | null } | undefined;
 
   return {
-    docs_vencidos: docsRows.filter((r) => r.status === "VENCIDO").length,
+    crlv_vencidos: docsRows.filter((r) => r.status === "VENCIDO").length,
     docs_preventiva: docsRows.filter((r) => r.status && r.status !== "VENCIDO" && r.status !== "NO_PRAZO").length,
+    tacografo_vencidos: tacografo.filter((f) => f.status === "VENCIDO").length,
     manut_atrasadas: manutRows.filter((r) => r.status !== "NO_PRAZO" && r.status !== null).length,
     manut_ok: manutRows.filter((r) => r.status === "NO_PRAZO").length,
     lavagem_atrasada: lavRows.filter((r) => (r.atraso_dias ?? 0) > 0).length,

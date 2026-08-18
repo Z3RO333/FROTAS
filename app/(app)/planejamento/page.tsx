@@ -6,6 +6,7 @@ import {
   Gauge,
   ShieldAlert,
   Sparkles,
+  Timer,
   TrendingUp,
   Truck,
   Wrench,
@@ -21,7 +22,8 @@ export default async function PlanejamentoPage() {
 
   const dispPct = k.disp_hoje != null ? `${(k.disp_hoje * 100).toFixed(1)}%` : "—";
   const metaPct = k.disp_meta != null ? `${(k.disp_meta * 100).toFixed(0)}%` : "90%";
-  const noData = k.docs_vencidos + k.manut_atrasadas + k.lavagem_atrasada + k.pneus_total === 0;
+  const noData =
+    k.crlv_vencidos + k.tacografo_vencidos + k.manut_atrasadas + k.lavagem_atrasada + k.pneus_total === 0;
 
   if (noData) {
     return (
@@ -39,14 +41,21 @@ export default async function PlanejamentoPage() {
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Indicadores críticos
         </h2>
-        <MetricGrid cols={5}>
+        <MetricGrid cols={6}>
           <MetricCard
-            label="Docs vencidos"
-            value={k.docs_vencidos}
+            label="CRLV vencido"
+            value={k.crlv_vencidos}
             icon={FileText}
             severity="CRITICO"
             href="/documentos"
-            hint="Tacógrafo, CRLV, DUT"
+            hint="Renovação anual"
+          />
+          <MetricCard
+            label="Tacógrafo vencido"
+            value={k.tacografo_vencidos}
+            icon={Timer}
+            severity="CRITICO"
+            href="/planejamento/manutencao/tacografo"
           />
           <MetricCard
             label="Manutenções atrasadas"
