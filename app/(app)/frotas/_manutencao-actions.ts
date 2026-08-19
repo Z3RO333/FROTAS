@@ -85,7 +85,7 @@ export async function enviarManutencaoAction(
       oficina: parsed.data.oficina ?? null,
       prevRetorno: parsed.data.prev_retorno ?? null,
       observacao: parsed.data.observacao ?? null,
-      bloqueiaChecklist: parsed.data.bloqueia_checklist ?? true,
+      bloqueiaChecklist: parsed.data.tipo === "CORRETIVA" ? parsed.data.bloqueia_checklist ?? true : false,
       destino: (parsed.data.destino as DestinoManutencao | null | undefined) ?? null,
       destino_detalhe: parsed.data.destino_detalhe ?? null,
       usuarioEmail: actor.email,

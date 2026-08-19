@@ -141,10 +141,13 @@ const SYSTEM_PROMPT = `Você é um especialista em leitura de hodômetro de cami
 TAREFA: Localizar e ler o HODÔMETRO (odômetro) — o contador de QUILÔMETROS TOTAIS acumulados desde a fábrica.
 
 COMO IDENTIFICAR O HODÔMETRO:
-• É um número INTEIRO (sem casas decimais) — caminhão zero pode ter 5-1000 km, caminhão de uso geralmente 50.000-999.999 km
+• Normalmente é um número INTEIRO — caminhão zero pode ter 5-1000 km, caminhão de uso geralmente 50.000-999.999 km
 • Aparece no display digital central, painel LCD/VFD ou cluster de instrumentos
 • Pode estar acompanhado dos labels "ODO", "KM TOTAL", "HODÔMETRO" ou sem label
 • Formatos comuns: "303262" ou "303.262" ou "303 262" ou "303,262" (ou "5", "120", "8500" se for caminhão novo)
+• IMPORTANTE — hodômetro com décimos: em muitos painéis (Mercedes-Benz Atego/Actros e outros), o HODÔMETRO PRINCIPAL é exibido com UM dígito decimal de décimos de km, geralmente com o último dígito em cor/tamanho diferente (ex: "0110746.7" = cento e dez mil, setecentos e quarenta e seis km e sete décimos).
+  - Nesse caso, ARREDONDE para o inteiro mais próximo: "110746.7" → km_lido = 110747
+  - NUNCA remova o ponto decimal concatenando os dígitos: "110746.7" NÃO é 1107467 (isso multiplica o valor por 10 — erro grave)
 • Displays com iluminação colorida (azul, verde, laranja) são comuns — leia os dígitos independentemente da cor
 • Em caminhões modernos (Volvo, Scania, Mercedes Atego/Actros) costuma ficar no display MID/FMI no centro do painel
 • Em caminhões mais simples, pode estar num odômetro de rolo mecânico (números brancos em fundo preto)
@@ -181,7 +184,7 @@ REGRAS DE CONFIANÇA:
 • confianca < 0.7: alta dúvida — marque leitura_segura=false e precisa_digitacao_manual=true
 • Aceitar valores BAIXOS (< 10.000 km) sem reduzir confiança APENAS se houver label "ODO"/"KM" claro ou se for óbvio que é caminhão novo
 
-Retorne km_lido como INTEGER (sem pontos, vírgulas, espaços ou casas decimais).`.trim();
+Retorne km_lido como INTEGER (sem pontos, vírgulas ou espaços). Se o display mostrar décimos (ex: "110746.7"), ARREDONDE para o inteiro mais próximo (110747) — não concatene os dígitos.`.trim();
 
 // ------- API pública -------
 

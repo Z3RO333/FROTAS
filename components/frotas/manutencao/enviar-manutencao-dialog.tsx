@@ -48,7 +48,9 @@ export function EnviarManutencaoDialog({
   size = "default",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [tipo, setTipo] = useState("CORRETIVA");
   const [state, formAction] = useActionState(enviarManutencaoAction, MANUTENCAO_INITIAL_STATE);
+  const bloqueiaChecklistDisponivel = tipo === "CORRETIVA";
 
   useEffect(() => {
     if (state.ok && state.mensagem) setOpen(false);
@@ -92,7 +94,8 @@ export function EnviarManutencaoDialog({
               <select
                 id="tipo"
                 name="tipo"
-                defaultValue="CORRETIVA"
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value)}
                 required
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
@@ -152,19 +155,26 @@ export function EnviarManutencaoDialog({
             />
           </div>
 
-          <label className="flex items-center gap-2 rounded-md border bg-slate-50 p-3 text-sm">
+          <label
+            className={`flex items-center gap-2 rounded-md border p-3 text-sm ${
+              bloqueiaChecklistDisponivel ? "bg-slate-50" : "bg-slate-50 opacity-50"
+            }`}
+          >
             <input type="hidden" name="bloqueia_checklist" value="false" />
             <input
               type="checkbox"
               name="bloqueia_checklist"
               value="true"
               defaultChecked
+              disabled={!bloqueiaChecklistDisponivel}
               className="h-4 w-4"
             />
             <span>
               <span className="font-medium">Bloquear checklist do motorista</span>
               <span className="ml-1 text-xs text-muted-foreground">
-                (recomendado)
+                {bloqueiaChecklistDisponivel
+                  ? "(recomendado)"
+                  : "(somente para manutenção corretiva)"}
               </span>
             </span>
           </label>
