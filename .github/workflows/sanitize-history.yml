@@ -1,0 +1,31 @@
+name: Sanitize git history
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sanitize-history.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sanitize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove Playwright MCP artifacts from all history
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git filter-branch --force \
+            --index-filter 'git rm -r --cached --ignore-unmatch .playwright-mcp' \
+            --prune-empty \
+            --tag-name-filter cat \
+            -- --all
+          git push origin --force --all
+          git push origin --force --tags
