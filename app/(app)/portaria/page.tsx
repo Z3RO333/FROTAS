@@ -24,6 +24,8 @@ export default async function PortariaPage({
     pendentes: rows.filter((r) => r.status_portaria === "PENDENTE_CHECKLIST").length,
   };
 
+  const initialStatus = sp.status ?? null;
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -40,24 +42,28 @@ export default async function PortariaPage({
           value={kpis.checklistsHoje}
           icon={ClipboardCheck}
           severity="INFO"
+          href="?status=COM_CHECKLIST"
         />
         <MetricCard
           label="Liberadas"
           value={kpis.liberadas}
           icon={CheckCircle2}
           severity="OK"
+          href="?status=LIBERADA_SAIDA"
         />
         <MetricCard
           label="Saídas"
           value={kpis.saidasRegistradas}
           icon={LogIn}
           severity="INFO"
+          href="?status=SAIDA_REGISTRADA"
         />
         <MetricCard
           label="Pendentes"
           value={kpis.pendentes}
           icon={Clock}
           severity="ATENCAO"
+          href="?status=PENDENTE_CHECKLIST"
         />
       </MetricGrid>
 
@@ -65,6 +71,7 @@ export default async function PortariaPage({
         rows={rows}
         erro={sp.erro}
         canApproveExit={canApprovePortariaExit(user.perfil)}
+        initialStatus={initialStatus}
       />
     </div>
   );

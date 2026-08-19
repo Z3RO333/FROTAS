@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, ChevronRight,
@@ -36,9 +36,11 @@ const STATUS_LABELS: Record<StatusPortaria, string> = {
   ENTRADA_REGISTRADA: "Entrada registrada",
 };
 
+type FiltroStatus = StatusPortaria | "TODAS" | "COM_CHECKLIST";
+
 const FILTER_TABS: {
   label: string;
-  value: StatusPortaria | "TODAS";
+  value: FiltroStatus;
   icon: ComponentType<LucideProps>;
   severity?: SeverityKey;
 }[] = [
@@ -48,12 +50,36 @@ const FILTER_TABS: {
   { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
-type Props = { rows: PortariaRow[]; erro?: string | null; canApproveExit: boolean };
+type Props = {
+  rows: PortariaRow[];
+  erro?: string | null;
+  canApproveExit: boolean;
+  initialStatus?: string | null;
+};
 
-export function PortariaClient({ rows, erro, canApproveExit }: Props) {
+function parseInitialStatus(value: string | null | undefined): FiltroStatus {
+  const valid: FiltroStatus[] = [
+    "TODAS",
+    "COM_CHECKLIST",
+    "PENDENTE_CHECKLIST",
+    "CHECKLIST_REALIZADO",
+    "LIBERADA_SAIDA",
+    "BLOQUEADA_CHECKLIST",
+    "BLOQUEADA_MANUTENCAO",
+    "SAIDA_REGISTRADA",
+    "ENTRADA_REGISTRADA",
+  ];
+  return valid.includes(value as FiltroStatus) ? (value as FiltroStatus) : "LIBERADA_SAIDA";
+}
+
+export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Props) {
   const [queryFrota, setQueryFrota] = useState("");
   const [queryPlaca, setQueryPlaca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<StatusPortaria | "TODAS">("LIBERADA_SAIDA");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>(() => parseInitialStatus(initialStatus));
+
+  useEffect(() => {
+    setFiltroStatus(parseInitialStatus(initialStatus));
+  }, [initialStatus]);
   const [filtroCd, setFiltroCd] = useState("");
   const cds = Array.from(new Set(rows.map((r) => r.cd_nome))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -67,7 +93,13 @@ export function PortariaClient({ rows, erro, canApproveExit }: Props) {
     const placa = queryPlaca.trim().toLowerCase();
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
     if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
-    if (filtroStatus !== "TODAS" && r.status_portaria !== filtroStatus) return false;
+    if (filtroStatus === "COM_CHECKLIST" && !r.checklist_id) return false;
+    if (
+      filtroStatus !== "TODAS" &&
+      filtroStatus !== "COM_CHECKLIST" &&
+      r.status_portaria !== filtroStatus
+    )
+      return false;
     if (filtroCd && r.cd_nome !== filtroCd) return false;
     return true;
   });
