@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
-  AlertTriangle, CheckCircle2, Clock, LogIn, LogOut, ChevronRight,
+  AlertTriangle, CheckCircle2, ClipboardCheck, Clock, LogIn, LogOut, ChevronRight,
   Layers,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FilterBar, FilterSearch, FilterChip } from "@/components/ui/filter-bar";
+import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn, formatNumber } from "@/lib/utils";
 import type { SeverityKey } from "@/lib/design/tokens";
@@ -88,7 +89,17 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const detailRequestRef = useRef(0);
 
-  const filtered = rows.filter((r) => {
+  // Linhas do CD selecionado — base pros KPIs e pros contadores dos chips.
+  const rowsDoCd = filtroCd ? rows.filter((r) => r.cd_nome === filtroCd) : rows;
+
+  const kpis = {
+    checklistsHoje: rowsDoCd.filter((r) => r.checklist_id).length,
+    liberadas: rowsDoCd.filter((r) => r.status_portaria === "LIBERADA_SAIDA").length,
+    saidasRegistradas: rowsDoCd.filter((r) => r.status_portaria === "SAIDA_REGISTRADA").length,
+    pendentes: rowsDoCd.filter((r) => r.status_portaria === "PENDENTE_CHECKLIST").length,
+  };
+
+  const filtered = rowsDoCd.filter((r) => {
     const frota = queryFrota.trim().toLowerCase();
     const placa = queryPlaca.trim().toLowerCase();
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
@@ -100,7 +111,6 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
       r.status_portaria !== filtroStatus
     )
       return false;
-    if (filtroCd && r.cd_nome !== filtroCd) return false;
     return true;
   });
 
@@ -134,6 +144,37 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
         </div>
       )}
 
+      <MetricGrid cols={4}>
+        <MetricCard
+          label="Checklists hoje"
+          value={kpis.checklistsHoje}
+          icon={ClipboardCheck}
+          severity="INFO"
+          onClick={() => setFiltroStatus("COM_CHECKLIST")}
+        />
+        <MetricCard
+          label="Liberadas"
+          value={kpis.liberadas}
+          icon={CheckCircle2}
+          severity="OK"
+          onClick={() => setFiltroStatus("LIBERADA_SAIDA")}
+        />
+        <MetricCard
+          label="Saídas"
+          value={kpis.saidasRegistradas}
+          icon={LogIn}
+          severity="INFO"
+          onClick={() => setFiltroStatus("SAIDA_REGISTRADA")}
+        />
+        <MetricCard
+          label="Pendentes"
+          value={kpis.pendentes}
+          icon={Clock}
+          severity="ATENCAO"
+          onClick={() => setFiltroStatus("PENDENTE_CHECKLIST")}
+        />
+      </MetricGrid>
+
       <FilterBar sticky>
         <FilterSearch
           value={queryFrota}
@@ -162,8 +203,8 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
           {FILTER_TABS.map((tab) => {
             const count =
               tab.value === "TODAS"
-                ? rows.length
-                : rows.filter((r) => r.status_portaria === tab.value).length;
+                ? rowsDoCd.length
+                : rowsDoCd.filter((r) => r.status_portaria === tab.value).length;
             return (
               <FilterChip
                 key={tab.value}

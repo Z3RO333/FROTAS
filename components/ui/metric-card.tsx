@@ -12,6 +12,7 @@ type Props = {
   icon?: ComponentType<LucideProps>;
   severity?: SeverityKey;
   href?: string;
+  onClick?: () => void;
   trend?: { value: number; label?: string };
   badge?: { label: string; icon?: ComponentType<LucideProps> };
   className?: string;
@@ -24,6 +25,7 @@ export function MetricCard({
   icon: Icon,
   severity = "NEUTRO",
   href,
+  onClick,
   trend,
   badge,
   className,
@@ -36,7 +38,7 @@ export function MetricCard({
         "group relative h-full min-h-[112px] overflow-hidden rounded-xl border border-slate-200/70 bg-white p-4 transition-all duration-200",
         "shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]",
         "hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-[0_2px_0_rgba(15,23,42,0.04),0_16px_32px_-12px_rgba(15,23,42,0.22)]",
-        href && "cursor-pointer",
+        (href || onClick) && "cursor-pointer",
         className
       )}
     >
@@ -98,7 +100,7 @@ export function MetricCard({
           </div>
         )}
       </div>
-      {href && (
+      {(href || onClick) && (
         <ArrowUpRight
           className="absolute right-3 bottom-3 h-3.5 w-3.5 text-slate-300 opacity-0 transition-all duration-200 group-hover:right-[10px] group-hover:bottom-[10px] group-hover:opacity-100 group-hover:text-slate-500"
           aria-hidden="true"
@@ -115,6 +117,18 @@ export function MetricCard({
       >
         {inner}
       </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="block h-full w-full rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        {inner}
+      </button>
     );
   }
 
