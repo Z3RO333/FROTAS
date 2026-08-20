@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   BarChart2,
@@ -73,11 +73,20 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  // Seções abertas no desktop (todas abertas por padrão)
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(sections.map((s) => [s.title, true]))
-  );
   const activeHref = findActiveHref(pathname, sections);
+  const activeSectionTitle = sections.find((s) => s.items.some((i) => i.href === activeHref))?.title;
+  // Seções abertas no desktop — só a que contém a rota ativa começa aberta;
+  // as demais ficam disponíveis a um clique, sem poluir a tela toda de uma vez.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(sections.map((s) => [s.title, s.title === activeSectionTitle]))
+  );
+
+  // Ao navegar para uma rota de outra seção (via link, não clique na sidebar),
+  // garante que essa seção abra também — sem recolher o que o usuário já abriu.
+  useEffect(() => {
+    if (!activeSectionTitle) return;
+    setOpenSections((prev) => (prev[activeSectionTitle] ? prev : { ...prev, [activeSectionTitle]: true }));
+  }, [activeSectionTitle]);
 
   function toggleSection(title: string) {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -277,12 +286,12 @@ function SidebarLink({
   );
 }
 
-function isActivePath(pathname: string, href: string): boolean {
+export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function findActiveHref(pathname: string, sections: NavSection[]): string | null {
+export function findActiveHref(pathname: string, sections: NavSection[]): string | null {
   const items = sections.flatMap((section) => section.items);
   return (
     items

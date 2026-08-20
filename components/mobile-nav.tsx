@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -30,7 +30,7 @@ import {
 import type { LucideProps } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
-import type { NavIconName, NavSection } from "@/components/app-sidebar";
+import { findActiveHref, isActivePath, type NavIconName, type NavSection } from "@/components/app-sidebar";
 
 const NAV_ICONS: Record<NavIconName, ComponentType<LucideProps>> = {
   AlertTriangle,
@@ -61,16 +61,25 @@ export function MobileNav({
   perfil: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
+  const activeHref = findActiveHref(pathname, sections);
+  const activeSectionTitle = sections.find((s) => s.items.some((i) => i.href === activeHref))?.title;
+  // Só a seção com a rota ativa começa aberta — o resto fica um toque de distância.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(sections.map((s) => [s.title, s.title === activeSectionTitle]))
+  );
+
+  useEffect(() => {
+    if (!activeSectionTitle) return;
+    setOpenSections((prev) => (prev[activeSectionTitle] ? prev : { ...prev, [activeSectionTitle]: true }));
+  }, [activeSectionTitle]);
 
   function toggleSection(title: string) {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
   }
 
   function isActive(href: string) {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return isActivePath(pathname, href);
   }
 
   return (
