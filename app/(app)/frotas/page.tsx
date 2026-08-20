@@ -51,6 +51,7 @@ export default async function FrotasPage({
   const idadeMin = sp.idadeMin ? Number.parseInt(sp.idadeMin, 10) : undefined;
   const ano = sp.ano ? Number.parseInt(sp.ano, 10) : undefined;
   const filters = {
+    q: sp.q?.trim() || undefined,
     frota: sp.frota,
     placa: sp.placa,
     modelo: sp.modelo,

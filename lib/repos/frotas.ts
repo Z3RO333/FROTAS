@@ -6,6 +6,7 @@ import { appendHistorico } from "@/lib/repos/historico";
 import { normalizeCdNome } from "@/lib/repos/disponibilidade";
 import { CDS_OPERACIONAIS } from "@/lib/cds";
 import { getManutencaoStatus } from "@/lib/repos/manutencao/status";
+import { classifyVehicleQuery } from "@/lib/frotas/vehicle-query";
 
 export type Frota = {
   id: number;
@@ -94,6 +95,10 @@ type VeiculoRow = {
 };
 
 export type FrotaFilters = {
+  // Busca única (nova UI) — classificada em número de frota (exato) ou texto
+  // (placa/chassi/modelo, parcial). frota/placa continuam funcionando durante
+  // a janela de compatibilidade com links/relatórios antigos.
+  q?: string;
   frota?: string;
   placa?: string;
   modelo?: string;
@@ -364,6 +369,16 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   if (f.placa) {
     const s = safePostgrestTerm(f.placa);
     if (s) next = next.or(`placa.ilike.%${s}%,chassi.ilike.%${s}%`);
+  }
+  if (f.q) {
+    const classification = classifyVehicleQuery(f.q);
+    const s = safePostgrestTerm(classification.value);
+    if (s) {
+      next =
+        classification.kind === "fleet-code"
+          ? next.eq("codigo_frota", s)
+          : next.or(`placa.ilike.%${s}%,chassi.ilike.%${s}%,modelo.ilike.%${s}%`);
+    }
   }
   return next;
 }
