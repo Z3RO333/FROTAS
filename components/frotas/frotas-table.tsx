@@ -119,15 +119,10 @@ export function FrotasTable({
             <TableRow className="bg-slate-50 hover:bg-slate-50">
               <TableHead>Frota</TableHead>
               <TableHead>Placa</TableHead>
-              <TableHead>Chassi</TableHead>
-              <TableHead>Modelo</TableHead>
-              <TableHead>Ano / Idade</TableHead>
-              <TableHead>Localização</TableHead>
-              <TableHead>Setor</TableHead>
+              <TableHead>Veículo</TableHead>
+              <TableHead>Local / Setor</TableHead>
               <TableHead className="text-right">KM</TableHead>
-              <TableHead>Status operacional</TableHead>
-              <TableHead>Condição</TableHead>
-              <TableHead>Atualização</TableHead>
+              <TableHead>Situação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -167,7 +162,6 @@ function FrotaRow({
   updateLocalizacaoAction?: UpdateLocalizacaoAction;
   onOpen: () => void;
 }) {
-  const idade = calcularIdade(frota.ano_fabricacao);
   const status = statusOperacional(frota);
   const condicao = condicaoFrota(frota);
 
@@ -186,29 +180,31 @@ function FrotaRow({
         </button>
       </TableCell>
       <TableCell>{frota.placa ?? <EmptyValue />}</TableCell>
-      <TableCell>{frota.chassi ? frota.chassi : <MissingInfoBadge />}</TableCell>
       <TableCell className="max-w-[220px] truncate">{frota.modelo ?? <EmptyValue />}</TableCell>
-      <TableCell>
-        <div className="space-y-0.5">
-          <div>{frota.ano_fabricacao ?? <EmptyValue />}</div>
-          <div className="text-xs text-muted-foreground">{idade != null ? `${idade} ano(s)` : "Sem ano"}</div>
+      <TableCell className="min-w-[240px]" onClick={(event) => event.stopPropagation()}>
+        <div className="space-y-1">
+          {updateLocalizacaoAction ? (
+            <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} compact />
+          ) : (
+            <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
+          )}
+          <span className="block max-w-[220px] truncate text-xs text-muted-foreground">
+            {frota.setor ?? "Sem setor"}
+          </span>
         </div>
       </TableCell>
-      <TableCell className="min-w-[240px]" onClick={(event) => event.stopPropagation()}>
-        {updateLocalizacaoAction ? (
-          <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} compact />
-        ) : (
-          <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
-        )}
-      </TableCell>
-      <TableCell className="max-w-[180px] truncate">{frota.setor ?? <EmptyValue />}</TableCell>
       <TableCell className="text-right tabular-nums">{formatNumber(frota.km_atual)}</TableCell>
       <TableCell>
         <div className="flex flex-col items-start gap-1">
-          <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
+            <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
+              {CONDICAO_LABELS[condicao]}
+            </Badge>
+          </div>
           {frota.status === "manutencao" && frota.manutencao_motivo && (
             <span
-              className="max-w-[180px] truncate text-[10px] text-violet-700"
+              className="max-w-[220px] truncate text-[10px] text-violet-700"
               title={frota.manutencao_motivo}
             >
               {frota.manutencao_motivo}
@@ -216,12 +212,6 @@ function FrotaRow({
           )}
         </div>
       </TableCell>
-      <TableCell>
-        <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
-          {CONDICAO_LABELS[condicao]}
-        </Badge>
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">{formatDate(frota.atualizado_em)}</TableCell>
       <TableCell>
         <div className="flex justify-end gap-1">
           <Button
