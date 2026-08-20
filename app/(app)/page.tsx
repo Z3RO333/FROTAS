@@ -18,6 +18,7 @@ import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
+import { getCustosTotais } from "@/lib/repos/custos";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
 import { requireAppUser } from "@/lib/rbac";
 import { formatNumber } from "@/lib/utils";
@@ -30,9 +31,10 @@ export default async function DashboardPage() {
   if (user.perfil === "MOTORISTA") redirect("/motorista");
   if (user.perfil === "PORTARIA" || user.perfil === "APROVADOR") redirect("/portaria");
 
-  const [{ k, operational, conditions, byYear }, plan] = await Promise.all([
+  const [{ k, operational, conditions, byYear }, plan, custos] = await Promise.all([
     dashboardFrotasCached(),
     getPlanejamentoOverview().catch(() => null),
+    getCustosTotais().catch(() => null),
   ]);
 
   const dispPct = plan?.disp_hoje != null ? `${(plan.disp_hoje * 100).toFixed(1)}%` : "—";
@@ -167,18 +169,20 @@ export default async function DashboardPage() {
             />
             <MetricCard
               label="Custo de ordens"
-              value="R$ 0,00"
+              value={
+                custos ? `R$ ${custos.valor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
+              }
               icon={DollarSign}
               severity="NEUTRO"
-              hint="Aguardando ordens"
+              hint="Últimos 12 meses"
               href="/manutencao/ordens"
             />
             <MetricCard
               label="Total de ordens"
-              value={0}
+              value={custos ? formatNumber(custos.qtd_ordens) : "—"}
               icon={FileText}
               severity="NEUTRO"
-              hint="Aguardando ordens"
+              hint="Últimos 12 meses"
               href="/manutencao/ordens"
             />
           </MetricGrid>
