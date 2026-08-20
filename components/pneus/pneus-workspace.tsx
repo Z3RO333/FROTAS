@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { VehicleTireMap } from "@/components/pneus/vehicle-tire-map";
-import { VehicleSearchSelect } from "@/components/pneus/vehicle-search-select";
+import { VehicleSearchSelect, type VehicleOption } from "@/components/vehicles/vehicle-search-select";
 import { gerarNumeroFogoSequencial } from "@/lib/numero-fogo";
 import {
   DESCRICAO_POSICAO_PNEU,
@@ -36,6 +36,16 @@ export function PneusWorkspace({
   const selected = useMemo(
     () => veiculos.find((veiculo) => String(veiculo.id) === selectedId) ?? veiculos[0] ?? null,
     [selectedId, veiculos]
+  );
+  const vehicleOptions = useMemo<VehicleOption[]>(
+    () =>
+      veiculos.map((veiculo) => ({
+        id: veiculo.id,
+        codigo: veiculo.codigo_frota,
+        placa: veiculo.placa,
+        modelo: veiculo.modelo,
+      })),
+    [veiculos]
   );
   const layoutType = selected ? getTipoLayoutPneus(selected.qtd_pneus) : null;
   const ultimaContagem = selected ? ultimaContagemPorFrota[selected.codigo_frota] ?? 0 : 0;
@@ -127,10 +137,11 @@ export function PneusWorkspace({
                 Frota
               </label>
               <VehicleSearchSelect
-                veiculos={veiculos}
-                selectedId={selectedId}
-                onSelect={(id) => {
-                  setSelectedId(id);
+                id="veiculo"
+                vehicles={vehicleOptions}
+                value={selected?.id ?? null}
+                onChange={(vehicle) => {
+                  setSelectedId(vehicle ? String(vehicle.id) : "");
                   setSelectedPositions([]);
                 }}
               />
