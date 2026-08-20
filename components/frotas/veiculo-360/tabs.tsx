@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   ClipboardCheck,
   FileText,
@@ -36,8 +37,22 @@ export type TabDef = {
 };
 
 export function VeiculoTabs({ tabs }: { tabs: TabDef[] }) {
-  const [active, setActive] = useState(tabs[0]?.id ?? "");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Aba compartilhável/recarregável via URL — ausência de ?tab= (ou valor
+  // inválido) cai na primeira aba, mantendo links antigos sem ?tab= válidos.
+  const tabParam = searchParams.get("tab");
+  const active = tabs.find((t) => t.id === tabParam)?.id ?? tabs[0]?.id ?? "";
   const activeTab = tabs.find((t) => t.id === active) ?? tabs[0];
+
+  function selectTab(id: string) {
+    if (id === active) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", id);
+    // replaceState (não pushState) — trocar de aba não deve empilhar o Back;
+    // usePathname/useSearchParams ficam sincronizados sem recarregar a rota.
+    window.history.replaceState(null, "", `${pathname}?${params.toString()}`);
+  }
 
   return (
     <div className="space-y-4">
@@ -50,7 +65,7 @@ export function VeiculoTabs({ tabs }: { tabs: TabDef[] }) {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActive(tab.id)}
+                onClick={() => selectTab(tab.id)}
                 className={cn(
                   "group relative inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                   isActive
