@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { withQuery } from "@/lib/navigation/search-state";
 import {
   AlertTriangle,
   Download,
@@ -51,9 +52,33 @@ type Props = {
   documents: DocumentRecordWithSignedUrls[];
   total: number;
   canWrite: boolean;
+  initialFrota?: string;
+  initialPlaca?: string;
+  initialStatus?: string;
 };
 
-type FiltroStatus = "TODOS" | "COMPLETO" | "PARCIAL" | "PENDENTE" | "SEM_DUT" | "SEM_CRLV";
+type FiltroStatus =
+  | "TODOS"
+  | "COMPLETO"
+  | "PARCIAL"
+  | "PENDENTE"
+  | "SEM_DUT"
+  | "SEM_CRLV"
+  | "CRLV_VENCIDO";
+
+const FILTRO_STATUS_VALUES: FiltroStatus[] = [
+  "TODOS",
+  "COMPLETO",
+  "PARCIAL",
+  "PENDENTE",
+  "SEM_DUT",
+  "SEM_CRLV",
+  "CRLV_VENCIDO",
+];
+
+function parseFiltroStatus(value: string | undefined): FiltroStatus {
+  return FILTRO_STATUS_VALUES.includes(value as FiltroStatus) ? (value as FiltroStatus) : "TODOS";
+}
 
 function statusDoDoc(doc: DocumentRecordWithSignedUrls): "COMPLETO" | "PARCIAL" | "PENDENTE" {
   if (doc.dut_url && doc.crlv_url) return "COMPLETO";
@@ -68,10 +93,61 @@ function isPendingDocument(doc: DocumentRecordWithSignedUrls): boolean {
   return doc.id.startsWith("pending:");
 }
 
-export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
-  const [queryFrota, setQueryFrota] = useState("");
-  const [queryPlaca, setQueryPlaca] = useState("");
-  const [filtro, setFiltro] = useState<FiltroStatus>("TODOS");
+function diasVencimentoDoc(doc: DocumentRecordWithSignedUrls): number | null {
+  return doc.crlv_vencimento ? diasAteVencimento(doc.crlv_vencimento) : diasAteRenovacaoEstimada(doc.placa);
+}
+
+export function DocumentosWorkspace({
+  documents,
+  total,
+  canWrite,
+  initialFrota,
+  initialPlaca,
+  initialStatus,
+}: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [queryFrota, setQueryFrota] = useState(initialFrota ?? "");
+  const [queryPlaca, setQueryPlaca] = useState(initialPlaca ?? "");
+  const filtro = parseFiltroStatus(searchParams.get("status") ?? initialStatus);
+
+  // Busca (frota/placa) é debounced e escreve na URL — deep-link e refresh
+  // continuam mostrando o mesmo filtro (estado compartilhável via query params).
+  useEffect(() => {
+    const current = searchParams.get("frota") ?? "";
+    if (queryFrota === current) return;
+    const handle = window.setTimeout(() => {
+      router.replace(withQuery(pathname, searchParams, { frota: queryFrota.trim() || null }), {
+        scroll: false,
+      });
+    }, 350);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryFrota]);
+
+  useEffect(() => {
+    const current = searchParams.get("placa") ?? "";
+    if (queryPlaca === current) return;
+    const handle = window.setTimeout(() => {
+      router.replace(withQuery(pathname, searchParams, { placa: queryPlaca.trim() || null }), {
+        scroll: false,
+      });
+    }, 350);
+    return () => window.clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryPlaca]);
+
+  useEffect(() => {
+    setQueryFrota(searchParams.get("frota") ?? "");
+    setQueryPlaca(searchParams.get("placa") ?? "");
+  }, [searchParams]);
+
+  function setFiltro(next: FiltroStatus) {
+    router.replace(withQuery(pathname, searchParams, { status: next === "TODOS" ? null : next }), {
+      scroll: false,
+    });
+  }
 
   const complete = documents.filter((doc) => doc.dut_url && doc.crlv_url).length;
   const partial = documents.filter((doc) => (doc.dut_url || doc.crlv_url) && !(doc.dut_url && doc.crlv_url)).length;
@@ -83,9 +159,7 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
   // Quando não há data lida, cai na estimativa por calendário (final de placa)
   // — mesma fonte usada no aviso "Renovar esse mês" de cada linha — pros
   // cards não ficarem zerados só porque o documento não tem data explícita.
-  const diasCrlv = documents.map((doc) =>
-    doc.crlv_vencimento ? diasAteVencimento(doc.crlv_vencimento) : diasAteRenovacaoEstimada(doc.placa)
-  );
+  const diasCrlv = documents.map(diasVencimentoDoc);
   const crlvVencido = diasCrlv.filter((dias) => dias != null && dias < 0).length;
   const crlvVence1Mes = diasCrlv.filter((dias) => dias != null && dias >= 0 && dias < 30).length;
   const crlvVence2Meses = diasCrlv.filter((dias) => dias != null && dias >= 30 && dias < 60).length;
@@ -102,6 +176,10 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
         if (filtro === "PENDENTE" && s !== "PENDENTE") return false;
         if (filtro === "SEM_DUT" && doc.dut_url) return false;
         if (filtro === "SEM_CRLV" && doc.crlv_url) return false;
+        if (filtro === "CRLV_VENCIDO") {
+          const dias = diasVencimentoDoc(doc);
+          if (dias == null || dias >= 0) return false;
+        }
       }
       // Busca separada — frota (número) é exata (senão "2" trazia 20, 218...),
       // placa/modelo continua parcial.
@@ -193,6 +271,14 @@ export function DocumentosWorkspace({ documents, total, canWrite }: Props) {
             count={semCrlv}
             active={filtro === "SEM_CRLV"}
             onClick={() => setFiltro("SEM_CRLV")}
+          />
+          <FilterChip
+            label="CRLV vencido"
+            icon={FileX2}
+            count={crlvVencido}
+            active={filtro === "CRLV_VENCIDO"}
+            severity={filtro === "CRLV_VENCIDO" ? "CRITICO" : undefined}
+            onClick={() => setFiltro("CRLV_VENCIDO")}
           />
         </div>
       </FilterBar>
