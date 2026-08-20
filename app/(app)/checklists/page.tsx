@@ -10,7 +10,8 @@ import {
   periodoParaDatas,
 } from "@/lib/repos/checklists";
 import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
-import { localizacoesDistintas, setoresDistintos } from "@/lib/repos/frotas";
+import { setoresDistintos } from "@/lib/repos/frotas";
+import { CDS_OPERACIONAIS } from "@/lib/cds";
 import { requireAdminUser } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -37,14 +38,14 @@ export default async function ChecklistsAdminPage({
     localizacao: sp.localizacao?.trim() || undefined,
     setor: sp.setor?.trim() || undefined,
   };
-  const [kpis, checklists, pendencias, vision, localizacoes, setores] = await Promise.all([
+  const [kpis, checklists, pendencias, vision, setores] = await Promise.all([
     checklistDashboardKpis(),
     listAdminChecklists(100, filtros),
     listOpenPendencias(5),
     countChecklistImageInspectionsByStatus(),
-    localizacoesDistintas(),
     setoresDistintos(),
   ]);
+  const localizacoes: string[] = [...CDS_OPERACIONAIS];
   const checklistGroups = groupChecklistsByDate(checklists);
 
   return (
