@@ -8,6 +8,7 @@ import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Searc
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
+import { KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
@@ -278,6 +279,23 @@ export function DriverChecklistForm({
         e.preventDefault();
         setStepErro(
           `KM informado (${km}) é menor que o último registrado (${selected.km_atual}). Descreva a justificativa no campo ao lado.`
+        );
+        return;
+      }
+    }
+    // Salto grande demais (ex: digitou o hodômetro com décimos como se fossem inteiros,
+    // "110856.7" virando "1108567") também exige justificativa — evita corromper o KM da frota.
+    if (
+      selected?.km_atual != null &&
+      km - selected.km_atual > KM_VARIACAO_INCOMUM
+    ) {
+      const justificativa = (
+        document.getElementById("justificativa_km") as HTMLTextAreaElement | null
+      )?.value?.trim();
+      if (!justificativa) {
+        e.preventDefault();
+        setStepErro(
+          `KM informado (${km}) está muito acima do último registrado (${selected.km_atual}). Confira o número e descreva a justificativa no campo ao lado.`
         );
         return;
       }

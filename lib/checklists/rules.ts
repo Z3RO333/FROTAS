@@ -31,6 +31,9 @@ export function validateKm(
   if (diff < 0 && !justificativa?.trim()) {
     return { ok: false, reason: "MENOR_QUE_ULTIMO", diff };
   }
+  if (diff > KM_VARIACAO_INCOMUM && !justificativa?.trim()) {
+    return { ok: false, reason: "VARIACAO_INCOMUM", diff };
+  }
   return { ok: true, diff };
 }
 
