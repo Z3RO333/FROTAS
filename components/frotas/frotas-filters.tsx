@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Search, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FilterBar, FilterChip, FilterSearch } from "@/components/ui/filter-bar";
 import {
   Select,
   SelectContent,
@@ -12,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { withQuery } from "@/lib/navigation/search-state";
 
 type Props = {
   modelos: string[];
@@ -21,200 +24,256 @@ type Props = {
 };
 
 const OPERACIONAIS = [
-  { value: "all", label: "Todos status" },
   { value: "disponivel", label: "Disponível" },
   { value: "manutencao", label: "Em manutenção" },
   { value: "indisponivel", label: "Indisponível" },
 ];
 
 const CONDICOES = [
-  { value: "all", label: "Todas condições" },
   { value: "normal", label: "Normal" },
   { value: "atencao", label: "Atenção" },
   { value: "critico", label: "Crítico" },
 ];
 
+type Patch = Record<string, string | null | undefined>;
+
 export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [buscaFrota, setBuscaFrota] = useState(searchParams.get("frota") ?? "");
-  const [buscaPlaca, setBuscaPlaca] = useState(searchParams.get("placa") ?? "");
-  const [, startTransition] = useTransition();
+  const [query, setQuery] = useState(
+    () => searchParams.get("q") ?? searchParams.get("frota") ?? searchParams.get("placa") ?? ""
+  );
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const applyChanges = useCallback((changes: Record<string, string>) => {
-    const next = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(changes)) {
-      if (value && value !== "all") next.set(key, value);
-      else next.delete(key);
-    }
-    next.delete("page");
-    const qs = next.toString();
-    startTransition(() => {
-      router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
-    });
-  }, [basePath, router, searchParams]);
+  const applyChanges = useCallback(
+    (patch: Patch) => {
+      const url = withQuery(basePath, searchParams, { ...patch, page: null });
+      startTransition(() => router.replace(url, { scroll: false }));
+    },
+    [basePath, router, searchParams]
+  );
 
-  const update = useCallback((key: string, value: string) => {
-    applyChanges({ [key]: value });
-  }, [applyChanges]);
+  const update = useCallback((key: string, value: string) => applyChanges({ [key]: value === "all" ? null : value }), [applyChanges]);
 
   useEffect(() => {
-    setBuscaFrota(searchParams.get("frota") ?? "");
-    setBuscaPlaca(searchParams.get("placa") ?? "");
+    setQuery(searchParams.get("q") ?? searchParams.get("frota") ?? searchParams.get("placa") ?? "");
   }, [searchParams]);
 
   useEffect(() => {
-    const current = searchParams.get("frota") ?? "";
-    if (buscaFrota === current) return;
-
-    const handle = window.setTimeout(() => update("frota", buscaFrota.trim()), 350);
+    const current = searchParams.get("q") ?? searchParams.get("frota") ?? searchParams.get("placa") ?? "";
+    if (query === current) return;
+    // Busca nova escreve só q — limpa frota/placa legados pra não somarem com o novo filtro.
+    const handle = window.setTimeout(
+      () => applyChanges({ q: query.trim() || null, frota: null, placa: null }),
+      350
+    );
     return () => window.clearTimeout(handle);
-  }, [buscaFrota, searchParams, update]);
+  }, [query, searchParams, applyChanges]);
 
-  useEffect(() => {
-    const current = searchParams.get("placa") ?? "";
-    if (buscaPlaca === current) return;
+  const cdAtual = searchParams.get("cd") ?? "";
+  const modelo = searchParams.get("modelo") ?? "";
+  const localizacao = searchParams.get("localizacao") ?? "";
+  const operacional = searchParams.get("operacional") ?? "";
+  const condicao = searchParams.get("condicao") ?? "";
+  const cadastroIncompleto = searchParams.get("cadastro") === "incompleto";
+  const semKm = searchParams.get("semKm") === "1";
 
-    const handle = window.setTimeout(() => update("placa", buscaPlaca.trim()), 350);
-    return () => window.clearTimeout(handle);
-  }, [buscaPlaca, searchParams, update]);
+  const activeChips: { key: string; label: string; clear: Patch }[] = [
+    ...(modelo ? [{ key: "modelo", label: `Modelo: ${modelo}`, clear: { modelo: null } }] : []),
+    ...(localizacao ? [{ key: "localizacao", label: `Local: ${localizacao}`, clear: { localizacao: null } }] : []),
+    ...(operacional
+      ? [{
+          key: "operacional",
+          label: OPERACIONAIS.find((o) => o.value === operacional)?.label ?? operacional,
+          clear: { operacional: null },
+        }]
+      : []),
+    ...(condicao
+      ? [{
+          key: "condicao",
+          label: CONDICOES.find((c) => c.value === condicao)?.label ?? condicao,
+          clear: { condicao: null },
+        }]
+      : []),
+    ...(cadastroIncompleto ? [{ key: "cadastro", label: "Cadastro incompleto", clear: { cadastro: null } }] : []),
+    ...(semKm ? [{ key: "semKm", label: "Sem KM", clear: { semKm: null } }] : []),
+  ];
 
-  const cdAtual = searchParams.get("cd") ?? "all";
+  const advancedActiveCount = activeChips.length;
+  const hasAnyFilter = Boolean(query || cdAtual) || advancedActiveCount > 0;
+
+  function clearAll() {
+    setQuery("");
+    startTransition(() => router.replace(basePath, { scroll: false }));
+  }
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        <button
-          type="button"
-          onClick={() => applyChanges({ cd: "", localizacao: "" })}
-          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            cdAtual === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-        >
-          Todos os CDs
-        </button>
-        {cds.map((cd) => (
-          <button
-            key={cd}
-            type="button"
-            onClick={() => applyChanges({ cd, localizacao: "" })}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              cdAtual === cd ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {cd}
-          </button>
-        ))}
-      </div>
+      <FilterBar>
+        <FilterSearch
+          value={query}
+          onChange={setQuery}
+          placeholder="Frota, placa, chassi ou modelo…"
+        />
 
-      <div className="rounded-lg border bg-white p-3 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[minmax(140px,.7fr)_minmax(160px,.9fr)_repeat(5,minmax(150px,.8fr))_auto]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={buscaFrota}
-              onChange={(event) => setBuscaFrota(event.target.value)}
-              placeholder="Nº da frota (exato)..."
-              className="pl-9"
-            />
-          </div>
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <Button type="button" variant="outline" className="h-11 gap-1.5 sm:h-9">
+              <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+              Filtros
+              {advancedActiveCount > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1 tabular-nums">
+                  {advancedActiveCount}
+                </Badge>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle>Filtros avançados</SheetTitle>
+              <SheetDescription>Refine a lista por modelo, localização, status, condição ou cadastro.</SheetDescription>
+            </SheetHeader>
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={buscaPlaca}
-              onChange={(event) => setBuscaPlaca(event.target.value)}
-              placeholder="Buscar por placa ou chassi..."
-              className="pl-9"
-            />
-          </div>
+            <div className="mt-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Modelo</label>
+                <Select value={modelo || "all"} onValueChange={(v) => update("modelo", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos modelos</SelectItem>
+                    {modelos.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Select value={searchParams.get("modelo") ?? "all"} onValueChange={(v) => update("modelo", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Modelo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos modelos</SelectItem>
-              {modelos.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Localização</label>
+                <Select value={localizacao || "all"} onValueChange={(v) => applyChanges({ localizacao: v === "all" ? null : v, cd: null })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Localização" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas localizações</SelectItem>
+                    {localizacoes.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Select
-            value={searchParams.get("localizacao") ?? "all"}
-            onValueChange={(v) => applyChanges({ localizacao: v, cd: "" })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Localização" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas localizações</SelectItem>
-              {localizacoes.map((l) => (
-                <SelectItem key={l} value={l}>
-                  {l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Status operacional</label>
+                <Select value={operacional || "all"} onValueChange={(v) => update("operacional", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos status</SelectItem>
+                    {OPERACIONAIS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Select
-            value={searchParams.get("operacional") ?? "all"}
-            onValueChange={(v) => update("operacional", v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {OPERACIONAIS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Condição</label>
+                <Select value={condicao || "all"} onValueChange={(v) => update("condicao", v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Condição" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas condições</SelectItem>
+                    {CONDICOES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Select value={searchParams.get("condicao") ?? "all"} onValueChange={(v) => update("condicao", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Condição" />
-            </SelectTrigger>
-            <SelectContent>
-              {CONDICOES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Cadastro</label>
+                <Select
+                  value={cadastroIncompleto ? "incompleto" : semKm ? "semKm" : "all"}
+                  onValueChange={(v) => {
+                    if (v === "semKm") applyChanges({ semKm: "1", cadastro: null });
+                    else applyChanges({ semKm: null, cadastro: v === "all" ? null : v });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cadastro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos cadastros</SelectItem>
+                    <SelectItem value="incompleto">Incompletos</SelectItem>
+                    <SelectItem value="semKm">Sem KM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          <Select
-            value={searchParams.get("cadastro") ?? (searchParams.get("semKm") ? "semKm" : "all")}
-            onValueChange={(v) => {
-              if (v === "semKm") applyChanges({ semKm: "1", cadastro: "" });
-              else applyChanges({ semKm: "", cadastro: v });
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Cadastro" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos cadastros</SelectItem>
-              <SelectItem value="incompleto">Incompletos</SelectItem>
-              <SelectItem value="semKm">Sem KM</SelectItem>
-            </SelectContent>
-          </Select>
+            <div className="mt-6 flex gap-2">
+              <SheetClose asChild>
+                <Button type="button" className="flex-1">
+                  Aplicar
+                </Button>
+              </SheetClose>
+              {advancedActiveCount > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => applyChanges({ modelo: null, localizacao: null, operacional: null, condicao: null, cadastro: null, semKm: null })}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
 
-          <Button
-            variant="ghost"
-            onClick={() => startTransition(() => router.replace(basePath, { scroll: false }))}
-            className="justify-center gap-2"
-          >
+        {hasAnyFilter && (
+          <Button type="button" variant="ghost" onClick={clearAll} className="h-11 gap-1.5 sm:h-9">
             <X className="h-4 w-4" aria-hidden="true" />
             Limpar
           </Button>
-        </div>
+        )}
+
+        <span aria-live="polite" className="text-xs text-muted-foreground sm:ml-auto">
+          {isPending ? "Atualizando veículos…" : null}
+        </span>
+      </FilterBar>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <FilterChip label="Todos os CDs" active={!cdAtual} onClick={() => applyChanges({ cd: null, localizacao: null })} />
+        {cds.map((cd) => (
+          <FilterChip key={cd} label={cd} active={cdAtual === cd} onClick={() => applyChanges({ cd, localizacao: null })} />
+        ))}
+        {activeChips.map((chip) => (
+          <FilterChip
+            key={chip.key}
+            label={
+              <span className="inline-flex items-center gap-1">
+                {chip.label}
+                <X className="h-3 w-3" aria-hidden="true" />
+              </span>
+            }
+            active
+            onClick={() => applyChanges(chip.clear)}
+          />
+        ))}
       </div>
     </div>
   );
