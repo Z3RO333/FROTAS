@@ -19,12 +19,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type Props = {
   frotaId: number;
   frotaLabel: string;
   size?: "sm" | "default";
   onSuccess?: () => void;
+  triggerClassName?: string;
 };
 
 const MANUTENCAO_INITIAL_STATE: ManutencaoActionState = {
@@ -41,7 +43,13 @@ function SubmitButton() {
   );
 }
 
-export function RetornarOperacaoDialog({ frotaId, frotaLabel, size = "default", onSuccess }: Props) {
+export function RetornarOperacaoDialog({
+  frotaId,
+  frotaLabel,
+  size = "default",
+  onSuccess,
+  triggerClassName,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(retornarOperacaoAction, MANUTENCAO_INITIAL_STATE);
   const onSuccessRef = useRef(onSuccess);
@@ -61,7 +69,7 @@ export function RetornarOperacaoDialog({ frotaId, frotaLabel, size = "default", 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size={size}>
+        <Button size={size} className={cn(triggerClassName)}>
           <CheckCircle2 className="mr-1.5 h-4 w-4" />
           Retornar à operação
         </Button>

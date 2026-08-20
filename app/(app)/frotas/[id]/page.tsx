@@ -27,6 +27,8 @@ import { ChecklistsListClient } from "@/components/frotas/veiculo-360/checklist-
 import { EventsTimeline } from "@/components/frotas/veiculo-360/events-timeline";
 import { FuelGauge } from "@/components/frotas/veiculo-360/fuel-gauge";
 import { StatusOperacionalBanner } from "@/components/frotas/manutencao/status-banner";
+import { EnviarManutencaoDialog } from "@/components/frotas/manutencao/enviar-manutencao-dialog";
+import { RetornarOperacaoDialog } from "@/components/frotas/manutencao/retornar-operacao-dialog";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
 import { listAbastecimentosFrota } from "@/lib/repos/abastecimentos";
 import { listChecklistsByFrota, listPendenciasByFrota } from "@/lib/repos/checklists";
@@ -345,6 +347,19 @@ export default async function FrotaDetailPage({
                 </Link>
               </Button>
             )}
+            {frota.status === "manutencao" ? (
+              <RetornarOperacaoDialog
+                frotaId={frota.id}
+                frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`}
+                triggerClassName="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+              />
+            ) : !frota.vendido && frota.ativo ? (
+              <EnviarManutencaoDialog
+                frotaId={frota.id}
+                frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`}
+                triggerClassName="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+              />
+            ) : null}
             <EnviarRelatorioDialog
               title={`Enviar relatório de ${frota.placa ?? frota.id}`}
               action={enviarRelatorioIndividualAction.bind(null, frota.id)}

@@ -19,12 +19,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type Props = {
   frotaId: number;
   frotaLabel: string;
   triggerLabel?: string;
   size?: "sm" | "default";
+  triggerClassName?: string;
 };
 
 const MANUTENCAO_INITIAL_STATE: ManutencaoActionState = {
@@ -46,6 +48,7 @@ export function EnviarManutencaoDialog({
   frotaLabel,
   triggerLabel = "Enviar para manutenção",
   size = "default",
+  triggerClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState("CORRETIVA");
@@ -59,7 +62,7 @@ export function EnviarManutencaoDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size={size} variant="outline">
+        <Button size={size} variant="outline" className={cn(triggerClassName)}>
           <Wrench className="mr-1.5 h-4 w-4" />
           {triggerLabel}
         </Button>
