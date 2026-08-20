@@ -108,6 +108,7 @@ export default async function FrotasDisponibilidadesPage({
     ? resumoRaw
     : ({ cd_nome: "Todos os CDs", ...resumoRaw } satisfies DisponibilidadeCD);
   const schedules = allSchedules.filter((schedule) => schedule.tipo === "DISPONIBILIDADE");
+  const returnTo = `/frotas/disponibilidades${selectedCd ? `?cd=${encodeURIComponent(selectedCd)}` : ""}`;
 
   return (
     <div className="space-y-6">
@@ -220,7 +221,7 @@ export default async function FrotasDisponibilidadesPage({
                     <TableRow key={frota.id} className="group transition-colors hover:bg-blue-50/50">
                       <TableCell>
                         <Link
-                          href={`/frotas/${frota.id}`}
+                          href={`/frotas/${frota.id}?tab=manutencao&returnTo=${encodeURIComponent(returnTo)}`}
                           className="inline-flex items-center gap-1.5 font-mono font-semibold text-blue-700 hover:underline"
                           title="Abrir visão 360 da frota"
                         >
@@ -264,7 +265,7 @@ export default async function FrotasDisponibilidadesPage({
             {pontos.map((ponto, index) => (
               <Link
                 key={`${ponto.frota_id}-${ponto.tipo}-${index}`}
-                href={`/frotas/${ponto.frota_id}`}
+                href={`/frotas/${ponto.frota_id}?returnTo=${encodeURIComponent(returnTo)}`}
                 className="flex items-start gap-3 rounded-lg border bg-white p-3 transition-colors hover:bg-slate-50"
               >
                 <Badge
