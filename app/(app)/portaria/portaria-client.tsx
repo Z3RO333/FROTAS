@@ -82,6 +82,7 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
     setFiltroStatus(parseInitialStatus(initialStatus));
   }, [initialStatus]);
   const [filtroCd, setFiltroCd] = useState("");
+  const [filtroSetor, setFiltroSetor] = useState("");
   const cds = Array.from(new Set(rows.map((r) => r.cd_nome))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<PortariaRow | null>(null);
@@ -89,17 +90,28 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
   const [loadingDetalhe, setLoadingDetalhe] = useState(false);
   const detailRequestRef = useRef(0);
 
-  // Linhas do CD selecionado — base pros KPIs e pros contadores dos chips.
+  // Linhas do CD selecionado — base pro filtro de setor (setor não sobrepõe o CD, só refina).
   const rowsDoCd = filtroCd ? rows.filter((r) => r.cd_nome === filtroCd) : rows;
+  const setores = Array.from(new Set(rowsDoCd.map((r) => r.setor).filter((s): s is string => Boolean(s)))).sort(
+    (a, b) => a.localeCompare(b, "pt-BR")
+  );
+
+  useEffect(() => {
+    if (filtroSetor && !setores.includes(filtroSetor)) setFiltroSetor("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroCd]);
+
+  // Linhas do CD + setor selecionados — base pros KPIs e pros contadores dos chips.
+  const rowsFiltradas = filtroSetor ? rowsDoCd.filter((r) => r.setor === filtroSetor) : rowsDoCd;
 
   const kpis = {
-    checklistsHoje: rowsDoCd.filter((r) => r.checklist_id).length,
-    liberadas: rowsDoCd.filter((r) => r.status_portaria === "LIBERADA_SAIDA").length,
-    saidasRegistradas: rowsDoCd.filter((r) => r.status_portaria === "SAIDA_REGISTRADA").length,
-    pendentes: rowsDoCd.filter((r) => r.status_portaria === "PENDENTE_CHECKLIST").length,
+    checklistsHoje: rowsFiltradas.filter((r) => r.checklist_id).length,
+    liberadas: rowsFiltradas.filter((r) => r.status_portaria === "LIBERADA_SAIDA").length,
+    saidasRegistradas: rowsFiltradas.filter((r) => r.status_portaria === "SAIDA_REGISTRADA").length,
+    pendentes: rowsFiltradas.filter((r) => r.status_portaria === "PENDENTE_CHECKLIST").length,
   };
 
-  const filtered = rowsDoCd.filter((r) => {
+  const filtered = rowsFiltradas.filter((r) => {
     const frota = queryFrota.trim().toLowerCase();
     const placa = queryPlaca.trim().toLowerCase();
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
@@ -199,12 +211,25 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
             ))}
           </SelectContent>
         </Select>
+        <Select value={filtroSetor || "all"} onValueChange={(v) => setFiltroSetor(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por setor">
+            <SelectValue>{filtroSetor || "Todos os setores"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os setores</SelectItem>
+            {setores.map((setor) => (
+              <SelectItem key={setor} value={setor}>
+                {setor}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="flex flex-wrap items-center gap-1.5">
           {FILTER_TABS.map((tab) => {
             const count =
               tab.value === "TODAS"
-                ? rowsDoCd.length
-                : rowsDoCd.filter((r) => r.status_portaria === tab.value).length;
+                ? rowsFiltradas.length
+                : rowsFiltradas.filter((r) => r.status_portaria === tab.value).length;
             return (
               <FilterChip
                 key={tab.value}

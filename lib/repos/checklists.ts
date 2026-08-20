@@ -28,6 +28,7 @@ type VeiculoLite = {
   placa: string | null;
   modelo: string | null;
   local: string | null;
+  setor: string | null;
   status: string | null;
   vendido: boolean | null;
   ativo: boolean | null;
@@ -141,6 +142,7 @@ export type PortariaRow = {
   placa: string | null;
   modelo: string | null;
   cd_nome: string;
+  setor: string | null;
   status_frota: string | null;
   checklist_id: number | null;
   motorista_id: string | null;
@@ -544,7 +546,7 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
       supabaseManutencao
         .from("veiculos")
         .select(
-          "id,codigo_frota,placa,modelo,local,status,vendido,ativo,manutencao_motivo,manutencao_prev_retorno,manutencao_bloqueia_checklist"
+          "id,codigo_frota,placa,modelo,local,setor,status,vendido,ativo,manutencao_motivo,manutencao_prev_retorno,manutencao_bloqueia_checklist"
         )
         .eq("ativo", true)
         .eq("vendido", false)
@@ -602,6 +604,7 @@ export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow
         placa: veiculo.placa,
         modelo: veiculo.modelo,
         cd_nome: normalizeCdNome(veiculo.local),
+        setor: veiculo.setor,
         status_frota: veiculo.status,
         checklist_id: checklist?.id ?? null,
         motorista_id: checklist?.motorista_id ?? null,
