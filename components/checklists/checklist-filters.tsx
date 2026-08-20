@@ -18,9 +18,11 @@ const PERIODOS = [
 export function ChecklistFilters({
   basePath = "/checklists",
   localizacoes = [],
+  setores = [],
 }: {
   basePath?: string;
   localizacoes?: string[];
+  setores?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,8 +45,9 @@ export function ChecklistFilters({
   const dataFim = searchParams.get("dataFim") ?? "";
   const veiculo = searchParams.get("veiculo") ?? "";
   const localizacao = searchParams.get("localizacao") ?? "";
+  const setor = searchParams.get("setor") ?? "";
   const [veiculoQuery, setVeiculoQuery] = useState(veiculo);
-  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo || localizacao);
+  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo || localizacao || setor);
 
   useEffect(() => setVeiculoQuery(veiculo), [veiculo]);
 
@@ -54,7 +57,7 @@ export function ChecklistFilters({
 
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm" aria-busy={isPending}>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(170px,0.8fr)_minmax(220px,1.3fr)_minmax(170px,0.9fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] xl:items-end">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(170px,0.8fr)_minmax(220px,1.3fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] xl:items-end">
         <FilterField label="Período">
           <Select
             value={periodo || "all"}
@@ -106,19 +109,38 @@ export function ChecklistFilters({
           </div>
         </FilterField>
 
-        <FilterField label="Setor">
+        <FilterField label="CD">
           <Select
             value={localizacao || "all"}
             onValueChange={(v) => applyChanges({ localizacao: v === "all" ? "" : v })}
           >
-            <SelectTrigger aria-label="Filtrar por setor">
-              <SelectValue>{localizacao || "Todos os setores"}</SelectValue>
+            <SelectTrigger aria-label="Filtrar por CD">
+              <SelectValue>{localizacao || "Todos os CDs"}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os setores</SelectItem>
+              <SelectItem value="all">Todos os CDs</SelectItem>
               {localizacoes.map((loc) => (
                 <SelectItem key={loc} value={loc}>
                   {loc}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+
+        <FilterField label="Setor">
+          <Select
+            value={setor || "all"}
+            onValueChange={(v) => applyChanges({ setor: v === "all" ? "" : v })}
+          >
+            <SelectTrigger aria-label="Filtrar por setor">
+              <SelectValue>{setor || "Todos os setores"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {setores.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
                 </SelectItem>
               ))}
             </SelectContent>

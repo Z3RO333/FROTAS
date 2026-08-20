@@ -10,7 +10,7 @@ import {
   periodoParaDatas,
 } from "@/lib/repos/checklists";
 import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
-import { localizacoesDistintas } from "@/lib/repos/frotas";
+import { localizacoesDistintas, setoresDistintos } from "@/lib/repos/frotas";
 import { requireAdminUser } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 
@@ -35,13 +35,15 @@ export default async function ChecklistsAdminPage({
     ...filtroData,
     veiculo: sp.veiculo?.trim() || undefined,
     localizacao: sp.localizacao?.trim() || undefined,
+    setor: sp.setor?.trim() || undefined,
   };
-  const [kpis, checklists, pendencias, vision, localizacoes] = await Promise.all([
+  const [kpis, checklists, pendencias, vision, localizacoes, setores] = await Promise.all([
     checklistDashboardKpis(),
     listAdminChecklists(100, filtros),
     listOpenPendencias(5),
     countChecklistImageInspectionsByStatus(),
     localizacoesDistintas(),
+    setoresDistintos(),
   ]);
   const checklistGroups = groupChecklistsByDate(checklists);
 
@@ -65,7 +67,7 @@ export default async function ChecklistsAdminPage({
         <section className="overflow-hidden rounded-md border bg-white shadow-sm">
           <div className="border-b bg-slate-50 px-4 py-3 font-semibold">Registros recentes</div>
           <div className="p-3">
-            <ChecklistFilters localizacoes={localizacoes} />
+            <ChecklistFilters localizacoes={localizacoes} setores={setores} />
           </div>
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">

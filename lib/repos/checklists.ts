@@ -268,7 +268,7 @@ async function fetchVeiculosByIds(ids: number[]): Promise<Map<number, VeiculoLit
 
   const { data, error } = await supabaseManutencao
     .from("veiculos")
-    .select("id,codigo_frota,placa,modelo,local,status,vendido,ativo")
+    .select("id,codigo_frota,placa,modelo,local,setor,status,vendido,ativo")
     .in("id", uniqueIds);
 
   if (error) throw error;
@@ -281,7 +281,7 @@ function mapChecklist(row: ChecklistDbRow, veiculo?: VeiculoLite): ChecklistList
     frota_geral: veiculo?.codigo_frota ?? null,
     placa: veiculo?.placa ?? null,
     modelo: veiculo?.modelo ?? null,
-    rota: veiculo?.local ?? null,
+    rota: veiculo?.setor ?? null,
   };
 }
 
@@ -307,8 +307,10 @@ export type ChecklistListFilters = {
   dataFim?: string;
   // Pesquisa parcial pelo código da frota ou placa do veículo.
   veiculo?: string;
-  // Localização/setor do veículo (coluna "local" em veiculos), ex.: "RO - ARIQUEMES".
+  // CD do veículo (coluna "local" em veiculos), ex.: "CD Tarumã".
   localizacao?: string;
+  // Setor/detalhe do veículo (coluna "setor" em veiculos), ex.: "EXPEDIÇÃO MANAUS".
+  setor?: string;
 };
 
 async function findVehicleIdsBySearch(search: string): Promise<number[]> {
@@ -343,6 +345,16 @@ async function findVehicleIdsByLocalizacao(localizacao: string): Promise<number[
   return (data ?? []).map((row) => Number(row.id)).filter(Number.isFinite);
 }
 
+async function findVehicleIdsBySetor(setor: string): Promise<number[]> {
+  const { data, error } = await supabaseManutencao
+    .from("veiculos")
+    .select("id")
+    .eq("setor", setor);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => Number(row.id)).filter(Number.isFinite);
+}
+
 export async function listAdminChecklists(
   limit = 100,
   filters: ChecklistListFilters = {}
@@ -356,6 +368,11 @@ export async function listAdminChecklists(
     if (filters.localizacao) {
       const porLocalizacao = new Set(await findVehicleIdsByLocalizacao(filters.localizacao));
       frotaIds = frotaIds ? frotaIds.filter((id) => porLocalizacao.has(id)) : [...porLocalizacao];
+      if (frotaIds.length === 0) return [];
+    }
+    if (filters.setor) {
+      const porSetor = new Set(await findVehicleIdsBySetor(filters.setor));
+      frotaIds = frotaIds ? frotaIds.filter((id) => porSetor.has(id)) : [...porSetor];
       if (frotaIds.length === 0) return [];
     }
 
