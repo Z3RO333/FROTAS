@@ -38,6 +38,7 @@ import type { DocumentRecordWithSignedUrls, ServicoApp, TrocaPneuApp } from "@/l
 import { findUnidadeForFrota } from "@/lib/repos/unidades";
 import { listEventosByVeiculo } from "@/lib/services/veiculo-eventos";
 import { requireAdminUser, canEditFrota } from "@/lib/rbac";
+import { safeReturnTo } from "@/lib/navigation/search-state";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { enviarRelatorioIndividualAction } from "../_actions";
 
@@ -54,10 +55,14 @@ async function safeDetailBlock<T>(label: string, frotaId: number, fallback: T, l
 
 export default async function FrotaDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const backHref = safeReturnTo(sp.returnTo) ?? "/frotas";
   const frotaId = Number.parseInt(id, 10);
   if (Number.isNaN(frotaId)) notFound();
 
@@ -294,7 +299,7 @@ export default async function FrotaDetailPage({
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
-          <Link href="/frotas">
+          <Link href={backHref}>
             <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
             Voltar
           </Link>

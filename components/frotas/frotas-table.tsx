@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -363,6 +364,10 @@ function FrotaDrawer({
   const status = statusOperacional(frota);
   const condicao = condicaoFrota(frota);
   const idade = calcularIdade(frota.ano_fabricacao);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const qs = searchParams.toString();
+  const returnTo = `${pathname}${qs ? `?${qs}` : ""}`;
 
   return (
     <SheetContent>
@@ -426,7 +431,7 @@ function FrotaDrawer({
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href={`/frotas/${frota.id}`}>
+            <Link href={`/frotas/${frota.id}?returnTo=${encodeURIComponent(returnTo)}`}>
               <History className="h-4 w-4" aria-hidden="true" />
               Visão 360º
             </Link>
