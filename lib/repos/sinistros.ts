@@ -103,10 +103,13 @@ export async function getSinistroBySubmissionId(
   return data ? { ticket_number: String(data.ticket_number) } : null;
 }
 
+const COLS_SINISTRO_LIST =
+  "id,ticket_number,tipo_sinistro,frota_id,numero_frota,placa,motorista_id,motorista_nome,data_incidente,endereco,setor,descricao,houve_feridos,samu_bombeiros_presente,terceiros_quantidade,terceiros,media_paths,status,criado_em,telefone_solicitante,precisa_guincho,responsavel_atendimento,atendimento_concluido_em";
+
 export async function listDriverSinistros(email: string, limit = 50): Promise<SinistroRow[]> {
   const { data, error } = await supabaseManutencao
     .from("sinistros_frota")
-    .select("id,ticket_number,tipo_sinistro,frota_id,numero_frota,placa,motorista_id,motorista_nome,data_incidente,endereco,setor,descricao,houve_feridos,samu_bombeiros_presente,terceiros_quantidade,terceiros,media_paths,status,criado_em,telefone_solicitante,precisa_guincho,responsavel_atendimento,atendimento_concluido_em")
+    .select(COLS_SINISTRO_LIST)
     .eq("motorista_id", email)
     .order("criado_em", { ascending: false })
     .limit(limit);
@@ -119,11 +122,24 @@ export async function listDriverSinistros(email: string, limit = 50): Promise<Si
 export async function listAdminSinistros(limit = 200): Promise<SinistroRow[]> {
   const { data, error } = await supabaseManutencao
     .from("sinistros_frota")
-    .select("id,ticket_number,tipo_sinistro,frota_id,numero_frota,placa,motorista_id,motorista_nome,data_incidente,endereco,setor,descricao,houve_feridos,samu_bombeiros_presente,terceiros_quantidade,terceiros,media_paths,status,criado_em,telefone_solicitante,precisa_guincho,responsavel_atendimento,atendimento_concluido_em")
+    .select(COLS_SINISTRO_LIST)
     .order("criado_em", { ascending: false })
     .limit(limit);
 
   if (error) throw new Error(`listAdminSinistros: ${error.message}`);
+
+  return (data ?? []) as SinistroRow[];
+}
+
+export async function listSinistrosByFrota(frotaId: number, limit = 20): Promise<SinistroRow[]> {
+  const { data, error } = await supabaseManutencao
+    .from("sinistros_frota")
+    .select(COLS_SINISTRO_LIST)
+    .eq("frota_id", frotaId)
+    .order("criado_em", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`listSinistrosByFrota: ${error.message}`);
 
   return (data ?? []) as SinistroRow[];
 }

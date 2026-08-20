@@ -8,6 +8,7 @@ import {
   Fuel,
   History,
   LayoutDashboard,
+  ShieldAlert,
   Truck,
   Wrench,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const TAB_ICONS = {
   ClipboardCheck,
   Fuel,
   History,
+  ShieldAlert,
 } as const;
 
 export type TabIconName = keyof typeof TAB_ICONS;

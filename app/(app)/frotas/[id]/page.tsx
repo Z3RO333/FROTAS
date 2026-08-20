@@ -8,6 +8,7 @@ import {
   FileText,
   Fuel,
   Gauge,
+  ShieldAlert,
   Truck,
   Wrench,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { listHistoricoCompleto, listHistoricoKm } from "@/lib/repos/historico";
 import { listDocuments } from "@/lib/repos/manutencao/documents";
 import { listTrocasByVeiculo } from "@/lib/repos/manutencao/pneus";
 import { listServicosByVeiculo } from "@/lib/repos/manutencao/servicos";
+import { listSinistrosByFrota, type SinistroRow } from "@/lib/repos/sinistros";
 import type { DocumentRecordWithSignedUrls, ServicoApp, TrocaPneuApp } from "@/lib/repos/manutencao/types";
 import { findUnidadeForFrota } from "@/lib/repos/unidades";
 import { listEventosByVeiculo } from "@/lib/services/veiculo-eventos";
@@ -87,6 +89,7 @@ export default async function FrotaDetailPage({
     servicos,
     trocasPneus,
     eventos,
+    sinistros,
   ] = await Promise.all([
     safeDetailBlock("historico completo", frotaId, [], () => listHistoricoCompleto(frotaId)),
     safeDetailBlock("historico de km", frotaId, [], () => listHistoricoKm(frotaId)),
@@ -104,6 +107,7 @@ export default async function FrotaDetailPage({
       ? safeDetailBlock("trocas de pneus", frotaId, [], () => listTrocasByVeiculo(codigoFrota, 5))
       : [],
     safeDetailBlock("eventos", frotaId, [], () => listEventosByVeiculo(frotaId, 50)),
+    safeDetailBlock("sinistros", frotaId, [], () => listSinistrosByFrota(frotaId, 20)),
   ]);
 
   const kmData = kmHistorico.map((k) => ({
@@ -267,6 +271,22 @@ export default async function FrotaDetailPage({
           <KmEvolutionChart data={kmData} />
           <HistoricoTimeline entries={historico} />
         </div>
+      ),
+    },
+    {
+      id: "sinistros",
+      label: "Sinistros",
+      icon: "ShieldAlert" as const,
+      count: sinistros.length,
+      content: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sinistros e socorros</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <SinistrosList rows={sinistros} />
+          </CardContent>
+        </Card>
       ),
     },
   ];
@@ -517,6 +537,53 @@ function PendenciasList({ rows }: { rows: Awaited<ReturnType<typeof listPendenci
           <Badge variant="outline" className="mt-2">
             {pendencia.gravidade}
           </Badge>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const SINISTRO_TIPO_LABELS: Record<SinistroRow["tipo_sinistro"], string> = {
+  veiculo: "Acidente com veículo",
+  casa: "Acidente com casas",
+  socorro: "Socorro",
+};
+
+function SinistrosList({ rows }: { rows: SinistroRow[] }) {
+  if (rows.length === 0)
+    return (
+      <div className="p-4">
+        <EmptyState icon={ShieldAlert} title="Sem sinistros registrados" />
+      </div>
+    );
+  return (
+    <div className="divide-y">
+      {rows.map((sinistro) => (
+        <div key={sinistro.id} className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-semibold text-slate-950">
+                {sinistro.ticket_number} · {SINISTRO_TIPO_LABELS[sinistro.tipo_sinistro]}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {formatDate(sinistro.criado_em)} · {sinistro.motorista_nome ?? sinistro.motorista_id}
+              </div>
+            </div>
+            <StatusBadge status={sinistro.status} />
+          </div>
+          <p className="mt-2 line-clamp-2 text-sm text-slate-700">{sinistro.descricao}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {sinistro.houve_feridos && (
+              <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
+                Feridos
+              </Badge>
+            )}
+            {sinistro.precisa_guincho && (
+              <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
+                Guincho
+              </Badge>
+            )}
+          </div>
         </div>
       ))}
     </div>
