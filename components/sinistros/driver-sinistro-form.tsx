@@ -10,8 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useGeolocationAddress } from "@/hooks/use-geolocation-address";
+import { useSessionDraft } from "@/hooks/use-session-draft";
+import {
+  buildSinistroDraft,
+  isSinistroDraftExpired,
+  sinistroDraftKey,
+  sinistroDraftSchema,
+} from "@/lib/sinistros/draft-schema";
 import type { Frota } from "@/lib/repos/frotas";
 import { cn } from "@/lib/utils";
+
+function asChoice(value: string): "sim" | "nao" | undefined {
+  return value === "sim" || value === "nao" ? value : undefined;
+}
 
 export type SinistroTipo = "veiculo" | "casa" | "socorro";
 type TerceiroDraft = { nome: string; telefone: string; cpf: string };
@@ -38,7 +49,15 @@ const TIPO_COPY: Record<"veiculo" | "casa", { title: string; description: string
   },
 };
 
-export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "veiculo" | "casa" }) {
+export function DriverSinistroForm({
+  frotas,
+  tipo,
+  userEmail,
+}: {
+  frotas: Frota[];
+  tipo: "veiculo" | "casa";
+  userEmail: string;
+}) {
   const router = useRouter();
   const submissionIdRef = useRef<string | null>(null);
   const actionWithSubmissionId = useCallback(
@@ -56,7 +75,10 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
   const [frotaId, setFrotaId] = useState("");
   const [frotaQuery, setFrotaQuery] = useState("");
   const [placaQuery, setPlacaQuery] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [setor, setSetor] = useState("");
   const [houveFeridos, setHouveFeridos] = useState("");
+  const [samuBombeiros, setSamuBombeiros] = useState("");
   const [terceiros, setTerceiros] = useState<TerceiroDraft[]>([]);
   const [mediaCount, setMediaCount] = useState(0);
   const {
@@ -68,12 +90,68 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
     errorMessage: locationError,
     locate: getLocation,
     setEndereco,
+    restore: restoreLocation,
   } = useGeolocationAddress();
   const [formError, setFormError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  const draftKey = sinistroDraftKey(userEmail, tipo);
+  const { restoredDraft, checked: draftChecked, save: saveDraft, clear: clearDraft } = useSessionDraft(
+    draftKey,
+    sinistroDraftSchema
+  );
+
+  // Restaura o rascunho uma única vez, assim que o sessionStorage foi checado.
+  useEffect(() => {
+    if (!draftChecked || !restoredDraft) return;
+    if (isSinistroDraftExpired(restoredDraft)) {
+      clearDraft();
+      return;
+    }
+    submissionIdRef.current = restoredDraft.submissionId;
+    setFrotaId(restoredDraft.frotaId != null ? String(restoredDraft.frotaId) : "");
+    setDescricao(restoredDraft.descricao);
+    setSetor(restoredDraft.setor);
+    setHouveFeridos(restoredDraft.houveFeridos ?? "");
+    setSamuBombeiros(restoredDraft.samuBombeiros ?? "");
+    restoreLocation({
+      endereco: restoredDraft.endereco,
+      latitude: restoredDraft.latitude,
+      longitude: restoredDraft.longitude,
+    });
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftChecked, restoredDraft]);
+
+  // Salva o progresso (debounced) — fotos e terceiros (CPF/telefone) ficam de fora.
+  useEffect(() => {
+    if (!draftChecked) return;
+    const handle = window.setTimeout(() => {
+      if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+      saveDraft(
+        buildSinistroDraft({
+          submissionId: submissionIdRef.current,
+          tipo,
+          frotaId: frotaId ? Number(frotaId) : null,
+          endereco,
+          latitude,
+          longitude,
+          setor,
+          descricao,
+          houveFeridos: asChoice(houveFeridos),
+          samuBombeiros: asChoice(samuBombeiros),
+        })
+      );
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [draftChecked, tipo, frotaId, endereco, latitude, longitude, setor, descricao, houveFeridos, samuBombeiros, saveDraft]);
 
   useEffect(() => {
-    if (actionState.ok) router.push(actionState.redirectTo);
-  }, [actionState, router]);
+    if (actionState.ok) {
+      clearDraft();
+      router.push(actionState.redirectTo);
+    }
+  }, [actionState, router, clearDraft]);
 
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
@@ -142,6 +220,15 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
         </div>
       ) : null}
 
+      {draftRestored ? (
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            Rascunho recuperado — retomamos de onde você parou. <strong>As fotos precisam ser anexadas novamente.</strong>
+          </span>
+        </div>
+      ) : null}
+
       <section className="space-y-4 rounded-md border bg-white p-4 shadow-sm">
         <div>
           <h2 className="text-lg font-semibold">{TIPO_COPY[tipo].frotaTitle}</h2>
@@ -193,6 +280,8 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
             name="descricao"
             rows={5}
             required
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="Conte o que aconteceu, onde houve impacto e quais danos sao visiveis."
           />
@@ -241,7 +330,8 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
             <select
               id="setor"
               name="setor"
-              defaultValue=""
+              value={setor}
+              onChange={(e) => setSetor(e.target.value)}
               className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
             >
               <option value="">Selecione</option>
@@ -270,8 +360,22 @@ export function DriverSinistroForm({ frotas, tipo }: { frotas: Frota[]; tipo: "v
           <div className="space-y-2">
             <Label>SAMU ou bombeiros esteve presente? *</Label>
             <div className="grid grid-cols-2 gap-2">
-              <Choice name="samu_bombeiros_presente" value="sim">Sim</Choice>
-              <Choice name="samu_bombeiros_presente" value="nao">Nao</Choice>
+              <Choice
+                name="samu_bombeiros_presente"
+                value="sim"
+                checked={samuBombeiros === "sim"}
+                onChange={setSamuBombeiros}
+              >
+                Sim
+              </Choice>
+              <Choice
+                name="samu_bombeiros_presente"
+                value="nao"
+                checked={samuBombeiros === "nao"}
+                onChange={setSamuBombeiros}
+              >
+                Nao
+              </Choice>
             </div>
           </div>
         ) : null}

@@ -23,5 +23,5 @@ export default async function ReportarSinistroTipoPage({
     return <SocorroForm user={{ name: user.name, email: user.email }} frotas={frotas} />;
   }
 
-  return <DriverSinistroForm frotas={frotas} tipo={tipo as "veiculo" | "casa"} />;
+  return <DriverSinistroForm frotas={frotas} tipo={tipo as "veiculo" | "casa"} userEmail={user.email} />;
 }

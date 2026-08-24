@@ -52,6 +52,15 @@ export function useGeolocationAddress() {
     setState((prev) => ({ ...prev, endereco: value }));
   }, []);
 
+  // Hidrata endereço/coordenadas a partir de um rascunho salvo — sem disparar
+  // uma nova leitura de GPS.
+  const restore = useCallback(
+    (value: { endereco: string; latitude: string; longitude: string }) => {
+      setState((prev) => ({ ...prev, ...value, accuracy: null, errorKind: null, errorMessage: null }));
+    },
+    []
+  );
+
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setState((prev) => ({
@@ -115,5 +124,5 @@ export function useGeolocationAddress() {
     );
   }, []);
 
-  return { ...state, locate, setEndereco };
+  return { ...state, locate, setEndereco, restore };
 }
