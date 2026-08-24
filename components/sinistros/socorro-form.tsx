@@ -10,6 +10,7 @@ import { SETORES } from "@/components/sinistros/driver-sinistro-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useGeolocationAddress } from "@/hooks/use-geolocation-address";
 import type { Frota } from "@/lib/repos/frotas";
 import { cn } from "@/lib/utils";
 
@@ -31,11 +32,16 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
   const [frotaId, setFrotaId] = useState("");
   const [frotaQuery, setFrotaQuery] = useState("");
   const [placaQuery, setPlacaQuery] = useState("");
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [endereco, setEndereco] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const {
+    loading: locationLoading,
+    endereco,
+    latitude,
+    longitude,
+    accuracy: locationAccuracy,
+    errorMessage: locationError,
+    locate: getLocation,
+    setEndereco,
+  } = useGeolocationAddress();
   const [precisaGuincho, setPrecisaGuincho] = useState("");
   const [mediaCount, setMediaCount] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
@@ -57,44 +63,6 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
   useEffect(() => {
     if (actionState.ok) router.push(actionState.redirectTo);
   }, [actionState, router]);
-
-  async function getLocation() {
-    setFormError(null);
-    if (!navigator.geolocation) {
-      setFormError("GPS indisponivel neste dispositivo.");
-      return;
-    }
-
-    setLocationLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        const accuracy = position.coords.accuracy;
-        setLatitude(String(lat));
-        setLongitude(String(lon));
-        setLocationAccuracy(Number.isFinite(accuracy) ? accuracy : null);
-
-        try {
-          const response = await fetch(
-            `/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&accuracy=${encodeURIComponent(accuracy)}`
-          );
-          const data = await response.json();
-          if (!response.ok) throw new Error(data?.error ?? "Nao foi possivel buscar o endereco.");
-          setEndereco(data?.address || `Lat: ${lat.toFixed(6)}, Lng: ${lon.toFixed(6)}`);
-        } catch {
-          setEndereco(`Lat: ${lat.toFixed(6)}, Lng: ${lon.toFixed(6)}`);
-        } finally {
-          setLocationLoading(false);
-        }
-      },
-      () => {
-        setLocationLoading(false);
-        setFormError("Nao foi possivel obter sua localizacao.");
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
-  }
 
   function handleMediaChange(event: ChangeEvent<HTMLInputElement>) {
     setMediaCount(event.target.files?.length ?? 0);
@@ -151,6 +119,9 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
             {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4 text-red-500" />}
             Usar minha localizacao
           </Button>
+          {locationError ? (
+            <p className="text-xs font-medium text-red-700">{locationError}</p>
+          ) : null}
           {latitude && longitude ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>
