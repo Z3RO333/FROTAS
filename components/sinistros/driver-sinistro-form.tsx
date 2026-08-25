@@ -53,10 +53,12 @@ export function DriverSinistroForm({
   frotas,
   tipo,
   userEmail,
+  setoresDisponiveis,
 }: {
   frotas: Frota[];
   tipo: "veiculo" | "casa";
   userEmail: string;
+  setoresDisponiveis: string[];
 }) {
   const router = useRouter();
   const submissionIdRef = useRef<string | null>(null);
@@ -94,6 +96,15 @@ export function DriverSinistroForm({
   } = useGeolocationAddress();
   const [formError, setFormError] = useState<string | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [setorOverride, setSetorOverride] = useState(false);
+
+  // O setor já vem cadastrado na frota — evita perguntar de novo o que o
+  // sistema já sabe. "Trocar" abre a lista completa só se precisar corrigir.
+  useEffect(() => {
+    if (!frotaId) return;
+    const f = frotas.find((item) => String(item.id) === frotaId);
+    if (f?.setor) setSetor(f.setor);
+  }, [frotaId, frotas]);
 
   const draftKey = sinistroDraftKey(userEmail, tipo);
   const { restoredDraft, checked: draftChecked, save: saveDraft, clear: clearDraft } = useSessionDraft(
@@ -111,7 +122,8 @@ export function DriverSinistroForm({
     submissionIdRef.current = restoredDraft.submissionId;
     setFrotaId(restoredDraft.frotaId != null ? String(restoredDraft.frotaId) : "");
     setDescricao(restoredDraft.descricao);
-    setSetor(restoredDraft.setor);
+    // setor não é restaurado direto — o effect que deriva da frota selecionada
+    // reaplica o valor certo (cadastro da frota é a fonte de verdade).
     setHouveFeridos(restoredDraft.houveFeridos ?? "");
     setSamuBombeiros(restoredDraft.samuBombeiros ?? "");
     restoreLocation({
@@ -327,20 +339,36 @@ export function DriverSinistroForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="setor">Setor</Label>
-            <select
-              id="setor"
-              name="setor"
-              value={setor}
-              onChange={(e) => setSetor(e.target.value)}
-              className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
-            >
-              <option value="">Selecione</option>
-              {SETORES.map((setor) => (
-                <option key={setor} value={setor}>
-                  {setor}
-                </option>
-              ))}
-            </select>
+            {setorOverride || !selected ? (
+              <select
+                id="setor"
+                name="setor"
+                value={setor}
+                onChange={(e) => setSetor(e.target.value)}
+                className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
+              >
+                <option value="">{selected ? "Selecione" : "Selecione a frota primeiro"}</option>
+                {setoresDisponiveis.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex h-11 items-center justify-between rounded-md border bg-slate-50 px-3 text-sm sm:h-10">
+                <input type="hidden" name="setor" value={setor} />
+                <span className={setor ? "text-foreground" : "text-muted-foreground"}>
+                  {setor || "Nao informado"}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-blue-700 hover:underline"
+                  onClick={() => setSetorOverride(true)}
+                >
+                  Trocar
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

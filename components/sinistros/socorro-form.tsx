@@ -6,15 +6,33 @@ import { useFormStatus } from "react-dom";
 import { AlertTriangle, Camera, ChevronRight, Loader2, MapPin, Send } from "lucide-react";
 import { enviarSinistroMotoristaAction } from "@/app/(app)/motorista/sinistro/_actions";
 import { SINISTRO_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/sinistro/types";
-import { SETORES } from "@/components/sinistros/driver-sinistro-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useGeolocationAddress } from "@/hooks/use-geolocation-address";
+import { useSessionDraft } from "@/hooks/use-session-draft";
+import {
+  buildSinistroDraft,
+  isSinistroDraftExpired,
+  sinistroDraftKey,
+  sinistroDraftSchema,
+} from "@/lib/sinistros/draft-schema";
 import type { Frota } from "@/lib/repos/frotas";
 import { cn } from "@/lib/utils";
 
-export function SocorroForm({ user, frotas }: { user: { name: string; email: string }; frotas: Frota[] }) {
+function asChoice(value: string): "sim" | "nao" | undefined {
+  return value === "sim" || value === "nao" ? value : undefined;
+}
+
+export function SocorroForm({
+  user,
+  frotas,
+  setoresDisponiveis,
+}: {
+  user: { name: string; email: string };
+  frotas: Frota[];
+  setoresDisponiveis: string[];
+}) {
   const router = useRouter();
   const submissionIdRef = useRef<string | null>(null);
   const actionWithSubmissionId = useCallback(
@@ -41,10 +59,73 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
     errorMessage: locationError,
     locate: getLocation,
     setEndereco,
+    restore: restoreLocation,
   } = useGeolocationAddress();
+  const [setor, setSetor] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [precisaGuincho, setPrecisaGuincho] = useState("");
   const [mediaCount, setMediaCount] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [setorOverride, setSetorOverride] = useState(false);
+
+  // O setor já vem cadastrado na frota — evita perguntar de novo o que o
+  // sistema já sabe. "Trocar" abre a lista completa só se precisar corrigir.
+  useEffect(() => {
+    if (!frotaId) return;
+    const f = frotas.find((item) => String(item.id) === frotaId);
+    if (f?.setor) setSetor(f.setor);
+  }, [frotaId, frotas]);
+
+  const draftKey = sinistroDraftKey(user.email, "socorro");
+  const { restoredDraft, checked: draftChecked, save: saveDraft, clear: clearDraft } = useSessionDraft(
+    draftKey,
+    sinistroDraftSchema
+  );
+
+  useEffect(() => {
+    if (!draftChecked || !restoredDraft) return;
+    if (isSinistroDraftExpired(restoredDraft)) {
+      clearDraft();
+      return;
+    }
+    submissionIdRef.current = restoredDraft.submissionId;
+    setFrotaId(restoredDraft.frotaId != null ? String(restoredDraft.frotaId) : "");
+    // setor não é restaurado direto — o effect que deriva da frota selecionada
+    // reaplica o valor certo (cadastro da frota é a fonte de verdade).
+    setDescricao(restoredDraft.descricao);
+    setPrecisaGuincho(restoredDraft.precisaGuincho ?? "");
+    restoreLocation({
+      endereco: restoredDraft.endereco,
+      latitude: restoredDraft.latitude,
+      longitude: restoredDraft.longitude,
+    });
+    setDraftRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftChecked, restoredDraft]);
+
+  // Telefone do solicitante fica fora do draft (dado pessoal) — só o resto do
+  // progresso é salvo.
+  useEffect(() => {
+    if (!draftChecked) return;
+    const handle = window.setTimeout(() => {
+      if (!submissionIdRef.current) submissionIdRef.current = crypto.randomUUID();
+      saveDraft(
+        buildSinistroDraft({
+          submissionId: submissionIdRef.current,
+          tipo: "socorro",
+          frotaId: frotaId ? Number(frotaId) : null,
+          endereco,
+          latitude,
+          longitude,
+          setor,
+          descricao,
+          precisaGuincho: asChoice(precisaGuincho),
+        })
+      );
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [draftChecked, frotaId, endereco, latitude, longitude, setor, descricao, precisaGuincho, saveDraft]);
 
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
@@ -61,14 +142,22 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
   const selectedFrota = frotas.find((frota) => String(frota.id) === frotaId) ?? null;
 
   useEffect(() => {
-    if (actionState.ok) router.push(actionState.redirectTo);
-  }, [actionState, router]);
+    if (actionState.ok) {
+      clearDraft();
+      router.push(actionState.redirectTo);
+    }
+  }, [actionState, router, clearDraft]);
 
   function handleMediaChange(event: ChangeEvent<HTMLInputElement>) {
     setMediaCount(event.target.files?.length ?? 0);
   }
 
   function handlePreSubmit(event: { preventDefault(): void }) {
+    if (!setor) {
+      event.preventDefault();
+      setFormError("Selecione a frota (ou informe o setor manualmente).");
+      return;
+    }
     if (!precisaGuincho) {
       event.preventDefault();
       setFormError("Informe se precisa de guincho.");
@@ -101,6 +190,15 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
         <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           {formError ?? (!actionState.ok ? actionState.error : null)}
+        </div>
+      ) : null}
+
+      {draftRestored ? (
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            Rascunho recuperado — retomamos de onde você parou. <strong>As imagens precisam ser anexadas novamente.</strong>
+          </span>
         </div>
       ) : null}
 
@@ -182,18 +280,38 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
 
         <div className="space-y-2">
           <Label htmlFor="setor">Setor *</Label>
-          <select
-            id="setor"
-            name="setor"
-            required
-            defaultValue=""
-            className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
-          >
-            <option value="" disabled>Selecione um setor</option>
-            {SETORES.map((setor) => (
-              <option key={setor} value={setor}>{setor}</option>
-            ))}
-          </select>
+          {setorOverride || !selectedFrota ? (
+            <select
+              id="setor"
+              name="setor"
+              value={setor}
+              onChange={(e) => setSetor(e.target.value)}
+              className="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:h-10 sm:text-sm"
+            >
+              <option value="" disabled>
+                {selectedFrota ? "Selecione um setor" : "Selecione a frota primeiro"}
+              </option>
+              {setoresDisponiveis.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex h-11 items-center justify-between rounded-md border bg-slate-50 px-3 text-sm sm:h-10">
+              <input type="hidden" name="setor" value={setor} />
+              <span className={setor ? "text-foreground" : "text-muted-foreground"}>
+                {setor || "Nao informado"}
+              </span>
+              <button
+                type="button"
+                className="text-xs font-medium text-blue-700 hover:underline"
+                onClick={() => setSetorOverride(true)}
+              >
+                Trocar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -215,6 +333,8 @@ export function SocorroForm({ user, frotas }: { user: { name: string; email: str
             name="descricao"
             rows={4}
             required
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             placeholder="Descreva o problema"
           />
