@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SinistroStepper, SINISTRO_STEPS, sinistroStepIndex, type SinistroStepId } from "@/components/sinistros/sinistro-stepper";
 import { VehicleSearchSelect, type VehicleOption } from "@/components/vehicles/vehicle-search-select";
+import { formatCPF, formatTelefoneBR, isValidCPF, isValidTelefoneBR } from "@/lib/br-format";
 import { useGeolocationAddress } from "@/hooks/use-geolocation-address";
 import { useSessionDraft } from "@/hooks/use-session-draft";
 import {
@@ -239,6 +240,14 @@ export function DriverSinistroForm({
       if (!descricao.trim()) return "Descreva o que aconteceu.";
       if (!endereco.trim()) return "Informe o endereço do sinistro.";
       if (houveFeridos === "sim" && !samuBombeiros) return "Informe se SAMU ou bombeiros esteve presente.";
+    }
+    if (idx > sinistroStepIndex("terceiros")) {
+      for (let i = 0; i < terceiros.length; i++) {
+        const terceiro = terceiros[i];
+        if (!terceiro.nome.trim()) return `Preencha o nome do terceiro ${i + 1}.`;
+        if (!isValidTelefoneBR(terceiro.telefone)) return `Telefone do terceiro ${i + 1} inválido.`;
+        if (!isValidCPF(terceiro.cpf)) return `CPF do terceiro ${i + 1} inválido.`;
+      }
     }
     return null;
   }
@@ -505,20 +514,34 @@ export function DriverSinistroForm({
                     onChange={(e) => updateTerceiro(index, "nome", e.target.value)}
                     placeholder="Nome completo"
                   />
-                  <Input
-                    name={`terceiro_${index}_telefone`}
-                    value={terceiro.telefone}
-                    onChange={(e) => updateTerceiro(index, "telefone", e.target.value)}
-                    placeholder="Telefone"
-                    inputMode="numeric"
-                  />
-                  <Input
-                    name={`terceiro_${index}_cpf`}
-                    value={terceiro.cpf}
-                    onChange={(e) => updateTerceiro(index, "cpf", e.target.value)}
-                    placeholder="CPF"
-                    inputMode="numeric"
-                  />
+                  <div className="space-y-1">
+                    <input type="hidden" name={`terceiro_${index}_telefone`} value={terceiro.telefone} />
+                    <Input
+                      value={formatTelefoneBR(terceiro.telefone)}
+                      onChange={(e) => updateTerceiro(index, "telefone", e.target.value)}
+                      placeholder="Telefone"
+                      inputMode="numeric"
+                      maxLength={15}
+                      aria-invalid={terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone)}
+                    />
+                    {terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone) ? (
+                      <p className="text-xs font-medium text-red-700">Telefone inválido.</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1">
+                    <input type="hidden" name={`terceiro_${index}_cpf`} value={terceiro.cpf} />
+                    <Input
+                      value={formatCPF(terceiro.cpf)}
+                      onChange={(e) => updateTerceiro(index, "cpf", e.target.value)}
+                      placeholder="CPF"
+                      inputMode="numeric"
+                      maxLength={14}
+                      aria-invalid={terceiro.cpf.length > 0 && !isValidCPF(terceiro.cpf)}
+                    />
+                    {terceiro.cpf.length > 0 && !isValidCPF(terceiro.cpf) ? (
+                      <p className="text-xs font-medium text-red-700">CPF inválido.</p>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sendSinistroNotification, sendSocorroNotification } from "@/lib/email";
+import { isValidCPF, isValidTelefoneBR } from "@/lib/br-format";
 import { getFrota } from "@/lib/repos/frotas";
 import { createSinistro, getSinistroBySubmissionId } from "@/lib/repos/sinistros";
 import {
@@ -141,11 +142,12 @@ export async function enviarSinistroMotoristaAction(
 
       const terceiros = Array.from({ length: terceirosQuantidade }, (_, index) => {
         const prefix = `terceiro_${index}`;
-        return {
-          nome: requiredText(formData, `${prefix}_nome`, "Preencha o nome de todos os terceiros."),
-          telefone: requiredText(formData, `${prefix}_telefone`, "Preencha o telefone de todos os terceiros.").replace(/\D/g, ""),
-          cpf: requiredText(formData, `${prefix}_cpf`, "Preencha o CPF de todos os terceiros.").replace(/\D/g, ""),
-        };
+        const nome = requiredText(formData, `${prefix}_nome`, `Preencha o nome do terceiro ${index + 1}.`);
+        const telefone = requiredText(formData, `${prefix}_telefone`, `Preencha o telefone do terceiro ${index + 1}.`).replace(/\D/g, "");
+        const cpf = requiredText(formData, `${prefix}_cpf`, `Preencha o CPF do terceiro ${index + 1}.`).replace(/\D/g, "");
+        if (!isValidTelefoneBR(telefone)) throw new Error(`Telefone do terceiro ${index + 1} é inválido.`);
+        if (!isValidCPF(cpf)) throw new Error(`CPF do terceiro ${index + 1} é inválido.`);
+        return { nome, telefone, cpf };
       });
 
       const frota = await getFrota(frotaId);
