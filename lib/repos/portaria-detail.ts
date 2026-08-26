@@ -1,5 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { listChecklistItems, type ChecklistItemRow } from "@/lib/repos/checklists";
+import { reportCalendarDate, reportDayUtcRange } from "@/lib/report-date";
 
 export type FotoChecklist = {
   id: string;
@@ -41,6 +42,8 @@ export async function getChecklistDetalhePortaria(
   checklistId: number,
   frotaId: number
 ): Promise<ChecklistDetalhePortaria | null> {
+  const { start, end } = reportDayUtcRange(reportCalendarDate());
+
   const [checklistResult, itens, imagensResult, historicoResult] = await Promise.all([
     supabaseManutencao
       .from("checklists_frota")
@@ -64,6 +67,8 @@ export async function getChecklistDetalhePortaria(
       .from("movimentacoes_frota")
       .select("id, tipo_acao, motivo_bloqueio, observacao, usuario_portaria_id, data_hora")
       .eq("frota_id", frotaId)
+      .gte("data_hora", start)
+      .lt("data_hora", end)
       .order("data_hora", { ascending: false })
       .limit(10),
   ]);
