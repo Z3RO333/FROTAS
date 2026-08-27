@@ -4,40 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireManutencaoUser } from "@/lib/rbac";
+import { criarFornecedorPecas, dedupeNovosFornecedores } from "@/lib/repos/fornecedores-pecas";
 import { criarPedidoPecas } from "@/lib/repos/pedidos-pecas";
 import { enviarCotacoesPedidoPecas, PEDIDOS_PECAS_CC } from "@/lib/services/pedidos-pecas-email";
-
-const ItemSchema = z.object({
-  descricao: z.string().trim().min(2, "Descreva cada peça.").max(300, "A descrição deve ter no máximo 300 caracteres."),
-  quantidade: z.coerce.number().int().min(1, "A quantidade mínima é 1.").max(999, "A quantidade máxima é 999."),
-});
-
-const GrupoSchema = z.object({
-  tokenIdempotencia: z.string().uuid("Identificador da solicitação inválido."),
-  frotaId: z.coerce.number().int().positive("Selecione uma frota."),
-  itens: z.array(ItemSchema).min(1, "Adicione pelo menos uma peça.").max(25, "Informe no máximo 25 peças."),
-});
-
-const PedidoLoteSchema = z.object({
-  grupos: z.array(GrupoSchema).min(1, "Adicione pelo menos uma frota.").max(10, "Informe no máximo 10 frotas por lote."),
-}).superRefine(({ grupos }, context) => {
-  const ids = new Set<number>();
-  grupos.forEach((grupo, index) => {
-    if (ids.has(grupo.frotaId)) {
-      context.addIssue({
-        code: "custom",
-        path: ["grupos", index, "frotaId"],
-        message: "A mesma frota não pode aparecer duas vezes. Inclua todas as peças no mesmo bloco.",
-      });
-    }
-    ids.add(grupo.frotaId);
-  });
-});
+import { PedidoLoteSchema } from "./_schema";
 
 export type PedidoPecasGrupoValues = {
   tokenIdempotencia: string;
   frotaId: number | null;
   itens: Array<{ descricao: string; quantidade: number }>;
+  fornecedorIds: number[];
+  novosFornecedores: Array<{ nome: string; email: string }>;
 };
 
 export type PedidoPecasFormValues = {
@@ -74,6 +51,15 @@ function rawValues(formData: FormData): PedidoPecasFormValues {
                   quantidade: Number(item?.quantidade) || 1,
                 }))
               : [],
+            fornecedorIds: Array.isArray(grupo?.fornecedorIds)
+              ? grupo.fornecedorIds.map((id: unknown) => Number(id)).filter((id: number) => Number.isInteger(id) && id > 0)
+              : [],
+            novosFornecedores: Array.isArray(grupo?.novosFornecedores)
+              ? grupo.novosFornecedores.map((f: { nome?: unknown; email?: unknown }) => ({
+                  nome: typeof f?.nome === "string" ? f.nome : "",
+                  email: typeof f?.email === "string" ? f.email : "",
+                }))
+              : [],
           };
         })
       : [],
@@ -84,7 +70,7 @@ function publicMessage(error: unknown): string {
   if (error instanceof z.ZodError) return error.issues[0]?.message ?? "Revise os dados do pedido.";
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("Frota nao encontrada")) return "A frota selecionada não foi encontrada ou está inativa.";
-  if (message.includes("Nenhum fornecedor")) return "Nenhum fornecedor de peças está ativo.";
+  if (message.includes("fornecedor")) return "Selecione ao menos um fornecedor ativo para cada frota.";
   return "Não foi possível registrar o pedido. Tente novamente.";
 }
 
@@ -99,6 +85,10 @@ export async function criarPedidoPecasAction(
   try {
     const parsed = PedidoLoteSchema.parse(values);
     for (const grupo of parsed.grupos) {
+      const novos = dedupeNovosFornecedores(grupo.novosFornecedores);
+      const novosCriados = await Promise.all(novos.map((novo) => criarFornecedorPecas(novo)));
+      const fornecedorIds = Array.from(new Set([...grupo.fornecedorIds, ...novosCriados.map((f) => f.id)]));
+
       pedidoIds.push(await criarPedidoPecas({
         tokenIdempotencia: grupo.tokenIdempotencia,
         frotaId: grupo.frotaId,
@@ -107,6 +97,7 @@ export async function criarPedidoPecasAction(
         solicitanteNome: user.name,
         solicitanteEmail: user.email,
         copiaEmail: PEDIDOS_PECAS_CC,
+        fornecedorIds,
       }));
     }
   } catch (error) {

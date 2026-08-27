@@ -54,7 +54,7 @@ export default async function PedidoPecasDetailPage({
 
       {query.resultado === "enviado" ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Cotação enviada separadamente aos três fornecedores.
+          Cotação enviada separadamente a cada fornecedor selecionado.
         </div>
       ) : query.resultado === "parcial" ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

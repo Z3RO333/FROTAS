@@ -58,6 +58,7 @@ export type NovoPedidoPecas = {
   solicitanteNome: string;
   solicitanteEmail: string;
   copiaEmail: string;
+  fornecedorIds: number[];
 };
 
 type PedidoRow = Omit<PedidoPecas, "itens" | "envios"> & {
@@ -97,6 +98,7 @@ export async function criarPedidoPecas(input: NovoPedidoPecas): Promise<number> 
     p_solicitante_nome: input.solicitanteNome,
     p_solicitante_email: input.solicitanteEmail,
     p_copia_email: input.copiaEmail,
+    p_fornecedor_ids: input.fornecedorIds,
   });
   if (error) throw new Error(`criarPedidoPecas: ${error.message}`);
   const id = Number(data);

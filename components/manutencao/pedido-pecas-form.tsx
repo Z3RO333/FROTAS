@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AlertTriangle, Mail, PackagePlus, Plus, Send, Trash2, Truck } from "lucide-react";
+import { AlertTriangle, Mail, PackagePlus, Plus, Send, Trash2, Truck, UserPlus } from "lucide-react";
 import type {
   PedidoPecasActionState,
   PedidoPecasFormValues,
@@ -21,10 +21,24 @@ type PedidoVehicleOption = VehicleOption & {
   ano: number | null;
 };
 
+export type FornecedorPecasOption = {
+  id: number;
+  nome: string;
+  email: string;
+};
+
 type ItemForm = {
   key: string;
   descricao: string;
   quantidade: number;
+};
+
+/** id != null: fornecedor já cadastrado. id == null: adicionado nesta sessão, ainda não salvo. */
+type FornecedorEntry = {
+  key: string;
+  id: number | null;
+  nome: string;
+  email: string;
 };
 
 type GrupoForm = {
@@ -32,6 +46,7 @@ type GrupoForm = {
   tokenIdempotencia: string;
   frotaId: number | null;
   itens: ItemForm[];
+  fornecedorKeys: Set<string>;
 };
 
 const INITIAL_STATE: PedidoPecasActionState = {
@@ -40,7 +55,6 @@ const INITIAL_STATE: PedidoPecasActionState = {
   attempt: 0,
 };
 
-const FORNECEDORES = ["ADS Auto Peças", "Barreto Peças", "Norte Auto Peças"];
 const MAX_FROTAS = 10;
 const MAX_PECAS_POR_FROTA = 25;
 
@@ -48,33 +62,28 @@ function itemKey(token: string, index: number): string {
   return `${token}-item-${index + 1}`;
 }
 
-function fromValues(grupo: PedidoPecasGrupoValues): GrupoForm {
-  const itens = grupo.itens.length > 0
-    ? grupo.itens
-    : [{ descricao: "", quantidade: 1 }];
-  return {
-    key: grupo.tokenIdempotencia,
-    tokenIdempotencia: grupo.tokenIdempotencia,
-    frotaId: grupo.frotaId,
-    itens: itens.map((item, index) => ({ ...item, key: itemKey(grupo.tokenIdempotencia, index) })),
-  };
+function fornecedorKeyFor(entry: { id: number | null; email: string }): string {
+  return entry.id != null ? `id-${entry.id}` : `novo-${entry.email.trim().toLowerCase()}`;
 }
 
-function newGroup(token = crypto.randomUUID()): GrupoForm {
+function newGroup(allKeys: string[], token = crypto.randomUUID()): GrupoForm {
   return {
     key: token,
     tokenIdempotencia: token,
     frotaId: null,
     itens: [{ key: itemKey(token, 0), descricao: "", quantidade: 1 }],
+    fornecedorKeys: new Set(allKeys),
   };
 }
 
 export function PedidoPecasForm({
   vehicles,
+  fornecedores,
   initialToken,
   action,
 }: {
   vehicles: PedidoVehicleOption[];
+  fornecedores: FornecedorPecasOption[];
   initialToken: string;
   action: (
     state: PedidoPecasActionState,
@@ -87,6 +96,8 @@ export function PedidoPecasForm({
       tokenIdempotencia: initialToken,
       frotaId: null,
       itens: [{ descricao: "", quantidade: 1 }],
+      fornecedorIds: fornecedores.map((f) => f.id),
+      novosFornecedores: [],
     }],
   };
 
@@ -94,6 +105,7 @@ export function PedidoPecasForm({
     <PedidoPecasFields
       key={state.attempt}
       vehicles={vehicles}
+      fornecedoresIniciais={fornecedores}
       action={formAction}
       values={values}
       error={state.error}
@@ -101,27 +113,78 @@ export function PedidoPecasForm({
   );
 }
 
+function fromValues(grupo: PedidoPecasGrupoValues): GrupoForm {
+  const itens = grupo.itens.length > 0
+    ? grupo.itens
+    : [{ descricao: "", quantidade: 1 }];
+  const keys = new Set<string>();
+  for (const id of grupo.fornecedorIds) keys.add(fornecedorKeyFor({ id, email: "" }));
+  for (const novo of grupo.novosFornecedores) keys.add(fornecedorKeyFor({ id: null, email: novo.email }));
+  return {
+    key: grupo.tokenIdempotencia,
+    tokenIdempotencia: grupo.tokenIdempotencia,
+    frotaId: grupo.frotaId,
+    itens: itens.map((item, index) => ({ ...item, key: itemKey(grupo.tokenIdempotencia, index) })),
+    fornecedorKeys: keys,
+  };
+}
+
 function PedidoPecasFields({
   vehicles,
+  fornecedoresIniciais,
   action,
   values,
   error,
 }: {
   vehicles: PedidoVehicleOption[];
+  fornecedoresIniciais: FornecedorPecasOption[];
   action: (formData: FormData) => void;
   values: PedidoPecasFormValues;
   error: string | null;
 }) {
-  const [grupos, setGrupos] = useState<GrupoForm[]>(() => values.grupos.map(fromValues));
+  const [fornecedoresDisponiveis, setFornecedoresDisponiveis] = useState<FornecedorEntry[]>(() => {
+    const base: FornecedorEntry[] = fornecedoresIniciais.map((f) => ({
+      key: fornecedorKeyFor(f),
+      id: f.id,
+      nome: f.nome,
+      email: f.email,
+    }));
+    const emails = new Set(base.map((f) => f.email.toLowerCase()));
+    for (const grupo of values.grupos) {
+      for (const novo of grupo.novosFornecedores) {
+        if (emails.has(novo.email.toLowerCase())) continue;
+        emails.add(novo.email.toLowerCase());
+        base.push({ key: fornecedorKeyFor({ id: null, email: novo.email }), id: null, nome: novo.nome, email: novo.email });
+      }
+    }
+    return base;
+  });
+  const [grupos, setGrupos] = useState<GrupoForm[]>(() => values.grupos.map((g) => fromValues(g)));
   const selectedIds = new Set(grupos.flatMap((grupo) => grupo.frotaId == null ? [] : [grupo.frotaId]));
-  const payload = grupos.map((grupo) => ({
-    tokenIdempotencia: grupo.tokenIdempotencia,
-    frotaId: grupo.frotaId,
-    itens: grupo.itens.map(({ descricao, quantidade }) => ({ descricao, quantidade })),
-  }));
+
+  const fornecedorByKey = new Map(fornecedoresDisponiveis.map((f) => [f.key, f]));
+  const payload = grupos.map((grupo) => {
+    const fornecedorIds: number[] = [];
+    const novosFornecedores: Array<{ nome: string; email: string }> = [];
+    for (const key of grupo.fornecedorKeys) {
+      const entry = fornecedorByKey.get(key);
+      if (!entry) continue;
+      if (entry.id != null) fornecedorIds.push(entry.id);
+      else novosFornecedores.push({ nome: entry.nome, email: entry.email });
+    }
+    return {
+      tokenIdempotencia: grupo.tokenIdempotencia,
+      frotaId: grupo.frotaId,
+      itens: grupo.itens.map(({ descricao, quantidade }) => ({ descricao, quantidade })),
+      fornecedorIds,
+      novosFornecedores,
+    };
+  });
 
   function addGroup() {
-    setGrupos((current) => current.length >= MAX_FROTAS ? current : [...current, newGroup()]);
+    setGrupos((current) => current.length >= MAX_FROTAS
+      ? current
+      : [...current, newGroup(fornecedoresDisponiveis.map((f) => f.key))]);
   }
 
   function removeGroup(key: string) {
@@ -168,7 +231,33 @@ function PedidoPecasFields({
     }));
   }
 
-  const incomplete = grupos.some((grupo) => grupo.frotaId == null);
+  function toggleFornecedor(groupKey: string, fornecedorKey: string, checked: boolean) {
+    setGrupos((current) => current.map((grupo) => {
+      if (grupo.key !== groupKey) return grupo;
+      const fornecedorKeys = new Set(grupo.fornecedorKeys);
+      if (checked) fornecedorKeys.add(fornecedorKey);
+      else fornecedorKeys.delete(fornecedorKey);
+      return { ...grupo, fornecedorKeys };
+    }));
+  }
+
+  function addFornecedor(groupKey: string, nome: string, email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!nome.trim() || !normalizedEmail) return;
+    const key = fornecedorKeyFor({ id: null, email: normalizedEmail });
+    setFornecedoresDisponiveis((current) => {
+      if (current.some((f) => f.key === key)) return current;
+      return [...current, { key, id: null, nome: nome.trim(), email: normalizedEmail }];
+    });
+    setGrupos((current) => current.map((grupo) => {
+      if (grupo.key !== groupKey) return grupo;
+      const fornecedorKeys = new Set(grupo.fornecedorKeys);
+      fornecedorKeys.add(key);
+      return { ...grupo, fornecedorKeys };
+    }));
+  }
+
+  const incomplete = grupos.some((grupo) => grupo.frotaId == null || grupo.fornecedorKeys.size === 0);
 
   return (
     <form action={action} className="space-y-5">
@@ -309,22 +398,132 @@ function PedidoPecasFields({
                   ))}
                 </div>
               </div>
+
+              <FornecedoresPicker
+                groupKey={grupo.key}
+                groupIndex={groupIndex}
+                fornecedores={fornecedoresDisponiveis}
+                selectedKeys={grupo.fornecedorKeys}
+                invalid={Boolean(error && grupo.fornecedorKeys.size === 0)}
+                onToggle={toggleFornecedor}
+                onAdd={addFornecedor}
+              />
             </section>
           );
         })}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 text-xs text-slate-500">
-          <p className="flex items-center gap-1.5 font-semibold text-slate-700">
-            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-            {FORNECEDORES.join(" · ")}
-          </p>
-          <p className="mt-1">Cópia: manutencaocd_orcamentos@bemol.com.br</p>
-        </div>
+        <p className="text-xs text-slate-500">Cópia de todos os e-mails: manutencaocd_orcamentos@bemol.com.br</p>
         <SubmitButton disabled={incomplete} totalFrotas={grupos.length} />
       </div>
     </form>
+  );
+}
+
+function FornecedoresPicker({
+  groupKey,
+  groupIndex,
+  fornecedores,
+  selectedKeys,
+  invalid,
+  onToggle,
+  onAdd,
+}: {
+  groupKey: string;
+  groupIndex: number;
+  fornecedores: FornecedorEntry[];
+  selectedKeys: Set<string>;
+  invalid: boolean;
+  onToggle: (groupKey: string, fornecedorKey: string, checked: boolean) => void;
+  onAdd: (groupKey: string, nome: string, email: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+
+  function confirmAdd() {
+    onAdd(groupKey, nome, email);
+    setNome("");
+    setEmail("");
+    setAdding(false);
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Mail className="h-4 w-4 text-blue-700" aria-hidden="true" />
+        <h3 className="text-sm font-semibold text-slate-900">Fornecedores para cotação da frota {groupIndex + 1}</h3>
+      </div>
+
+      <div className={`flex flex-wrap gap-2 rounded-md border p-3 ${invalid ? "border-red-300 bg-red-50/40" : "border-slate-200 bg-slate-50"}`}>
+        {fornecedores.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhum fornecedor cadastrado ainda.</p>
+        ) : (
+          fornecedores.map((fornecedor) => (
+            <label
+              key={fornecedor.key}
+              className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={selectedKeys.has(fornecedor.key)}
+                onChange={(event) => onToggle(groupKey, fornecedor.key, event.target.checked)}
+                className="h-4 w-4 accent-blue-700"
+              />
+              <span className="font-medium text-slate-900">{fornecedor.nome}</span>
+              {fornecedor.id == null ? (
+                <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                  Novo
+                </span>
+              ) : null}
+            </label>
+          ))
+        )}
+      </div>
+
+      {invalid ? (
+        <p className="text-xs font-medium text-red-700">Selecione ao menos um fornecedor para esta frota.</p>
+      ) : null}
+
+      {adding ? (
+        <div className="flex flex-wrap items-end gap-2 rounded-md border border-slate-200 bg-white p-3">
+          <div className="min-w-[180px] flex-1 space-y-1.5">
+            <Label htmlFor={`fornecedor-nome-${groupKey}`}>Nome do fornecedor</Label>
+            <Input
+              id={`fornecedor-nome-${groupKey}`}
+              value={nome}
+              onChange={(event) => setNome(event.target.value)}
+              placeholder="Ex.: Peças Rio"
+              maxLength={120}
+            />
+          </div>
+          <div className="min-w-[220px] flex-1 space-y-1.5">
+            <Label htmlFor={`fornecedor-email-${groupKey}`}>E-mail</Label>
+            <Input
+              id={`fornecedor-email-${groupKey}`}
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="vendas@fornecedor.com.br"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={confirmAdd} disabled={!nome.trim() || !email.trim()}>
+              Adicionar
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setAdding(false)}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
+          Adicionar fornecedor
+        </Button>
+      )}
+    </div>
   );
 }
 

@@ -3,8 +3,10 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ChevronRight, PackageSearch } from "lucide-react";
 import { PedidoPecasForm } from "@/components/manutencao/pedido-pecas-form";
 import { PedidoPecasStatusBadge } from "@/components/manutencao/pedido-pecas-status";
+import { PedidosPecasTabs } from "@/components/manutencao/pedidos-pecas-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
+import { listFornecedoresPecas } from "@/lib/repos/fornecedores-pecas";
 import { listFrotasForOperationalForms } from "@/lib/repos/frotas";
 import { listPedidosPecas } from "@/lib/repos/pedidos-pecas";
 import { requireManutencaoUser } from "@/lib/rbac";
@@ -37,8 +39,9 @@ export default async function PedidosPecasPage({
   }>;
 }) {
   await requireManutencaoUser();
-  const [frotas, pedidos, query] = await Promise.all([
+  const [frotas, fornecedores, pedidos, query] = await Promise.all([
     listFrotasForOperationalForms(),
+    listFornecedoresPecas({ ativo: true }),
     listPedidosPecas(100),
     searchParams,
   ]);
@@ -70,6 +73,8 @@ export default async function PedidosPecasPage({
         severity="INFO"
       />
 
+      <PedidosPecasTabs />
+
       {lote ? (
         <div className={`flex items-start gap-2 rounded-md border px-4 py-3 text-sm ${
           lote.erros === 0 && lote.parciais === 0
@@ -91,6 +96,7 @@ export default async function PedidosPecasPage({
         <div className="mt-5">
           <PedidoPecasForm
             vehicles={vehicles}
+            fornecedores={fornecedores}
             initialToken={randomUUID()}
             action={criarPedidoPecasAction}
           />
