@@ -25,6 +25,7 @@ const PORTARIA_OPERACIONAL_NAV: NavItem[] = [
 
 const MANUTENCAO_NAV: NavItem[] = [
   { href: "/planejamento/manutencao", label: "Manutenção", icon: "Wrench" },
+  { href: "/manutencao/pecas", label: "Pedidos de peças", icon: "PackageSearch" },
   { href: "/manutencao/ordens", label: "Ordens", icon: "FileText" },
   { href: "/manutencao/custos", label: "Custos", icon: "BarChart2" },
   { href: "/oficinas", label: "Oficinas", icon: "MapPin" },

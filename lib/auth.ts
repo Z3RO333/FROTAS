@@ -6,6 +6,14 @@ import { requiredEnv } from "@/lib/env";
 import { verificarCredenciaisTerceiro } from "@/lib/repos/usuarios";
 
 const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
+const authBaseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+const secureOAuthCookies = authBaseUrl.startsWith("https://");
+const oauthCookieOptions = {
+  httpOnly: true,
+  sameSite: secureOAuthCookies ? "none" : "lax",
+  secure: secureOAuthCookies,
+  path: "/",
+} as const;
 
 function profileEmail(
   user?: { email?: string | null } | null,
@@ -76,16 +84,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas (jornada de trabalho)
   secret: requiredEnv("NEXTAUTH_SECRET"),
-  // Edge Enhanced Tracking Prevention bloqueia cookies SameSite=Lax em redirecionamentos OAuth.
-  // Usando SameSite=None (com Secure) resolve o problema no Edge sem afetar outros browsers.
+  // Produção HTTPS usa SameSite=None; desenvolvimento HTTP precisa de cookie não seguro.
   cookies: {
     pkceCodeVerifier: {
       name: "next-auth.pkce.code_verifier",
-      options: { httpOnly: true, sameSite: "none", secure: true, path: "/" },
+      options: oauthCookieOptions,
     },
     state: {
       name: "next-auth.state",
-      options: { httpOnly: true, sameSite: "none", secure: true, path: "/" },
+      options: oauthCookieOptions,
     },
   },
 });

@@ -15,14 +15,9 @@ import { listTacografoPorFrota } from "@/lib/repos/tacografo";
 import { getRelatorioKpis, getRankingFrotas } from "@/lib/repos/relatorios";
 import { listAnalisesDia } from "@/lib/repos/analises-ia";
 import { getAppUrl } from "@/lib/app-url";
+import { getSgMail } from "@/lib/sendgrid";
 
-export async function getSgMail() {
-  const sgMail = await import("@sendgrid/mail");
-  const key = process.env.SENDGRID_API_KEY?.trim();
-  if (!key) throw new Error("SENDGRID_API_KEY não configurada.");
-  sgMail.default.setApiKey(key);
-  return sgMail.default;
-}
+export { getSgMail };
 
 function esc(value: string | number | null | undefined): string {
   return String(value ?? "-")
