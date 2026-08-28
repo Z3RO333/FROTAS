@@ -8,6 +8,7 @@ import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Searc
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
+import { filtrarFrotasPorNumeroEPlaca } from "@/lib/checklists/frota-filter";
 import { KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
@@ -146,15 +147,10 @@ export function DriverChecklistForm({
     };
   }, [fotoKmPreview]);
 
-  const filteredFrotas = useMemo(() => {
-    const q = frotaQuery.trim().toLowerCase();
-    const p = placaQuery.trim().toLowerCase();
-    return frotas.filter((f) => {
-      if (q && !String(f.frota_geral ?? "").toLowerCase().includes(q)) return false;
-      if (p && !String(f.placa ?? "").toLowerCase().includes(p)) return false;
-      return true;
-    });
-  }, [frotaQuery, placaQuery, frotas]);
+  const filteredFrotas = useMemo(
+    () => filtrarFrotasPorNumeroEPlaca(frotas, frotaQuery, placaQuery),
+    [frotaQuery, placaQuery, frotas]
+  );
 
   async function handleFotoKmChange(event: ChangeEvent<HTMLInputElement>) {
     ocrAbortRef.current?.abort();
