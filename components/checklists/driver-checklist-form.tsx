@@ -315,7 +315,7 @@ export function DriverChecklistForm({
       ))}
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Registrar checklist</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Registrar Checklist</h1>
         <p className="text-sm text-muted-foreground">Registre o checklist do veículo.</p>
       </div>
 
@@ -578,7 +578,7 @@ export function DriverChecklistForm({
                       )}
                       {item.critico && (
                         <span className="text-[10px] font-normal normal-case text-red-700/80">
-                          Bloqueia saída se Problema
+                          Bloqueia saída se problema
                         </span>
                       )}
                     </div>
