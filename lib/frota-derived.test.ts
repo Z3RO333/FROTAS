@@ -72,15 +72,8 @@ describe("estado operacional da frota", () => {
 describe("bloqueio temporário após checklist", () => {
   const agora = Date.parse("2026-08-03T12:00:00.000Z");
 
-  it("bloqueia durante os 30 minutos seguintes", () => {
+  it("não bloqueia mais checklists recentes", () => {
     const checklistEm = "2026-08-03T11:45:00.000Z";
-
-    expect(frotaEmBloqueioChecklist(checklistEm, agora)).toBe(true);
-    expect(bloqueioChecklistRestanteMs(checklistEm, agora)).toBe(15 * 60 * 1000);
-  });
-
-  it("desbloqueia exatamente depois de 30 minutos", () => {
-    const checklistEm = "2026-08-03T11:30:00.000Z";
 
     expect(frotaEmBloqueioChecklist(checklistEm, agora)).toBe(false);
     expect(bloqueioChecklistRestanteMs(checklistEm, agora)).toBe(0);

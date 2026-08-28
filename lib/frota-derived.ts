@@ -4,16 +4,13 @@ import { THRESHOLDS, calcularIdade } from "@/lib/rules";
 export type CondicaoFrota = "normal" | "atencao" | "critico";
 export type StatusOperacional = "disponivel" | "manutencao" | "indisponivel" | "baixado";
 
-export const CHECKLIST_COOLDOWN_MS = 30 * 60 * 1000;
+export const CHECKLIST_COOLDOWN_MS = 0;
 
 export function bloqueioChecklistRestanteMs(
-  ultimoChecklistEm: string | null | undefined,
-  agora = Date.now()
+  _ultimoChecklistEm: string | null | undefined,
+  _agora = Date.now()
 ): number {
-  if (!ultimoChecklistEm) return 0;
-  const checklistEm = new Date(ultimoChecklistEm).getTime();
-  if (!Number.isFinite(checklistEm)) return 0;
-  return Math.max(0, checklistEm + CHECKLIST_COOLDOWN_MS - agora);
+  return 0;
 }
 
 export function frotaEmBloqueioChecklist(
