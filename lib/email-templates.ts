@@ -520,7 +520,7 @@ export function renderRelatorioOperacionalDiario(
           <tr>
             ${summaryCell("Checklists realizados", formatNumber(input.totalChecklists), BLUE, undefined, 33.33)}
             ${summaryCell("Apontamentos", formatNumber(input.totalApontamentos), "#dc2626", undefined, 33.33)}
-            ${summaryCell("Frotas em dia", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia, 33.33)}
+            ${summaryCell("Percentual realizado", `${input.frotasFizeram.length}/${totalFrotas}`, "#059669", pctEmDia, 33.33)}
           </tr>
         </table>
         ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.", true)}
