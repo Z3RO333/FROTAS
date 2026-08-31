@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, ClipboardCheck, Home, List, ShieldAlert } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, ClipboardList, Home, List, ShieldAlert } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
+import type { PerfilUsuario } from "@/lib/rbac";
 
 type Item = {
   href: string;
@@ -13,7 +14,7 @@ type Item = {
   icon: ComponentType<LucideProps>;
 };
 
-const ITEMS: Item[] = [
+const BASE_ITEMS: Item[] = [
   { href: "/motorista", label: "Início", icon: Home },
   { href: "/motorista/checklist", label: "Checklist", icon: ClipboardCheck },
   { href: "/motorista/sinistro", label: "Sinistro", icon: AlertTriangle },
@@ -21,13 +22,23 @@ const ITEMS: Item[] = [
   { href: "/motorista/sinistros", label: "Sinistros", icon: ShieldAlert },
 ];
 
+function itemsForPerfil(perfil: PerfilUsuario): Item[] {
+  if (perfil !== "MOTORISTA_INTERNO") return BASE_ITEMS;
+  return [
+    BASE_ITEMS[0],
+    { href: "/motorista/atividades", label: "Atividades", icon: ClipboardList },
+    ...BASE_ITEMS.slice(1),
+  ];
+}
+
 function isActive(pathname: string, href: string): boolean {
   if (href === "/motorista") return pathname === "/motorista";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function MotoristaBottomBar() {
+export function MotoristaBottomBar({ perfil }: { perfil: PerfilUsuario }) {
   const pathname = usePathname();
+  const items = itemsForPerfil(perfil);
 
   return (
     <>
@@ -41,8 +52,8 @@ export function MotoristaBottomBar() {
         )}
         aria-label="Navegação do motorista"
       >
-        <ul className="grid grid-cols-5 gap-1 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2">
-          {ITEMS.map((item) => {
+        <ul className={cn("grid gap-1 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2", items.length === 6 ? "grid-cols-6" : "grid-cols-5")}>
+          {items.map((item) => {
             const active = isActive(pathname, item.href);
             const Icon = item.icon;
             return (
