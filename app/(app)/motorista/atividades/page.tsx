@@ -1,6 +1,6 @@
-import { CheckCircle2, ClipboardList, Info } from "lucide-react";
+import { CheckCircle2, ClipboardList, Info, Play, UserCheck } from "lucide-react";
 import { ConcluirAtividadeForm } from "@/components/motorista/concluir-atividade-form";
-import { PegarAtividadeForm } from "@/components/motorista/pegar-atividade-form";
+import { AtividadeAcaoForm } from "@/components/motorista/atividade-acao-form";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -18,7 +18,7 @@ import {
   type AtividadeTipo,
 } from "@/lib/atividades/rules";
 import { formatDate } from "@/lib/utils";
-import { concluirAtividadeAction, pegarAtividadeAction } from "./_actions";
+import { concluirAtividadeAction, iniciarAtividadeAction, pegarAtividadeAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +70,14 @@ export default async function AtividadesMotoristaPage() {
                   <p className="mt-1.5 text-sm text-slate-600">{atividade.observacao}</p>
                 ) : null}
               </div>
-              <PegarAtividadeForm atividadeId={atividade.id} action={pegarAtividadeAction} />
+              <AtividadeAcaoForm
+                atividadeId={atividade.id}
+                action={pegarAtividadeAction}
+                label="Pegar atividade"
+                labelPending="Pegando..."
+                icon={UserCheck}
+                variant="outline"
+              />
             </article>
           ))}
         </section>
@@ -96,6 +103,11 @@ export default async function AtividadesMotoristaPage() {
                   >
                     {TIPO_ATIVIDADE_LABELS[atividade.tipo]}
                   </Badge>
+                  {atividade.status === "EM_ANDAMENTO" ? (
+                    <Badge variant="outline" className="border-blue-300 bg-blue-100 text-blue-800">
+                      Em andamento
+                    </Badge>
+                  ) : null}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {atividade.local}
@@ -110,11 +122,21 @@ export default async function AtividadesMotoristaPage() {
                   <p className="mt-1.5 text-sm text-slate-600">{atividade.observacao}</p>
                 ) : null}
               </div>
-              <ConcluirAtividadeForm
-                atividadeId={atividade.id}
-                exigeFoto={requiresFotoNaConclusao(atividade.tipo)}
-                action={concluirAtividadeAction}
-              />
+              {atividade.status === "EM_ANDAMENTO" ? (
+                <ConcluirAtividadeForm
+                  atividadeId={atividade.id}
+                  exigeFoto={requiresFotoNaConclusao(atividade.tipo)}
+                  action={concluirAtividadeAction}
+                />
+              ) : (
+                <AtividadeAcaoForm
+                  atividadeId={atividade.id}
+                  action={iniciarAtividadeAction}
+                  label="Iniciar atividade"
+                  labelPending="Iniciando..."
+                  icon={Play}
+                />
+              )}
             </article>
           ))
         )}

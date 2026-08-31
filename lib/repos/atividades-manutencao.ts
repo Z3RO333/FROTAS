@@ -11,8 +11,8 @@ export type AtividadeManutencao = {
   observacao: string | null;
   motorista_ids: string[];
   motorista_nomes: string[];
-  status: "PENDENTE" | "CONCLUIDA";
-  foto_conclusao_path: string | null;
+  status: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA";
+  foto_conclusao_paths: string[];
   criado_por_email: string;
   criado_por_nome: string;
   criado_em: string;
@@ -20,10 +20,11 @@ export type AtividadeManutencao = {
   concluido_por_id: string | null;
   concluido_por_nome: string | null;
   pego_em: string | null;
+  iniciado_em: string | null;
 };
 
 const ATIVIDADE_COLUMNS =
-  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_ids,motorista_nomes,status,foto_conclusao_path,criado_por_email,criado_por_nome,criado_em,concluido_em,concluido_por_id,concluido_por_nome,pego_em";
+  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_ids,motorista_nomes,status,foto_conclusao_paths,criado_por_email,criado_por_nome,criado_em,concluido_em,concluido_por_id,concluido_por_nome,pego_em,iniciado_em";
 
 /** Atividade sem motorista definido: qualquer motorista interno pode pegar. */
 export function atividadeEstaAberta(atividade: AtividadeManutencao): boolean {
@@ -31,7 +32,7 @@ export function atividadeEstaAberta(atividade: AtividadeManutencao): boolean {
 }
 
 export type AtividadeFilters = {
-  status?: "PENDENTE" | "CONCLUIDA";
+  status?: "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA";
   motoristaId?: string;
   limit?: number;
 };
@@ -49,12 +50,13 @@ export async function listAtividades(filters: AtividadeFilters = {}): Promise<At
   return (data ?? []) as AtividadeManutencao[];
 }
 
+/** Atividades do motorista ainda por fazer — não iniciadas e em andamento. */
 export async function listAtividadesPendentesPorMotorista(motoristaId: string): Promise<AtividadeManutencao[]> {
   const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
     .select(ATIVIDADE_COLUMNS)
     .contains("motorista_ids", [motoristaId])
-    .eq("status", "PENDENTE")
+    .in("status", ["PENDENTE", "EM_ANDAMENTO"])
     .order("criado_em", { ascending: true });
   if (error) throw new Error(`listAtividadesPendentesPorMotorista: ${error.message}`);
   return (data ?? []) as AtividadeManutencao[];
@@ -138,13 +140,34 @@ export async function criarAtividade(input: CriarAtividadeInput): Promise<Ativid
 }
 
 /**
- * Conclui a atividade. Retorna false quando ela já não estava mais pendente
- * (outro motorista concluiu antes) — o filtro por status resolve a corrida no
- * banco, e o chamador precisa saber que não foi ele quem concluiu.
+ * Marca a atividade como em andamento. Retorna false se ela já não estava mais
+ * pendente — outro motorista designado pode ter iniciado antes.
+ */
+export async function iniciarAtividade(id: number, motoristaId: string): Promise<boolean> {
+  const { data, error } = await supabaseManutencao
+    .from("atividades_manutencao")
+    .update({
+      status: "EM_ANDAMENTO",
+      iniciado_em: new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("status", "PENDENTE")
+    .contains("motorista_ids", [motoristaId])
+    .select("id");
+  if (error) throw new Error(`iniciarAtividade: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/**
+ * Conclui a atividade. Só vale para atividade em andamento: o motorista precisa
+ * ter iniciado antes. Retorna false quando ela já não estava nesse estado
+ * (outro motorista concluiu antes) — a corrida é resolvida pelo filtro de
+ * status no banco, e o chamador precisa saber que não foi ele quem concluiu.
  */
 export async function concluirAtividade(
   id: number,
-  input: { fotoPath: string | null; concluidoPorId: string; concluidoPorNome: string }
+  input: { fotoPaths: string[]; concluidoPorId: string; concluidoPorNome: string }
 ): Promise<boolean> {
   const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
@@ -153,11 +176,11 @@ export async function concluirAtividade(
       concluido_em: new Date().toISOString(),
       concluido_por_id: input.concluidoPorId,
       concluido_por_nome: input.concluidoPorNome,
-      foto_conclusao_path: input.fotoPath,
+      foto_conclusao_paths: input.fotoPaths,
       atualizado_em: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("status", "PENDENTE")
+    .eq("status", "EM_ANDAMENTO")
     .select("id");
   if (error) throw new Error(`concluirAtividade: ${error.message}`);
   return (data ?? []).length > 0;

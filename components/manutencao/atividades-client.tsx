@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, CheckCircle2, Clock, ClipboardCheck, Layers } from "lucide-react";
+import { Camera, CheckCircle2, Clock, ClipboardCheck, Layers, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar, FilterChip, FilterSearch } from "@/components/ui/filter-bar";
@@ -11,11 +11,12 @@ import { formatDuracao, TIPO_ATIVIDADE_LABELS } from "@/lib/atividades/rules";
 import type { AtividadeManutencao } from "@/lib/repos/atividades-manutencao";
 import type { SeverityKey } from "@/lib/design/tokens";
 
-type FiltroAtividade = "TODAS" | "PENDENTE" | "CONCLUIDA" | "LEVAR_PARA";
+type FiltroAtividade = "TODAS" | "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDA" | "LEVAR_PARA";
 
 const FILTER_CHIPS: { label: string; value: FiltroAtividade; severity?: SeverityKey }[] = [
   { label: "Todas", value: "TODAS" },
   { label: "Pendentes", value: "PENDENTE", severity: "ATENCAO" },
+  { label: "Em andamento", value: "EM_ANDAMENTO", severity: "INFO" },
   { label: "Concluídas", value: "CONCLUIDA", severity: "OK" },
   { label: "Levar para", value: "LEVAR_PARA" },
 ];
@@ -38,6 +39,7 @@ export function AtividadesClient({
 
   const kpis = {
     pendentes: atividades.filter((a) => a.status === "PENDENTE").length,
+    emAndamento: atividades.filter((a) => a.status === "EM_ANDAMENTO").length,
     concluidasHoje: atividades.filter(
       (a) => a.status === "CONCLUIDA" && a.concluido_em?.slice(0, 10) === today
     ).length,
@@ -52,6 +54,7 @@ export function AtividadesClient({
       if (!matchFrota && !matchMotorista) return false;
     }
     if (filtro === "PENDENTE" && a.status !== "PENDENTE") return false;
+    if (filtro === "EM_ANDAMENTO" && a.status !== "EM_ANDAMENTO") return false;
     if (filtro === "CONCLUIDA" && a.status !== "CONCLUIDA") return false;
     if (filtro === "LEVAR_PARA" && a.tipo !== "LEVAR_PARA") return false;
     return true;
@@ -59,13 +62,20 @@ export function AtividadesClient({
 
   return (
     <>
-      <MetricGrid cols={3}>
+      <MetricGrid cols={4}>
         <MetricCard
           label="Pendentes"
           value={kpis.pendentes}
           icon={Clock}
           severity="ATENCAO"
           onClick={() => setFiltro("PENDENTE")}
+        />
+        <MetricCard
+          label="Em andamento"
+          value={kpis.emAndamento}
+          icon={Truck}
+          severity="INFO"
+          onClick={() => setFiltro("EM_ANDAMENTO")}
         />
         <MetricCard
           label="Concluídas hoje"
@@ -100,6 +110,8 @@ export function AtividadesClient({
                   ? atividades.filter((a) => a.status === "PENDENTE").length
                   : chip.value === "CONCLUIDA"
                   ? atividades.filter((a) => a.status === "CONCLUIDA").length
+                  : chip.value === "EM_ANDAMENTO"
+                  ? atividades.filter((a) => a.status === "EM_ANDAMENTO").length
                   : atividades.filter((a) => a.tipo === "LEVAR_PARA").length;
               return (
                 <FilterChip
@@ -146,6 +158,8 @@ export function AtividadesClient({
 
 function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
   const isPendente = atividade.status === "PENDENTE";
+  const isEmAndamento = atividade.status === "EM_ANDAMENTO";
+  const isConcluida = atividade.status === "CONCLUIDA";
   const isLevarPara = atividade.tipo === "LEVAR_PARA";
 
   return (
@@ -153,7 +167,11 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
       className={cn(
         "relative overflow-hidden rounded-xl border border-slate-200/70 bg-white p-4",
         "shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]",
-        isPendente ? "border-l-4 border-l-amber-500" : "border-l-4 border-l-emerald-500"
+        isPendente
+          ? "border-l-4 border-l-amber-500"
+          : isEmAndamento
+            ? "border-l-4 border-l-blue-500"
+            : "border-l-4 border-l-emerald-500"
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -166,10 +184,12 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
               className={
                 isPendente
                   ? "border-amber-200 bg-amber-50 text-amber-800"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : isEmAndamento
+                    ? "border-blue-200 bg-blue-50 text-blue-800"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-800"
               }
             >
-              {isPendente ? "Pendente" : "Concluída"}
+              {isPendente ? "Pendente" : isEmAndamento ? "Em andamento" : "Concluída"}
             </Badge>
           </div>
 
@@ -187,7 +207,7 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
               </span>
             ) : null}
             {atividade.motorista_nomes.map((nome) => {
-              const isConcluidor = !isPendente && atividade.concluido_por_nome === nome;
+              const isConcluidor = isConcluida && atividade.concluido_por_nome === nome;
               return (
                 <span
                   key={nome}
@@ -205,16 +225,16 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
           </div>
 
           {/* Duração + link de foto (exclusivos de LEVAR_PARA concluída) */}
-          {!isPendente && isLevarPara && (
+          {isConcluida && isLevarPara && (
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
               {atividade.concluido_em && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" aria-hidden="true" />
-                  {formatDuracao(atividade.criado_em, atividade.concluido_em)}
+                  {formatDuracao(atividade.iniciado_em ?? atividade.criado_em, atividade.concluido_em)}
                 </span>
               )}
-              {atividade.foto_conclusao_path && (
-                <FotoLink atividadeId={atividade.id} />
+              {atividade.foto_conclusao_paths.length > 0 && (
+                <FotoLinks atividadeId={atividade.id} total={atividade.foto_conclusao_paths.length} />
               )}
             </div>
           )}
@@ -239,16 +259,21 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
 
 // A rota assina a URL sob demanda e redireciona, então um link simples basta —
 // sem JS, sem bloqueador de pop-up e sem custo de assinar fotos que ninguém abre.
-function FotoLink({ atividadeId }: { atividadeId: number }) {
+function FotoLinks({ atividadeId, total }: { atividadeId: number; total: number }) {
   return (
-    <a
-      href={`/api/atividades/${atividadeId}/foto`}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 text-blue-700 hover:underline"
-    >
-      <Camera className="h-3 w-3" aria-hidden="true" />
-      Ver foto
-    </a>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      {Array.from({ length: total }, (_, i) => (
+        <a
+          key={i}
+          href={`/api/atividades/${atividadeId}/foto?i=${i}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 text-blue-700 hover:underline"
+        >
+          <Camera className="h-3 w-3" aria-hidden="true" />
+          {total === 1 ? "Ver foto" : `Foto ${i + 1}`}
+        </a>
+      ))}
+    </span>
   );
 }

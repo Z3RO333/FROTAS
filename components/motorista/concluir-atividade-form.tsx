@@ -2,12 +2,13 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Camera, Check } from "lucide-react";
-import type { ConcluirAtividadeActionState } from "@/app/(app)/motorista/atividades/_actions";
+import { Camera, Check, X } from "lucide-react";
+import { MAX_FOTOS, type ConcluirAtividadeActionState } from "@/app/(app)/motorista/atividades/_actions";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const INITIAL_STATE: ConcluirAtividadeActionState = { error: null, attempt: 0 };
+
+type FotoSelecionada = { file: File; url: string };
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -29,83 +30,105 @@ export function ConcluirAtividadeForm({
   action: (state: ConcluirAtividadeActionState, formData: FormData) => Promise<ConcluirAtividadeActionState>;
 }) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
-  const [fotoNome, setFotoNome] = useState<string>("");
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotos, setFotos] = useState<FotoSelecionada[]>([]);
+  const seletorRef = useRef<HTMLInputElement>(null);
+  const envioRef = useRef<HTMLInputElement>(null);
   const prevAttempt = useRef(INITIAL_STATE.attempt);
 
-  // Limpa preview quando o formulário é reiniciado por erro (attempt muda)
+  // O seletor visível não é o campo enviado: ele só acumula as fotos no estado,
+  // permitindo tirar uma de cada vez. O campo de envio é sincronizado abaixo.
+  useEffect(() => {
+    if (!envioRef.current) return;
+    const dt = new DataTransfer();
+    for (const foto of fotos) dt.items.add(foto.file);
+    envioRef.current.files = dt.files;
+  }, [fotos]);
+
+  // Limpa a seleção quando o formulário reinicia por erro.
   useEffect(() => {
     if (state.attempt === prevAttempt.current) return;
     prevAttempt.current = state.attempt;
-    setFotoPreview((old) => {
-      if (old) URL.revokeObjectURL(old);
-      return null;
+    setFotos((atuais) => {
+      for (const foto of atuais) URL.revokeObjectURL(foto.url);
+      return [];
     });
-    setFotoNome("");
   }, [state.attempt]);
 
-  // Revoga blob URL ao desmontar o componente — evita memory leak
-  useEffect(() => {
-    return () => {
-      if (fotoPreview) URL.revokeObjectURL(fotoPreview);
-    };
-  }, [fotoPreview]);
+  function adicionar(lista: FileList | null) {
+    if (!lista || lista.length === 0) return;
+    setFotos((atuais) => {
+      const espaco = MAX_FOTOS - atuais.length;
+      const novas = Array.from(lista)
+        .slice(0, Math.max(0, espaco))
+        .map((file) => ({ file, url: URL.createObjectURL(file) }));
+      return [...atuais, ...novas];
+    });
+    // Permite escolher o mesmo arquivo de novo (o onChange não dispara se o
+    // valor não mudar).
+    if (seletorRef.current) seletorRef.current.value = "";
+  }
+
+  function remover(url: string) {
+    setFotos((atuais) => {
+      URL.revokeObjectURL(url);
+      return atuais.filter((foto) => foto.url !== url);
+    });
+  }
+
+  const cheio = fotos.length >= MAX_FOTOS;
 
   return (
     <form key={state.attempt} action={formAction} className="w-full space-y-3">
       <input type="hidden" name="atividade_id" value={atividadeId} />
-      <label
-        className={cn(
-          "relative flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed text-center text-sm text-muted-foreground transition-colors overflow-hidden",
-          fotoPreview
-            ? "min-h-0 border-blue-200 bg-white p-0 hover:bg-slate-50"
-            : "min-h-20 border-slate-200 bg-slate-50 p-3 hover:bg-slate-100"
-        )}
-      >
-        {fotoPreview ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={fotoPreview}
-              alt="Preview da foto de chegada"
-              className="w-full max-h-48 object-contain rounded-md bg-slate-100"
-            />
-            <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">
-              Trocar foto
-            </span>
-          </>
-        ) : (
-          <>
-            <Camera className="mb-1.5 h-5 w-5 text-blue-600" aria-hidden="true" />
-            {exigeFoto ? "Foto de chegada (obrigatória)" : "Foto (opcional)"}
-            {fotoNome ? (
-              <span className="mt-0.5 text-xs font-medium text-slate-700 line-clamp-1">{fotoNome}</span>
-            ) : null}
-          </>
-        )}
-        <input
-          type="file"
-          name="foto"
-          accept="image/*"
-          capture="environment"
-          className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            // Revoga URL anterior antes de criar nova
-            if (fotoPreview) URL.revokeObjectURL(fotoPreview);
-            if (file) {
-              setFotoPreview(URL.createObjectURL(file));
-              setFotoNome(file.name);
-            } else {
-              setFotoPreview(null);
-              setFotoNome("");
-            }
-          }}
-        />
-      </label>
-      {state.error ? (
-        <p className="text-sm font-medium text-red-700">{state.error}</p>
+      <input ref={envioRef} type="file" name="fotos" multiple accept="image/*" className="sr-only" tabIndex={-1} />
+      <input
+        ref={seletorRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        className="sr-only"
+        onChange={(e) => adicionar(e.target.files)}
+      />
+
+      {fotos.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2">
+          {fotos.map((foto) => (
+            <div key={foto.url} className="relative overflow-hidden rounded-md border bg-slate-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={foto.url} alt="Foto da atividade" className="h-24 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => remover(foto.url)}
+                aria-label="Remover foto"
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>
       ) : null}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="w-full"
+        disabled={cheio}
+        onClick={() => seletorRef.current?.click()}
+      >
+        <Camera className="h-5 w-5" aria-hidden="true" />
+        {cheio
+          ? `Limite de ${MAX_FOTOS} fotos`
+          : fotos.length > 0
+            ? `Adicionar outra foto (${fotos.length}/${MAX_FOTOS})`
+            : exigeFoto
+              ? "Tirar foto de chegada (obrigatória)"
+              : "Tirar foto (opcional)"}
+      </Button>
+
+      {state.error ? <p className="text-sm font-medium text-red-700">{state.error}</p> : null}
       <SubmitButton />
     </form>
   );

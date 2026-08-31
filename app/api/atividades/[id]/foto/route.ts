@@ -6,7 +6,7 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 import { createSignedAtividadeImageUrl } from "@/lib/repos/atividades-media";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const authentication = await authenticateApiUser();
@@ -23,7 +23,7 @@ export async function GET(
 
   const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
-    .select("foto_conclusao_path")
+    .select("foto_conclusao_paths")
     .eq("id", atividadeId)
     .single();
 
@@ -31,12 +31,17 @@ export async function GET(
     return apiError("Atividade não encontrada.", 404, "NOT_FOUND");
   }
 
-  if (!data.foto_conclusao_path) {
+  const paths = (data.foto_conclusao_paths ?? []) as string[];
+  // ?i=N escolhe qual foto abrir; sem o parâmetro, abre a primeira.
+  const indice = Number(request.nextUrl.searchParams.get("i") ?? "0");
+  const path = Number.isInteger(indice) ? paths[indice] : undefined;
+
+  if (!path) {
     return apiError("Foto não disponível.", 404, "NO_PHOTO");
   }
 
   try {
-    const url = await createSignedAtividadeImageUrl(data.foto_conclusao_path as string);
+    const url = await createSignedAtividadeImageUrl(path);
     // Redireciona em vez de devolver JSON: o link pode ser um <a> simples, sem
     // JS no meio — window.open() depois de um await cai no bloqueador de pop-up.
     return NextResponse.redirect(url);
