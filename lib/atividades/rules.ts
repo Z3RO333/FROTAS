@@ -1,3 +1,6 @@
+/** Máximo de fotos anexadas na conclusão de uma atividade. */
+export const MAX_FOTOS_ATIVIDADE = 5;
+
 export const ATIVIDADE_TIPOS = ["LEVAR_PARA", "LIBERADA", "TESTE_PERCURSO", "OUTRO"] as const;
 export type AtividadeTipo = (typeof ATIVIDADE_TIPOS)[number];
 

@@ -12,11 +12,9 @@ import {
 } from "@/lib/repos/atividades-manutencao";
 import { uploadAtividadeImage } from "@/lib/repos/atividades-media";
 import { existsChecklistHojeParaFrota } from "@/lib/repos/checklists";
-import { requiresChecklistDoDia, requiresFotoNaConclusao } from "@/lib/atividades/rules";
+import { MAX_FOTOS_ATIVIDADE, requiresChecklistDoDia, requiresFotoNaConclusao } from "@/lib/atividades/rules";
 import { fileFromForm, validateAggregateFileSize } from "@/lib/upload-validation";
 import { publicActionError } from "@/lib/public-error";
-
-export const MAX_FOTOS = 5;
 
 export type ConcluirAtividadeActionState = {
   error: string | null;
@@ -54,8 +52,8 @@ export async function concluirAtividadeAction(
     if (requiresFotoNaConclusao(atividade.tipo) && fotos.length === 0) {
       throw new Error("Anexe ao menos uma foto de chegada para concluir esta atividade.");
     }
-    if (fotos.length > MAX_FOTOS) {
-      throw new Error(`Envie no máximo ${MAX_FOTOS} fotos por atividade.`);
+    if (fotos.length > MAX_FOTOS_ATIVIDADE) {
+      throw new Error(`Envie no máximo ${MAX_FOTOS_ATIVIDADE} fotos por atividade.`);
     }
     validateAggregateFileSize(fotos, 20 * 1024 * 1024, "Fotos da atividade");
 

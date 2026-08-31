@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Camera, Check, X } from "lucide-react";
-import { MAX_FOTOS, type ConcluirAtividadeActionState } from "@/app/(app)/motorista/atividades/_actions";
+import type { ConcluirAtividadeActionState } from "@/app/(app)/motorista/atividades/_actions";
+import { MAX_FOTOS_ATIVIDADE } from "@/lib/atividades/rules";
 import { Button } from "@/components/ui/button";
 
 const INITIAL_STATE: ConcluirAtividadeActionState = { error: null, attempt: 0 };
@@ -57,7 +58,7 @@ export function ConcluirAtividadeForm({
   function adicionar(lista: FileList | null) {
     if (!lista || lista.length === 0) return;
     setFotos((atuais) => {
-      const espaco = MAX_FOTOS - atuais.length;
+      const espaco = MAX_FOTOS_ATIVIDADE - atuais.length;
       const novas = Array.from(lista)
         .slice(0, Math.max(0, espaco))
         .map((file) => ({ file, url: URL.createObjectURL(file) }));
@@ -75,7 +76,7 @@ export function ConcluirAtividadeForm({
     });
   }
 
-  const cheio = fotos.length >= MAX_FOTOS;
+  const cheio = fotos.length >= MAX_FOTOS_ATIVIDADE;
 
   return (
     <form key={state.attempt} action={formAction} className="w-full space-y-3">
@@ -120,9 +121,9 @@ export function ConcluirAtividadeForm({
       >
         <Camera className="h-5 w-5" aria-hidden="true" />
         {cheio
-          ? `Limite de ${MAX_FOTOS} fotos`
+          ? `Limite de ${MAX_FOTOS_ATIVIDADE} fotos`
           : fotos.length > 0
-            ? `Adicionar outra foto (${fotos.length}/${MAX_FOTOS})`
+            ? `Adicionar outra foto (${fotos.length}/${MAX_FOTOS_ATIVIDADE})`
             : exigeFoto
               ? "Tirar foto de chegada (obrigatória)"
               : "Tirar foto (opcional)"}
