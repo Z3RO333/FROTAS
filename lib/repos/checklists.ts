@@ -301,6 +301,20 @@ export async function listDriverChecklists(email: string, limit = 20): Promise<C
   }, []);
 }
 
+export async function existsChecklistHojeParaFrota(motoristaId: string, frotaId: number): Promise<boolean> {
+  const { start, end } = todayRange();
+  const { data, error } = await supabaseManutencao
+    .from("checklists_frota")
+    .select("id")
+    .eq("motorista_id", motoristaId)
+    .eq("frota_id", frotaId)
+    .gte("data_checklist", start)
+    .lt("data_checklist", end)
+    .limit(1);
+  if (error) throw new Error(`existsChecklistHojeParaFrota: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
 export type ChecklistListFilters = {
   // "YYYY-MM-DD" no timezone da operação (FROTAS_TIMEZONE)
   dataInicio?: string;
