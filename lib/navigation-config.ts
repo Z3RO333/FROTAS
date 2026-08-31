@@ -26,6 +26,7 @@ const PORTARIA_OPERACIONAL_NAV: NavItem[] = [
 const MANUTENCAO_NAV: NavItem[] = [
   { href: "/planejamento/manutencao", label: "Manutenção", icon: "Wrench" },
   { href: "/manutencao/pecas", label: "Pedidos de peças", icon: "PackageSearch" },
+  { href: "/manutencao/atividades", label: "Atividades", icon: "ClipboardCheck" },
   { href: "/manutencao/ordens", label: "Ordens", icon: "FileText" },
   { href: "/manutencao/custos", label: "Custos", icon: "BarChart2" },
   { href: "/oficinas", label: "Oficinas", icon: "MapPin" },
@@ -62,12 +63,26 @@ const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
 ];
 
+const MOTORISTA_INTERNO_NAV: NavItem[] = [
+  { href: "/motorista", label: "Início", icon: "Home" },
+  { href: "/motorista/atividades", label: "Atividades", icon: "ClipboardCheck" },
+  { href: "/motorista/checklist", label: "Fazer Checklist", icon: "ClipboardCheck" },
+  { href: "/motorista/sinistro", label: "Reportar Sinistro", icon: "AlertTriangle" },
+  { href: "/motorista/sinistros", label: "Meus Sinistros", icon: "ShieldAlert" },
+  { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
+  { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
+];
+
 const PORTARIA_NAV: NavItem[] = [
   { href: "/portaria", label: "Liberação", icon: "DoorOpen" },
 ];
 
 export function navigationForProfile(perfil: PerfilUsuario): NavSection[] {
   if (perfil === "MOTORISTA") return [{ title: "Motorista", items: MOTORISTA_NAV }];
+
+  if (perfil === "MOTORISTA_INTERNO") {
+    return [{ title: "Motorista", items: MOTORISTA_INTERNO_NAV }];
+  }
 
   if (perfil === "APROVADOR") return [{ title: "Aprovação", items: PORTARIA_NAV }];
 
