@@ -69,6 +69,17 @@ export function AtividadeForm({
       </div>
 
       <div className="space-y-1.5">
+        <Label htmlFor="local">Local</Label>
+        <Input
+          id="local"
+          name="local"
+          placeholder="Ex.: BONFIM, GALPÃO DA TS..."
+          defaultValue={state.values?.local ?? ""}
+          required
+        />
+      </div>
+
+      <div className="sm:col-span-2 space-y-1.5">
         <Label>Motoristas</Label>
         <p className="text-xs text-muted-foreground">
           Selecione mais de um se a atividade puder ser feita por qualquer um deles (ex.: turnos diferentes) — quem
@@ -94,17 +105,6 @@ export function AtividadeForm({
             ))
           )}
         </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="local">Local</Label>
-        <Input
-          id="local"
-          name="local"
-          placeholder="Ex.: BONFIM, GALPÃO DA TS..."
-          defaultValue={state.values?.local ?? ""}
-          required
-        />
       </div>
 
       <div className="space-y-1.5">
