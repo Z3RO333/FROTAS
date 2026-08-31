@@ -1,6 +1,5 @@
-import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import { getTextClient, getTextModel } from "@/lib/ai/vision-client";
 
 const ProblemaSchema = z.object({
   item: z.string(),
@@ -60,14 +59,6 @@ const FALLBACK: ChecklistAnalysisResult = {
   problemas_detectados: [],
 };
 
-let _client: OpenAI | null = null;
-function getClient(): OpenAI | null {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  _client ??= new OpenAI({ apiKey: key });
-  return _client;
-}
-
 const SYSTEM_PROMPT = `Você é um analista de frotas experiente. Analisa checklists de veículos e classifica riscos operacionais.
 
 Classificações de criticidade:
@@ -83,17 +74,28 @@ Regras:
 3. Preserve o sentido original ao corrigir o texto.
 4. A justificativa deve ser curta (1-2 frases).
 5. Se não houver observação escrita, texto_corrigido deve ser null.
-6. Responda APENAS com o JSON do schema.`;
+6. Responda APENAS com um JSON válido, exatamente neste formato:
+{
+  "texto_corrigido": string | null,
+  "criticidade": "OK" | "ATENCAO" | "CRITICO" | "MANUTENCAO" | "BLOQUEIO_SUGERIDO",
+  "resumo": string,
+  "justificativa": string,
+  "acao_recomendada": string | null,
+  "manutencao_sugerida": boolean,
+  "bloqueio_sugerido": boolean,
+  "confianca": number (0 a 1),
+  "problemas_detectados": [{ "item": string, "severidade": "LEVE" | "MODERADA" | "GRAVE", "descricao": string }]
+}`;
 
 export async function analyzeChecklist(
   input: ChecklistAnalysisInput
 ): Promise<ChecklistAnalysisOutput> {
-  const client = getClient();
-  const modelo = process.env.OPENAI_CHECKLIST_MODEL ?? "gpt-4.1-mini";
+  const client = getTextClient();
+  const modelo = getTextModel();
   const inicio = Date.now();
 
   if (!client) {
-    return { result: FALLBACK, tokens_entrada: 0, tokens_saida: 0, duracao_ms: 0, modelo, erro: "OPENAI_API_KEY não configurada" };
+    return { result: FALLBACK, tokens_entrada: 0, tokens_saida: 0, duracao_ms: 0, modelo, erro: "IA não configurada" };
   }
 
   const itensNaoAptos = input.itens.filter((i) => i.status === "NAO_APTO");
@@ -111,31 +113,50 @@ Observação geral do motorista:
 Analise e classifique.`.trim();
 
   try {
-    const response = await client.responses.parse({
+    const response = await client.chat.completions.create({
       model: modelo,
-      input: [
-        { role: "developer", content: SYSTEM_PROMPT },
+      // Modelos da família gpt-5 só aceitam o temperature padrão (1) — mandar
+      // outro valor derruba a chamada com 400 unsupported_value.
+      ...(modelo.startsWith("gpt-5") ? {} : { temperature: 0.2 }),
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userContent },
       ],
-      text: { format: zodTextFormat(ChecklistAnalysisSchema, "checklist_analysis") },
     });
 
-    const result = response.output_parsed;
-    if (!result) {
+    const tokensEntrada = response.usage?.prompt_tokens ?? 0;
+    const tokensSaida = response.usage?.completion_tokens ?? 0;
+    const content = response.choices[0]?.message?.content;
+    const jsonMatch = content?.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
       return {
         result: FALLBACK,
-        tokens_entrada: response.usage?.input_tokens ?? 0,
-        tokens_saida: response.usage?.output_tokens ?? 0,
+        tokens_entrada: tokensEntrada,
+        tokens_saida: tokensSaida,
         duracao_ms: Date.now() - inicio,
         modelo,
         erro: "Resposta vazia da IA",
       };
     }
 
+    const parsed = ChecklistAnalysisSchema.safeParse(JSON.parse(jsonMatch[0]));
+    if (!parsed.success) {
+      return {
+        result: FALLBACK,
+        tokens_entrada: tokensEntrada,
+        tokens_saida: tokensSaida,
+        duracao_ms: Date.now() - inicio,
+        modelo,
+        erro: `Resposta fora do schema: ${parsed.error.issues[0]?.message ?? "formato inválido"}`,
+      };
+    }
+
     return {
-      result,
-      tokens_entrada: response.usage?.input_tokens ?? 0,
-      tokens_saida: response.usage?.output_tokens ?? 0,
+      result: parsed.data,
+      tokens_entrada: tokensEntrada,
+      tokens_saida: tokensSaida,
       duracao_ms: Date.now() - inicio,
       modelo,
       erro: null,

@@ -212,9 +212,12 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
 
     // Usa /chat/completions (compativel com qualquer api-version do Azure OpenAI).
     // Responses API (responses.parse) exige api-version 2025-03-01-preview+, nao da ainda.
+    const model = getVisionModel();
     const response = await openai.chat.completions.create({
-      model: getVisionModel(),
-      temperature: 0.1, // OCR deve ser deterministico
+      model,
+      // OCR deve ser deterministico, mas modelos da família gpt-5 só aceitam o
+      // temperature padrão (1) — mandar 0.1 derruba a chamada com 400.
+      ...(model.startsWith("gpt-5") ? {} : { temperature: 0.1 }),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
