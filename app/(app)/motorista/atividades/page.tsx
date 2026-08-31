@@ -1,53 +1,83 @@
-import { ClipboardList } from "lucide-react";
+import { CheckCircle2, ClipboardList, Info } from "lucide-react";
 import { ConcluirAtividadeForm } from "@/components/motorista/concluir-atividade-form";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireMotoristaUser } from "@/lib/rbac";
 import { listAtividadesPendentesPorMotorista, listAtividadesRecentesPorMotorista } from "@/lib/repos/atividades-manutencao";
-import { formatDuracao, requiresFotoNaConclusao, TIPO_ATIVIDADE_LABELS } from "@/lib/atividades/rules";
+import {
+  formatDuracao,
+  requiresFotoNaConclusao,
+  requiresChecklistDoDia,
+  TIPO_ATIVIDADE_LABELS,
+  type AtividadeTipo,
+} from "@/lib/atividades/rules";
 import { formatDate } from "@/lib/utils";
 import { concluirAtividadeAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
+const TIPO_BADGE_STYLE: Record<AtividadeTipo, string> = {
+  LEVAR_PARA: "border-amber-200 bg-amber-50 text-amber-800",
+  TESTE_PERCURSO: "border-blue-200 bg-blue-50 text-blue-800",
+  LIBERADA: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  OUTRO: "border-slate-200 bg-slate-100 text-slate-600",
+};
+
 export default async function AtividadesMotoristaPage() {
   const user = await requireMotoristaUser();
   const [pendentes, recentes] = await Promise.all([
     listAtividadesPendentesPorMotorista(user.email),
-    listAtividadesRecentesPorMotorista(user.email, 10),
+    listAtividadesRecentesPorMotorista(user.email, 5),
   ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Motorista</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Minhas atividades</h1>
-      </div>
+      <PageHeader
+        eyebrow="Motorista"
+        title="Minhas atividades"
+        icon={ClipboardList}
+      />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Pendentes</h2>
         {pendentes.length === 0 ? (
-          <div className="rounded-md border bg-white p-6 text-sm text-muted-foreground">
-            Nenhuma atividade pendente no momento.
-          </div>
+          <EmptyState
+            icon={CheckCircle2}
+            title="Nenhuma atividade pendente — tudo certo!"
+            description="Quando novas atividades forem atribuídas a você, elas aparecerão aqui."
+          />
         ) : (
           pendentes.map((atividade) => (
-            <article key={atividade.id} className="rounded-md border bg-white p-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            <article key={atividade.id} className="rounded-md border bg-white p-4 shadow-sm space-y-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">Frota {atividade.frota_codigo}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {TIPO_ATIVIDADE_LABELS[atividade.tipo]} {atividade.local}
-                  </p>
-                  {atividade.observacao ? (
-                    <p className="mt-1 text-xs text-slate-500">{atividade.observacao}</p>
-                  ) : null}
+                  <Badge
+                    variant="outline"
+                    className={TIPO_BADGE_STYLE[atividade.tipo]}
+                  >
+                    {TIPO_ATIVIDADE_LABELS[atividade.tipo]}
+                  </Badge>
                 </div>
-                <ConcluirAtividadeForm
-                  atividadeId={atividade.id}
-                  exigeFoto={requiresFotoNaConclusao(atividade.tipo)}
-                  action={concluirAtividadeAction}
-                />
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {atividade.local}
+                </p>
+                {requiresChecklistDoDia(atividade.tipo) && (
+                  <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    Exige checklist do dia + foto de chegada. Faça o checklist antes de sair.
+                  </div>
+                )}
+                {atividade.observacao ? (
+                  <p className="mt-1.5 text-sm text-slate-600">{atividade.observacao}</p>
+                ) : null}
               </div>
+              <ConcluirAtividadeForm
+                atividadeId={atividade.id}
+                exigeFoto={requiresFotoNaConclusao(atividade.tipo)}
+                action={concluirAtividadeAction}
+              />
             </article>
           ))
         )}
