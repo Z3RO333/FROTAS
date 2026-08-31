@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { listDriverChecklists } from "@/lib/repos/checklists";
-import { listFrotas } from "@/lib/repos/frotas";
 import { listAtividadesPendentesPorMotorista } from "@/lib/repos/atividades-manutencao";
 import { requireAppUser } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -16,12 +15,10 @@ export default async function MotoristaHomePage() {
   const user = await requireAppUser();
   const isInterno = user.perfil === "MOTORISTA_INTERNO";
 
-  const [{ rows: frotas }, ultimos, atividadesPendentes] = await Promise.all([
-    isInterno ? Promise.resolve({ rows: [] }) : listFrotas({ pageSize: 1 }),
+  const [ultimos, atividadesPendentes] = await Promise.all([
     listDriverChecklists(user.email, 5),
     isInterno ? listAtividadesPendentesPorMotorista(user.email) : Promise.resolve([]),
   ]);
-  const frota = frotas[0] ?? null;
   const fezChecklistHoje = ultimos.some((checklist) => formatDate(checklist.data_checklist) === formatDate(new Date()));
 
   return (
@@ -76,60 +73,36 @@ export default async function MotoristaHomePage() {
 
           <Card className="rounded-md">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-xl">
+              <CardTitle className="flex items-center justify-center gap-2 text-xl">
                 <Truck className="h-5 w-5 text-blue-700" aria-hidden="true" />
-                Sua frota atual
+                Escolha sua frota
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-[1fr_220px]">
-              {frota ? (
-                <>
-                  <Link href="/motorista/checklist" className="rounded-md border bg-slate-50 p-4 transition-colors hover:bg-blue-50">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-2xl font-semibold">{frota.frota_geral ?? `Frota #${frota.id}`}</h2>
-                      <Badge variant="outline">{frota.status ?? "disponível"}</Badge>
-                    </div>
-                    <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                      <Info label="Modelo" value={frota.modelo} />
-                      <Info label="Placa" value={frota.placa} />
-                      <Info label="Localização" value={frota.localizacao} />
-                      <Info label="Setor" value={frota.setor} />
-                      <Info label="Último KM" value={formatNumber(frota.km_atual)} />
-                    </div>
-                  </Link>
-                  <div className="flex flex-col gap-2">
-                    <Button asChild size="lg" className="h-12">
-                      <Link href="/motorista/checklist">
-                        <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                        Fazer checklist agora
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link href="/motorista/checklists">
-                        <History className="h-4 w-4" aria-hidden="true" />
-                        Meus últimos checklists
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link href="/motorista/sinistro">
-                        <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                        Reportar sinistro
-                      </Link>
-                    </Button>
-                    <span title="Abastecimento registrado diretamente no checklist" className="cursor-not-allowed">
-                      <Button variant="outline" disabled className="pointer-events-none w-full">
-                        <Fuel className="h-4 w-4" aria-hidden="true" />
-                        Registrar abastecimento
-                      </Button>
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div className="md:col-span-2 space-y-1 rounded-md border bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-700">Nenhuma frota atribuída</p>
-                  <p className="text-xs text-muted-foreground">Você ainda não tem uma frota designada. Aguarde a atribuição pelo administrador ou entre em contato com a equipe de operação.</p>
-                </div>
-              )}
+            <CardContent className="mx-auto flex max-w-xs flex-col gap-2">
+              <Button asChild size="lg" className="h-12">
+                <Link href="/motorista/checklist">
+                  <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+                  Fazer checklist agora
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/motorista/checklists">
+                  <History className="h-4 w-4" aria-hidden="true" />
+                  Meus últimos checklists
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/motorista/sinistro">
+                  <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                  Reportar sinistro
+                </Link>
+              </Button>
+              <span title="Abastecimento registrado diretamente no checklist" className="cursor-not-allowed">
+                <Button variant="outline" disabled className="pointer-events-none w-full">
+                  <Fuel className="h-4 w-4" aria-hidden="true" />
+                  Registrar abastecimento
+                </Button>
+              </span>
             </CardContent>
           </Card>
         </>
@@ -159,15 +132,6 @@ export default async function MotoristaHomePage() {
           )}
         </div>
       </section>
-    </div>
-  );
-}
-
-function Info({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div>
-      <span className="block text-xs uppercase text-muted-foreground">{label}</span>
-      <span className="font-medium">{value ?? "-"}</span>
     </div>
   );
 }
