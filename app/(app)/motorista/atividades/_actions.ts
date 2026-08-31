@@ -40,7 +40,7 @@ export async function concluirAtividadeAction(
     }
 
     const fotoPath = foto ? await uploadAtividadeImage(foto, { atividadeId }) : null;
-    await concluirAtividade(atividadeId, { fotoPath });
+    await concluirAtividade(atividadeId, { fotoPath, concluidoPorId: user.email, concluidoPorNome: user.name });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { error: "Atividade inválida.", attempt: previousState.attempt + 1 };

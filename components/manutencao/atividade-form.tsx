@@ -37,13 +37,19 @@ export function AtividadeForm({
   const [state, formAction] = useActionState(action, INITIAL_STATE);
   const [frotaId, setFrotaId] = useState<number | null>(state.values?.frotaId ?? null);
   const [tipo, setTipo] = useState<string>(state.values?.tipo || "LEVAR_PARA");
-  const [motoristaId, setMotoristaId] = useState<string>(state.values?.motoristaId ?? "");
+  const [motoristaIds, setMotoristaIds] = useState<string[]>(state.values?.motoristaIds ?? []);
+
+  function toggleMotorista(id: string, checked: boolean) {
+    setMotoristaIds((current) => (checked ? [...current, id] : current.filter((m) => m !== id)));
+  }
 
   return (
     <form key={state.attempt} action={formAction} className="grid gap-4 sm:grid-cols-2">
       <input type="hidden" name="frota_id" value={frotaId ?? ""} />
       <input type="hidden" name="tipo" value={tipo} />
-      <input type="hidden" name="motorista_id" value={motoristaId} />
+      {motoristaIds.map((id) => (
+        <input key={id} type="hidden" name="motorista_ids" value={id} />
+      ))}
 
       <div className="sm:col-span-2 space-y-1.5">
         <Label>Frota</Label>
@@ -63,15 +69,31 @@ export function AtividadeForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>Motorista</Label>
-        <Select value={motoristaId} onValueChange={setMotoristaId}>
-          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-          <SelectContent>
-            {motoristas.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Motoristas</Label>
+        <p className="text-xs text-muted-foreground">
+          Selecione mais de um se a atividade puder ser feita por qualquer um deles (ex.: turnos diferentes) — quem
+          concluir primeiro resolve pra todos.
+        </p>
+        <div className="flex flex-wrap gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+          {motoristas.length === 0 ? (
+            <p className="text-sm text-slate-500">Nenhum motorista interno cadastrado ainda.</p>
+          ) : (
+            motoristas.map((m) => (
+              <label
+                key={m.id}
+                className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={motoristaIds.includes(m.id)}
+                  onChange={(event) => toggleMotorista(m.id, event.target.checked)}
+                  className="h-4 w-4 accent-blue-700"
+                />
+                <span className="font-medium text-slate-900">{m.nome}</span>
+              </label>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="space-y-1.5">

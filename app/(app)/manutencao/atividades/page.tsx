@@ -160,7 +160,12 @@ export default async function AtividadesManutencaoPage({
                         {atividade.status === "CONCLUIDA" ? "Concluída" : "Pendente"}
                       </Badge>
                     </td>
-                    <td className="px-3 py-3 text-slate-600">{atividade.motorista_nome}</td>
+                    <td className="px-3 py-3 text-slate-600">
+                      {atividade.motorista_nomes.join(", ")}
+                      {atividade.status === "CONCLUIDA" && atividade.concluido_por_nome ? (
+                        <div className="text-xs text-emerald-700">concluída por {atividade.concluido_por_nome}</div>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-3 text-slate-600">
                       {atividade.tipo === "LEVAR_PARA" && atividade.concluido_em
                         ? formatDuracao(atividade.criado_em, atividade.concluido_em)

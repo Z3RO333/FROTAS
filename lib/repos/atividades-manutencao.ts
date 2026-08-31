@@ -9,18 +9,20 @@ export type AtividadeManutencao = {
   tipo: AtividadeTipo;
   local: string;
   observacao: string | null;
-  motorista_id: string;
-  motorista_nome: string;
+  motorista_ids: string[];
+  motorista_nomes: string[];
   status: "PENDENTE" | "CONCLUIDA";
   foto_conclusao_path: string | null;
   criado_por_email: string;
   criado_por_nome: string;
   criado_em: string;
   concluido_em: string | null;
+  concluido_por_id: string | null;
+  concluido_por_nome: string | null;
 };
 
 const ATIVIDADE_COLUMNS =
-  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_id,motorista_nome,status,foto_conclusao_path,criado_por_email,criado_por_nome,criado_em,concluido_em";
+  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_ids,motorista_nomes,status,foto_conclusao_path,criado_por_email,criado_por_nome,criado_em,concluido_em,concluido_por_id,concluido_por_nome";
 
 export type AtividadeFilters = {
   status?: "PENDENTE" | "CONCLUIDA";
@@ -34,7 +36,7 @@ export async function listAtividades(filters: AtividadeFilters = {}): Promise<At
     .select(ATIVIDADE_COLUMNS)
     .order("criado_em", { ascending: false });
   if (filters.status) query = query.eq("status", filters.status);
-  if (filters.motoristaId) query = query.eq("motorista_id", filters.motoristaId);
+  if (filters.motoristaId) query = query.contains("motorista_ids", [filters.motoristaId]);
   query = query.limit(filters.limit ?? 200);
   const { data, error } = await query;
   if (error) throw new Error(`listAtividades: ${error.message}`);
@@ -45,7 +47,7 @@ export async function listAtividadesPendentesPorMotorista(motoristaId: string): 
   const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
     .select(ATIVIDADE_COLUMNS)
-    .eq("motorista_id", motoristaId)
+    .contains("motorista_ids", [motoristaId])
     .eq("status", "PENDENTE")
     .order("criado_em", { ascending: true });
   if (error) throw new Error(`listAtividadesPendentesPorMotorista: ${error.message}`);
@@ -59,7 +61,7 @@ export async function listAtividadesRecentesPorMotorista(
   const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
     .select(ATIVIDADE_COLUMNS)
-    .eq("motorista_id", motoristaId)
+    .contains("motorista_ids", [motoristaId])
     .eq("status", "CONCLUIDA")
     .order("concluido_em", { ascending: false })
     .limit(limit);
@@ -73,8 +75,8 @@ export type CriarAtividadeInput = {
   tipo: AtividadeTipo;
   local: string;
   observacao: string | null;
-  motoristaId: string;
-  motoristaNome: string;
+  motoristaIds: string[];
+  motoristaNomes: string[];
   criadoPorEmail: string;
   criadoPorNome: string;
 };
@@ -88,8 +90,8 @@ export async function criarAtividade(input: CriarAtividadeInput): Promise<Ativid
       tipo: input.tipo,
       local: input.local,
       observacao: input.observacao,
-      motorista_id: input.motoristaId,
-      motorista_nome: input.motoristaNome,
+      motorista_ids: input.motoristaIds,
+      motorista_nomes: input.motoristaNomes,
       criado_por_email: input.criadoPorEmail,
       criado_por_nome: input.criadoPorNome,
     })
@@ -99,12 +101,17 @@ export async function criarAtividade(input: CriarAtividadeInput): Promise<Ativid
   return data as AtividadeManutencao;
 }
 
-export async function concluirAtividade(id: number, input: { fotoPath: string | null }): Promise<void> {
+export async function concluirAtividade(
+  id: number,
+  input: { fotoPath: string | null; concluidoPorId: string; concluidoPorNome: string }
+): Promise<void> {
   const { error } = await supabaseManutencao
     .from("atividades_manutencao")
     .update({
       status: "CONCLUIDA",
       concluido_em: new Date().toISOString(),
+      concluido_por_id: input.concluidoPorId,
+      concluido_por_nome: input.concluidoPorNome,
       foto_conclusao_path: input.fotoPath,
       atualizado_em: new Date().toISOString(),
     })

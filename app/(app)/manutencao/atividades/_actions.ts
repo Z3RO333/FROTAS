@@ -14,7 +14,7 @@ const CriarAtividadeSchema = z.object({
   tipo: z.enum(ATIVIDADE_TIPOS, { message: "Selecione o tipo de atividade." }),
   local: z.string().trim().min(1, "Informe o local."),
   observacao: z.string().trim().optional(),
-  motoristaId: z.string().trim().min(1, "Selecione o motorista."),
+  motoristaIds: z.array(z.string().trim().min(1)).min(1, "Selecione ao menos um motorista."),
 });
 
 export type AtividadeFormValues = {
@@ -22,7 +22,7 @@ export type AtividadeFormValues = {
   tipo: string;
   local: string;
   observacao: string;
-  motoristaId: string;
+  motoristaIds: string[];
 };
 
 export type AtividadeActionState = {
@@ -38,7 +38,7 @@ function rawValues(formData: FormData): AtividadeFormValues {
     tipo: String(formData.get("tipo") ?? ""),
     local: String(formData.get("local") ?? ""),
     observacao: String(formData.get("observacao") ?? ""),
-    motoristaId: String(formData.get("motorista_id") ?? ""),
+    motoristaIds: formData.getAll("motorista_ids").map((v) => String(v)).filter(Boolean),
   };
 }
 
@@ -55,15 +55,19 @@ export async function criarAtividadeAction(
       tipo: formData.get("tipo"),
       local: formData.get("local"),
       observacao: formData.get("observacao") || undefined,
-      motoristaId: formData.get("motorista_id"),
+      motoristaIds: values.motoristaIds,
     });
 
     const frota = await getFrota(parsed.frotaId);
     if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota não encontrada ou inativa.");
 
-    const motorista = await getUsuarioById(parsed.motoristaId);
-    if (!motorista || motorista.perfil !== "MOTORISTA_INTERNO" || !motorista.ativo) {
-      throw new Error("Selecione um motorista interno ativo.");
+    const motoristasUnicos = Array.from(new Set(parsed.motoristaIds));
+    const motoristas = await Promise.all(motoristasUnicos.map((id) => getUsuarioById(id)));
+    const motoristasValidos = motoristas.filter(
+      (m): m is NonNullable<typeof m> => Boolean(m) && m!.perfil === "MOTORISTA_INTERNO" && m!.ativo
+    );
+    if (motoristasValidos.length !== motoristasUnicos.length) {
+      throw new Error("Selecione apenas motoristas internos ativos.");
     }
 
     await criarAtividade({
@@ -72,8 +76,8 @@ export async function criarAtividadeAction(
       tipo: parsed.tipo,
       local: parsed.local,
       observacao: parsed.observacao ?? null,
-      motoristaId: motorista.id,
-      motoristaNome: motorista.nome ?? motorista.email,
+      motoristaIds: motoristasValidos.map((m) => m.id),
+      motoristaNomes: motoristasValidos.map((m) => m.nome ?? m.email),
       criadoPorEmail: user.email,
       criadoPorNome: user.name,
     });

@@ -66,6 +66,9 @@ export default async function AtividadesMotoristaPage() {
                 <span className="font-medium">Frota {atividade.frota_codigo}</span>{" "}
                 <span className="text-sm text-muted-foreground">
                   {TIPO_ATIVIDADE_LABELS[atividade.tipo]} {atividade.local} · {formatDate(atividade.concluido_em)}
+                  {atividade.concluido_por_id && atividade.concluido_por_id !== user.email
+                    ? ` · concluída por ${atividade.concluido_por_nome}`
+                    : ""}
                 </span>
               </div>
               <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
