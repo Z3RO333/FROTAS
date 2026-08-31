@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessDocumentos,
+  canAccessMotorista,
   canAccessPortaria,
   canApprovePortariaExit,
 } from "@/lib/perfil-permissions";
-import { canAccessMotorista } from "@/lib/rbac";
 
 describe("permissões do aprovador da portaria", () => {
   it("permite que APROVADOR acesse a portaria e aprove uma exceção", () => {

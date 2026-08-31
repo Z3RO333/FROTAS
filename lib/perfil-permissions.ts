@@ -17,3 +17,13 @@ export function canApprovePortariaExit(perfil: PerfilUsuario): boolean {
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
   return perfil !== "MOTORISTA" && perfil !== "APROVADOR";
 }
+
+export function canAccessMotorista(perfil: PerfilUsuario): boolean {
+  return (
+    perfil === "MOTORISTA" ||
+    perfil === "MOTORISTA_INTERNO" ||
+    perfil === "ADMIN" ||
+    perfil === "GESTOR" ||
+    perfil === "DEV"
+  );
+}

@@ -4,10 +4,11 @@ import { auth } from "@/lib/auth";
 import { PERFIS_USUARIO, isPerfilUsuario, type PerfilUsuario } from "@/lib/perfis";
 import { ensureUsuarioForAccess } from "@/lib/repos/usuarios";
 import { normalizeUserDisplayName } from "@/lib/user";
-import { canAccessPortaria } from "@/lib/perfil-permissions";
+import { canAccessMotorista, canAccessPortaria } from "@/lib/perfil-permissions";
 
 export {
   canAccessDocumentos,
+  canAccessMotorista,
   canAccessPortaria,
   canApprovePortariaExit,
 } from "@/lib/perfil-permissions";
@@ -78,15 +79,6 @@ function redirectForOperationalProfile(perfil: PerfilUsuario): string {
   return "/";
 }
 
-export function canAccessMotorista(perfil: PerfilUsuario): boolean {
-  return (
-    perfil === "MOTORISTA" ||
-    perfil === "MOTORISTA_INTERNO" ||
-    perfil === "ADMIN" ||
-    perfil === "GESTOR" ||
-    perfil === "DEV"
-  );
-}
 
 export type AppUserResolution =
   | { ok: true; user: AppUser }
