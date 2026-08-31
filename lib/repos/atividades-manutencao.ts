@@ -25,6 +25,7 @@ const ATIVIDADE_COLUMNS =
 export type AtividadeFilters = {
   status?: "PENDENTE" | "CONCLUIDA";
   motoristaId?: string;
+  limit?: number;
 };
 
 export async function listAtividades(filters: AtividadeFilters = {}): Promise<AtividadeManutencao[]> {
@@ -34,6 +35,7 @@ export async function listAtividades(filters: AtividadeFilters = {}): Promise<At
     .order("criado_em", { ascending: false });
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.motoristaId) query = query.eq("motorista_id", filters.motoristaId);
+  query = query.limit(filters.limit ?? 200);
   const { data, error } = await query;
   if (error) throw new Error(`listAtividades: ${error.message}`);
   return (data ?? []) as AtividadeManutencao[];

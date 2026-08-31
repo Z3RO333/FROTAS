@@ -15,7 +15,7 @@ export function canApprovePortariaExit(perfil: PerfilUsuario): boolean {
 }
 
 export function canAccessDocumentos(perfil: PerfilUsuario): boolean {
-  return perfil !== "MOTORISTA" && perfil !== "APROVADOR";
+  return perfil !== "MOTORISTA" && perfil !== "MOTORISTA_INTERNO" && perfil !== "APROVADOR";
 }
 
 export function canAccessMotorista(perfil: PerfilUsuario): boolean {

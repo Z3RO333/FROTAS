@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { VehicleSearchSelect, type VehicleOption } from "@/components/vehicles/vehicle-search-select";
 import { ATIVIDADE_TIPOS, TIPO_ATIVIDADE_LABELS } from "@/lib/atividades/rules";
 
-const INITIAL_STATE: AtividadeActionState = { error: null, attempt: 0 };
+const INITIAL_STATE: AtividadeActionState = { error: null, values: null, attempt: 0 };
 
 export type MotoristaInternoOption = { id: string; nome: string };
 
@@ -35,9 +35,9 @@ export function AtividadeForm({
   action: (state: AtividadeActionState, formData: FormData) => Promise<AtividadeActionState>;
 }) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
-  const [frotaId, setFrotaId] = useState<number | null>(null);
-  const [tipo, setTipo] = useState<string>("LEVAR_PARA");
-  const [motoristaId, setMotoristaId] = useState<string>("");
+  const [frotaId, setFrotaId] = useState<number | null>(state.values?.frotaId ?? null);
+  const [tipo, setTipo] = useState<string>(state.values?.tipo || "LEVAR_PARA");
+  const [motoristaId, setMotoristaId] = useState<string>(state.values?.motoristaId ?? "");
 
   return (
     <form key={state.attempt} action={formAction} className="grid gap-4 sm:grid-cols-2">
@@ -76,12 +76,18 @@ export function AtividadeForm({
 
       <div className="space-y-1.5">
         <Label htmlFor="local">Local</Label>
-        <Input id="local" name="local" placeholder="Ex.: BONFIM, GALPÃO DA TS..." required />
+        <Input
+          id="local"
+          name="local"
+          placeholder="Ex.: BONFIM, GALPÃO DA TS..."
+          defaultValue={state.values?.local ?? ""}
+          required
+        />
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="observacao">Observação (opcional)</Label>
-        <Input id="observacao" name="observacao" />
+        <Input id="observacao" name="observacao" defaultValue={state.values?.observacao ?? ""} />
       </div>
 
       {state.error ? (
