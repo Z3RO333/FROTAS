@@ -37,7 +37,11 @@ const STATUS_LABELS: Record<StatusPortaria, string> = {
   ENTRADA_REGISTRADA: "Entrada registrada",
 };
 
-type FiltroStatus = StatusPortaria | "TODAS" | "COM_CHECKLIST";
+type FiltroStatus = StatusPortaria | "TODAS" | "COM_CHECKLIST" | "BLOQUEADAS";
+
+function isBloqueada(status: StatusPortaria): boolean {
+  return status === "BLOQUEADA_CHECKLIST" || status === "BLOQUEADA_MANUTENCAO";
+}
 
 const FILTER_TABS: {
   label: string;
@@ -48,6 +52,7 @@ const FILTER_TABS: {
   { label: "Todas", value: "TODAS", icon: Layers },
   { label: "Aguardando", value: "LIBERADA_SAIDA", icon: LogOut, severity: "OK" },
   { label: "Pendentes", value: "PENDENTE_CHECKLIST", icon: Clock, severity: "ATENCAO" },
+  { label: "Bloqueadas", value: "BLOQUEADAS", icon: AlertTriangle, severity: "CRITICO" },
   { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
@@ -65,6 +70,7 @@ function parseInitialStatus(value: string | null | undefined): FiltroStatus {
     "PENDENTE_CHECKLIST",
     "CHECKLIST_REALIZADO",
     "LIBERADA_SAIDA",
+    "BLOQUEADAS",
     "BLOQUEADA_CHECKLIST",
     "BLOQUEADA_MANUTENCAO",
     "SAIDA_REGISTRADA",
@@ -117,9 +123,11 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
     if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
     if (filtroStatus === "COM_CHECKLIST" && !r.checklist_id) return false;
+    if (filtroStatus === "BLOQUEADAS" && !isBloqueada(r.status_portaria)) return false;
     if (
       filtroStatus !== "TODAS" &&
       filtroStatus !== "COM_CHECKLIST" &&
+      filtroStatus !== "BLOQUEADAS" &&
       r.status_portaria !== filtroStatus
     )
       return false;
@@ -229,7 +237,9 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
             const count =
               tab.value === "TODAS"
                 ? rowsFiltradas.length
-                : rowsFiltradas.filter((r) => r.status_portaria === tab.value).length;
+                : tab.value === "BLOQUEADAS"
+                  ? rowsFiltradas.filter((r) => isBloqueada(r.status_portaria)).length
+                  : rowsFiltradas.filter((r) => r.status_portaria === tab.value).length;
             return (
               <FilterChip
                 key={tab.value}
