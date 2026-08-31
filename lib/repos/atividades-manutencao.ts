@@ -19,10 +19,16 @@ export type AtividadeManutencao = {
   concluido_em: string | null;
   concluido_por_id: string | null;
   concluido_por_nome: string | null;
+  pego_em: string | null;
 };
 
 const ATIVIDADE_COLUMNS =
-  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_ids,motorista_nomes,status,foto_conclusao_path,criado_por_email,criado_por_nome,criado_em,concluido_em,concluido_por_id,concluido_por_nome";
+  "id,frota_id,frota_codigo,tipo,local,observacao,motorista_ids,motorista_nomes,status,foto_conclusao_path,criado_por_email,criado_por_nome,criado_em,concluido_em,concluido_por_id,concluido_por_nome,pego_em";
+
+/** Atividade sem motorista definido: qualquer motorista interno pode pegar. */
+export function atividadeEstaAberta(atividade: AtividadeManutencao): boolean {
+  return atividade.motorista_ids.length === 0;
+}
 
 export type AtividadeFilters = {
   status?: "PENDENTE" | "CONCLUIDA";
@@ -52,6 +58,36 @@ export async function listAtividadesPendentesPorMotorista(motoristaId: string): 
     .order("criado_em", { ascending: true });
   if (error) throw new Error(`listAtividadesPendentesPorMotorista: ${error.message}`);
   return (data ?? []) as AtividadeManutencao[];
+}
+
+/** Atividades em aberto — sem motorista definido, disponíveis pra quem pegar. */
+export async function listAtividadesAbertas(): Promise<AtividadeManutencao[]> {
+  const { data, error } = await supabaseManutencao
+    .from("atividades_manutencao")
+    .select(ATIVIDADE_COLUMNS)
+    .eq("status", "PENDENTE")
+    .eq("motorista_ids", "{}")
+    .order("criado_em", { ascending: true });
+  if (error) throw new Error(`listAtividadesAbertas: ${error.message}`);
+  return (data ?? []) as AtividadeManutencao[];
+}
+
+/**
+ * Atribui uma atividade aberta a um motorista. Retorna false quando outro
+ * motorista pegou primeiro — a corrida é resolvida no banco pela RPC.
+ */
+export async function pegarAtividade(
+  id: number,
+  motoristaId: string,
+  motoristaNome: string
+): Promise<boolean> {
+  const { data, error } = await supabaseManutencao.rpc("pegar_atividade_manutencao", {
+    p_atividade_id: id,
+    p_motorista_id: motoristaId,
+    p_motorista_nome: motoristaNome,
+  });
+  if (error) throw new Error(`pegarAtividade: ${error.message}`);
+  return (data ?? []).length > 0;
 }
 
 export async function listAtividadesRecentesPorMotorista(
@@ -101,11 +137,16 @@ export async function criarAtividade(input: CriarAtividadeInput): Promise<Ativid
   return data as AtividadeManutencao;
 }
 
+/**
+ * Conclui a atividade. Retorna false quando ela já não estava mais pendente
+ * (outro motorista concluiu antes) — o filtro por status resolve a corrida no
+ * banco, e o chamador precisa saber que não foi ele quem concluiu.
+ */
 export async function concluirAtividade(
   id: number,
   input: { fotoPath: string | null; concluidoPorId: string; concluidoPorNome: string }
-): Promise<void> {
-  const { error } = await supabaseManutencao
+): Promise<boolean> {
+  const { data, error } = await supabaseManutencao
     .from("atividades_manutencao")
     .update({
       status: "CONCLUIDA",
@@ -116,6 +157,8 @@ export async function concluirAtividade(
       atualizado_em: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("status", "PENDENTE");
+    .eq("status", "PENDENTE")
+    .select("id");
   if (error) throw new Error(`concluirAtividade: ${error.message}`);
+  return (data ?? []).length > 0;
 }

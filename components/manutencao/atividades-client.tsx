@@ -181,6 +181,11 @@ function AtividadeCard({ atividade }: { atividade: AtividadeManutencao }) {
 
           {/* Badges de motoristas — destaca quem concluiu */}
           <div className="flex flex-wrap gap-1.5">
+            {atividade.motorista_ids.length === 0 ? (
+              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 ring-1 ring-inset ring-blue-300">
+                Em aberto — aguardando um motorista pegar
+              </span>
+            ) : null}
             {atividade.motorista_nomes.map((nome) => {
               const isConcluidor = !isPendente && atividade.concluido_por_nome === nome;
               return (

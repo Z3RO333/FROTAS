@@ -1,10 +1,15 @@
 import { CheckCircle2, ClipboardList, Info } from "lucide-react";
 import { ConcluirAtividadeForm } from "@/components/motorista/concluir-atividade-form";
+import { PegarAtividadeForm } from "@/components/motorista/pegar-atividade-form";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireMotoristaUser } from "@/lib/rbac";
-import { listAtividadesPendentesPorMotorista, listAtividadesRecentesPorMotorista } from "@/lib/repos/atividades-manutencao";
+import {
+  listAtividadesAbertas,
+  listAtividadesPendentesPorMotorista,
+  listAtividadesRecentesPorMotorista,
+} from "@/lib/repos/atividades-manutencao";
 import {
   formatDuracao,
   requiresFotoNaConclusao,
@@ -13,7 +18,7 @@ import {
   type AtividadeTipo,
 } from "@/lib/atividades/rules";
 import { formatDate } from "@/lib/utils";
-import { concluirAtividadeAction } from "./_actions";
+import { concluirAtividadeAction, pegarAtividadeAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +31,9 @@ const TIPO_BADGE_STYLE: Record<AtividadeTipo, string> = {
 
 export default async function AtividadesMotoristaPage() {
   const user = await requireMotoristaUser();
-  const [pendentes, recentes] = await Promise.all([
+  const [pendentes, abertas, recentes] = await Promise.all([
     listAtividadesPendentesPorMotorista(user.email),
+    listAtividadesAbertas(),
     listAtividadesRecentesPorMotorista(user.email, 5),
   ]);
 
@@ -38,6 +44,37 @@ export default async function AtividadesMotoristaPage() {
         title="Minhas atividades"
         icon={ClipboardList}
       />
+
+      {abertas.length > 0 ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">Disponíveis para pegar</h2>
+            <p className="text-sm text-muted-foreground">
+              Atividades sem motorista definido. Ao pegar, ela passa a ser sua e sai da lista dos outros.
+            </p>
+          </div>
+          {abertas.map((atividade) => (
+            <article
+              key={atividade.id}
+              className="space-y-3 rounded-md border border-blue-200 bg-blue-50/40 p-4 shadow-sm"
+            >
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold">Frota {atividade.frota_codigo}</h3>
+                  <Badge variant="outline" className={TIPO_BADGE_STYLE[atividade.tipo]}>
+                    {TIPO_ATIVIDADE_LABELS[atividade.tipo]}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-sm text-muted-foreground">{atividade.local}</p>
+                {atividade.observacao ? (
+                  <p className="mt-1.5 text-sm text-slate-600">{atividade.observacao}</p>
+                ) : null}
+              </div>
+              <PegarAtividadeForm atividadeId={atividade.id} action={pegarAtividadeAction} />
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Pendentes</h2>

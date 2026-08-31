@@ -80,10 +80,10 @@ export function AtividadeForm({
       </div>
 
       <div className="sm:col-span-2 space-y-1.5">
-        <Label>Motoristas</Label>
+        <Label>Motoristas (opcional)</Label>
         <p className="text-xs text-muted-foreground">
-          Selecione mais de um se a atividade puder ser feita por qualquer um deles (ex.: turnos diferentes) — quem
-          concluir primeiro resolve pra todos.
+          Deixe sem marcar para publicar a atividade <strong>em aberto</strong> — ela aparece para todos os motoristas
+          internos e quem pegar primeiro fica responsável. Marcando um ou mais, ela vai direto só para eles.
         </p>
         <div className="flex flex-wrap gap-2 rounded-md border border-slate-200 bg-slate-50 p-3">
           {motoristas.length === 0 ? (

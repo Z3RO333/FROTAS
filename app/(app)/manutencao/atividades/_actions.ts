@@ -14,7 +14,9 @@ const CriarAtividadeSchema = z.object({
   tipo: z.enum(ATIVIDADE_TIPOS, { message: "Selecione o tipo de atividade." }),
   local: z.string().trim().min(1, "Informe o local."),
   observacao: z.string().trim().optional(),
-  motoristaIds: z.array(z.string().trim().min(1)).min(1, "Selecione ao menos um motorista."),
+  // Lista vazia é válida: a atividade fica em aberto pra qualquer motorista
+  // interno pegar.
+  motoristaIds: z.array(z.string().trim().min(1)),
 });
 
 export type AtividadeFormValues = {
