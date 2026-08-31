@@ -4,6 +4,7 @@ import {
   canAccessPortaria,
   canApprovePortariaExit,
 } from "@/lib/perfil-permissions";
+import { canAccessMotorista } from "@/lib/rbac";
 
 describe("permissões do aprovador da portaria", () => {
   it("permite que APROVADOR acesse a portaria e aprove uma exceção", () => {
@@ -25,5 +26,21 @@ describe("permissões do aprovador da portaria", () => {
 
   it("não concede módulos administrativos ao APROVADOR", () => {
     expect(canAccessDocumentos("APROVADOR")).toBe(false);
+  });
+});
+
+describe("acesso do motorista interno", () => {
+  it("permite que MOTORISTA_INTERNO acesse a área do motorista", () => {
+    expect(canAccessMotorista("MOTORISTA_INTERNO")).toBe(true);
+  });
+
+  it("mantém MOTORISTA e os perfis administrativos com acesso", () => {
+    expect(canAccessMotorista("MOTORISTA")).toBe(true);
+    expect(canAccessMotorista("ADMIN")).toBe(true);
+  });
+
+  it("bloqueia perfis sem relação com a área do motorista", () => {
+    expect(canAccessMotorista("PORTARIA")).toBe(false);
+    expect(canAccessMotorista("MANUTENCAO")).toBe(false);
   });
 });

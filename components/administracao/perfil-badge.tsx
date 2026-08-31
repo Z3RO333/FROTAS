@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 const PERFIL_SEVERITY: Record<PerfilUsuario, SeverityKey> = {
   MOTORISTA: "INFO",
+  MOTORISTA_INTERNO: "MANUTENCAO",
   PORTARIA: "ATENCAO",
   APROVADOR: "OK",
   MANUTENCAO: "MANUTENCAO",

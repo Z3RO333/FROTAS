@@ -23,6 +23,7 @@ export type AppUser = {
 const ADMIN_EMAILS = parseList(process.env.FROTAS_ADMIN_EMAILS);
 const DEV_EMAILS = parseList(process.env.FROTAS_DEV_EMAILS ?? "");
 const DRIVER_EMAILS = parseList(process.env.FROTAS_DRIVER_EMAILS);
+const MOTORISTA_INTERNO_EMAILS = parseList(process.env.FROTAS_MOTORISTA_INTERNO_EMAILS);
 const PORTARIA_EMAILS = parseList(process.env.FROTAS_PORTARIA_EMAILS);
 const APPROVER_EMAILS = parseList(process.env.FROTAS_APROVADOR_EMAILS);
 const MAINTENANCE_EMAILS = parseList(process.env.FROTAS_MANUTENCAO_EMAILS);
@@ -52,6 +53,7 @@ export function resolvePerfilFromEnv(email: string): PerfilUsuario {
   if (hasEmail(MANAGER_EMAILS, normalized)) return "GESTOR";
   if (hasEmail(MAINTENANCE_EMAILS, normalized)) return "MANUTENCAO";
   if (hasEmail(PORTARIA_EMAILS, normalized)) return "PORTARIA";
+  if (hasEmail(MOTORISTA_INTERNO_EMAILS, normalized)) return "MOTORISTA_INTERNO";
   if (hasEmail(DRIVER_EMAILS, normalized)) return "MOTORISTA";
 
   const fallback = (process.env.FROTAS_DEFAULT_PROFILE ?? "").toUpperCase();
@@ -77,7 +79,13 @@ function redirectForOperationalProfile(perfil: PerfilUsuario): string {
 }
 
 export function canAccessMotorista(perfil: PerfilUsuario): boolean {
-  return perfil === "MOTORISTA" || perfil === "ADMIN" || perfil === "GESTOR" || perfil === "DEV";
+  return (
+    perfil === "MOTORISTA" ||
+    perfil === "MOTORISTA_INTERNO" ||
+    perfil === "ADMIN" ||
+    perfil === "GESTOR" ||
+    perfil === "DEV"
+  );
 }
 
 export type AppUserResolution =
