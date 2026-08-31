@@ -31,7 +31,7 @@ export const CHECKLIST_ITEMS: ChecklistCatalogItem[] = [
   { codigo: "pneus_step", nome: "Pneus / step", grupo: "Rodagem", obrigatorio: true, critico: true },
   { codigo: "documento", nome: "Documento do veículo", grupo: "Documentacao", obrigatorio: true, critico: false },
   { codigo: "cartao_combustivel", nome: "Cartão combustível", grupo: "Documentacao", obrigatorio: false, critico: false },
-  { codigo: "bau", nome: "Baú", grupo: "Conservacao", obrigatorio: true, critico: false },
+  { codigo: "bau", nome: "Baú", grupo: "Conservacao", obrigatorio: false, critico: false },
 ];
 
 export const CHECKLIST_GROUPS: ChecklistGrupo[] = [
