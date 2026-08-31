@@ -6,7 +6,7 @@ import { PedidoPecasStatusBadge } from "@/components/manutencao/pedido-pecas-sta
 import { PedidosPecasTabs } from "@/components/manutencao/pedidos-pecas-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
-import { listFornecedoresPecas } from "@/lib/repos/fornecedores-pecas";
+import { getPreferenciaFornecedoresPecas, listFornecedoresPecas } from "@/lib/repos/fornecedores-pecas";
 import { listFrotasForOperationalForms } from "@/lib/repos/frotas";
 import { listPedidosPecas } from "@/lib/repos/pedidos-pecas";
 import { requireManutencaoUser } from "@/lib/rbac";
@@ -38,11 +38,12 @@ export default async function PedidosPecasPage({
     erros?: string;
   }>;
 }) {
-  await requireManutencaoUser();
-  const [frotas, fornecedores, pedidos, query] = await Promise.all([
+  const user = await requireManutencaoUser();
+  const [frotas, fornecedores, pedidos, preferenciaFornecedorIds, query] = await Promise.all([
     listFrotasForOperationalForms(),
     listFornecedoresPecas({ ativo: true }),
     listPedidosPecas(100),
+    getPreferenciaFornecedoresPecas(user.email),
     searchParams,
   ]);
   const lote = query.resultado === "lote" ? {
@@ -97,6 +98,7 @@ export default async function PedidosPecasPage({
           <PedidoPecasForm
             vehicles={vehicles}
             fornecedores={fornecedores}
+            preferenciaFornecedorIds={preferenciaFornecedorIds}
             initialToken={randomUUID()}
             action={criarPedidoPecasAction}
           />

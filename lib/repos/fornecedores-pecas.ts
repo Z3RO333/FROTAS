@@ -74,3 +74,28 @@ export async function atualizarFornecedorPecas(
     .eq("id", id);
   if (error) throw new Error(`atualizarFornecedorPecas: ${error.message}`);
 }
+
+export async function getPreferenciaFornecedoresPecas(usuarioEmail: string): Promise<number[]> {
+  const { data, error } = await supabaseManutencao
+    .from("preferencias_fornecedores_pecas")
+    .select("fornecedor_ids")
+    .eq("usuario_email", usuarioEmail.trim().toLowerCase())
+    .maybeSingle();
+  if (error) throw new Error(`getPreferenciaFornecedoresPecas: ${error.message}`);
+  return (data?.fornecedor_ids ?? []).map(Number);
+}
+
+export async function salvarPreferenciaFornecedoresPecas(
+  usuarioEmail: string,
+  fornecedorIds: number[]
+): Promise<void> {
+  const { error } = await supabaseManutencao.from("preferencias_fornecedores_pecas").upsert(
+    {
+      usuario_email: usuarioEmail.trim().toLowerCase(),
+      fornecedor_ids: Array.from(new Set(fornecedorIds)),
+      atualizado_em: new Date().toISOString(),
+    },
+    { onConflict: "usuario_email" }
+  );
+  if (error) throw new Error(`salvarPreferenciaFornecedoresPecas: ${error.message}`);
+}

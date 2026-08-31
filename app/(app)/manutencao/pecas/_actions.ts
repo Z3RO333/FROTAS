@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireManutencaoUser } from "@/lib/rbac";
-import { criarFornecedorPecas, dedupeNovosFornecedores } from "@/lib/repos/fornecedores-pecas";
+import {
+  criarFornecedorPecas,
+  dedupeNovosFornecedores,
+  salvarPreferenciaFornecedoresPecas,
+} from "@/lib/repos/fornecedores-pecas";
 import { criarPedidoPecas } from "@/lib/repos/pedidos-pecas";
 import { enviarCotacoesPedidoPecas, PEDIDOS_PECAS_CC } from "@/lib/services/pedidos-pecas-email";
 import { PedidoLoteSchema } from "./_schema";
@@ -81,6 +85,7 @@ export async function criarPedidoPecasAction(
   const user = await requireManutencaoUser();
   const values = rawValues(formData);
   const pedidoIds: number[] = [];
+  const fornecedorIdsUsados = new Set<number>();
 
   try {
     const parsed = PedidoLoteSchema.parse(values);
@@ -88,6 +93,7 @@ export async function criarPedidoPecasAction(
       const novos = dedupeNovosFornecedores(grupo.novosFornecedores);
       const novosCriados = await Promise.all(novos.map((novo) => criarFornecedorPecas(novo)));
       const fornecedorIds = Array.from(new Set([...grupo.fornecedorIds, ...novosCriados.map((f) => f.id)]));
+      for (const id of fornecedorIds) fornecedorIdsUsados.add(id);
 
       pedidoIds.push(await criarPedidoPecas({
         tokenIdempotencia: grupo.tokenIdempotencia,
@@ -107,6 +113,12 @@ export async function criarPedidoPecasAction(
       values,
       attempt: previousState.attempt + 1,
     };
+  }
+
+  try {
+    await salvarPreferenciaFornecedoresPecas(user.email, Array.from(fornecedorIdsUsados));
+  } catch (error) {
+    console.warn("[pedidos-pecas] falha ao salvar preferência de fornecedores", error);
   }
 
   let enviados = 0;

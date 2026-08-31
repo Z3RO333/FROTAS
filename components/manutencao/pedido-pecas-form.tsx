@@ -79,11 +79,13 @@ function newGroup(allKeys: string[], token = crypto.randomUUID()): GrupoForm {
 export function PedidoPecasForm({
   vehicles,
   fornecedores,
+  preferenciaFornecedorIds = [],
   initialToken,
   action,
 }: {
   vehicles: PedidoVehicleOption[];
   fornecedores: FornecedorPecasOption[];
+  preferenciaFornecedorIds?: number[];
   initialToken: string;
   action: (
     state: PedidoPecasActionState,
@@ -91,12 +93,18 @@ export function PedidoPecasForm({
   ) => Promise<PedidoPecasActionState>;
 }) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
+  const preferidosValidos = preferenciaFornecedorIds.filter((id) =>
+    fornecedores.some((f) => f.id === id)
+  );
+  const defaultFornecedorIds = preferidosValidos.length > 0
+    ? preferidosValidos
+    : fornecedores.map((f) => f.id);
   const values: PedidoPecasFormValues = state.values ?? {
     grupos: [{
       tokenIdempotencia: initialToken,
       frotaId: null,
       itens: [{ descricao: "", quantidade: 1 }],
-      fornecedorIds: fornecedores.map((f) => f.id),
+      fornecedorIds: defaultFornecedorIds,
       novosFornecedores: [],
     }],
   };
@@ -106,6 +114,7 @@ export function PedidoPecasForm({
       key={state.attempt}
       vehicles={vehicles}
       fornecedoresIniciais={fornecedores}
+      defaultFornecedorIds={defaultFornecedorIds}
       action={formAction}
       values={values}
       error={state.error}
@@ -132,12 +141,14 @@ function fromValues(grupo: PedidoPecasGrupoValues): GrupoForm {
 function PedidoPecasFields({
   vehicles,
   fornecedoresIniciais,
+  defaultFornecedorIds,
   action,
   values,
   error,
 }: {
   vehicles: PedidoVehicleOption[];
   fornecedoresIniciais: FornecedorPecasOption[];
+  defaultFornecedorIds: number[];
   action: (formData: FormData) => void;
   values: PedidoPecasFormValues;
   error: string | null;
@@ -182,9 +193,14 @@ function PedidoPecasFields({
   });
 
   function addGroup() {
-    setGrupos((current) => current.length >= MAX_FROTAS
-      ? current
-      : [...current, newGroup(fornecedoresDisponiveis.map((f) => f.key))]);
+    setGrupos((current) => {
+      if (current.length >= MAX_FROTAS) return current;
+      const defaultKeys = fornecedoresDisponiveis
+        .filter((f) => f.id != null && defaultFornecedorIds.includes(f.id))
+        .map((f) => f.key);
+      const keys = defaultKeys.length > 0 ? defaultKeys : fornecedoresDisponiveis.map((f) => f.key);
+      return [...current, newGroup(keys)];
+    });
   }
 
   function removeGroup(key: string) {
