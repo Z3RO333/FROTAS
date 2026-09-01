@@ -103,6 +103,7 @@ export type FrotaFilters = {
   placa?: string;
   modelo?: string;
   localizacao?: string;
+  setor?: string;
   cd?: string;
   ano?: number;
   status?: StatusFrota;
@@ -356,6 +357,7 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
 
   if (f.modelo) next = next.eq("modelo", f.modelo);
   if (f.localizacao) next = next.eq("local", f.localizacao);
+  if (f.setor) next = next.eq("setor", f.setor);
   if (f.ano) next = next.eq("ano_fabricacao", f.ano);
   if (f.status) next = next.eq("status", f.status);
   if (f.semKm) next = next.is("km_atual", null);

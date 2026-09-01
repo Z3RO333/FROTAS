@@ -18,7 +18,7 @@ import { withQuery } from "@/lib/navigation/search-state";
 
 type Props = {
   modelos: string[];
-  localizacoes: string[];
+  setores: string[];
   cds: string[];
   basePath?: string;
 };
@@ -37,7 +37,7 @@ const CONDICOES = [
 
 type Patch = Record<string, string | null | undefined>;
 
-export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas" }: Props) {
+export function FrotasFilters({ modelos, setores, cds, basePath = "/frotas" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(
@@ -73,7 +73,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
 
   const cdAtual = searchParams.get("cd") ?? "";
   const modelo = searchParams.get("modelo") ?? "";
-  const localizacao = searchParams.get("localizacao") ?? "";
+  const setor = searchParams.get("setor") ?? "";
   const operacional = searchParams.get("operacional") ?? "";
   const condicao = searchParams.get("condicao") ?? "";
   const cadastroIncompleto = searchParams.get("cadastro") === "incompleto";
@@ -81,7 +81,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
 
   const activeChips: { key: string; label: string; clear: Patch }[] = [
     ...(modelo ? [{ key: "modelo", label: `Modelo: ${modelo}`, clear: { modelo: null } }] : []),
-    ...(localizacao ? [{ key: "localizacao", label: `Local: ${localizacao}`, clear: { localizacao: null } }] : []),
+    ...(setor ? [{ key: "setor", label: `Setor: ${setor}`, clear: { setor: null } }] : []),
     ...(operacional
       ? [{
           key: "operacional",
@@ -132,7 +132,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
           <SheetContent>
             <SheetHeader>
               <SheetTitle>Filtros avançados</SheetTitle>
-              <SheetDescription>Refine a lista por modelo, localização, status, condição ou cadastro.</SheetDescription>
+              <SheetDescription>Refine a lista por modelo, setor, status, condição ou cadastro.</SheetDescription>
             </SheetHeader>
 
             <div className="mt-6 space-y-4">
@@ -154,16 +154,16 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Localização</label>
-                <Select value={localizacao || "all"} onValueChange={(v) => applyChanges({ localizacao: v === "all" ? null : v, cd: null })}>
+                <label className="text-sm font-medium text-slate-700">Setor</label>
+                <Select value={setor || "all"} onValueChange={(v) => update("setor", v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Localização" />
+                    <SelectValue placeholder="Setor" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas localizações</SelectItem>
-                    {localizacoes.map((l) => (
-                      <SelectItem key={l} value={l}>
-                        {l}
+                    <SelectItem value="all">Todos setores</SelectItem>
+                    {setores.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -235,7 +235,7 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => applyChanges({ modelo: null, localizacao: null, operacional: null, condicao: null, cadastro: null, semKm: null })}
+                  onClick={() => applyChanges({ modelo: null, setor: null, operacional: null, condicao: null, cadastro: null, semKm: null })}
                 >
                   Limpar filtros
                 </Button>
@@ -257,9 +257,9 @@ export function FrotasFilters({ modelos, localizacoes, cds, basePath = "/frotas"
       </FilterBar>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <FilterChip label="Todos os CDs" active={!cdAtual} onClick={() => applyChanges({ cd: null, localizacao: null })} />
+        <FilterChip label="Todos os CDs" active={!cdAtual} onClick={() => applyChanges({ cd: null })} />
         {cds.map((cd) => (
-          <FilterChip key={cd} label={cd} active={cdAtual === cd} onClick={() => applyChanges({ cd, localizacao: null })} />
+          <FilterChip key={cd} label={cd} active={cdAtual === cd} onClick={() => applyChanges({ cd })} />
         ))}
         {activeChips.map((chip) => (
           <FilterChip

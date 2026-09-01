@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, List, Plus, Truck, Wrench, XCircle } from "lucide-react";
+import { List, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { MetricCard, MetricGrid } from "@/components/ui/metric-card";
 import { PagePagination } from "@/components/ui/page-pagination";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { EnviarRelatorioDialog } from "@/components/relatorios/enviar-relatorio-dialog";
-import { listFrotas, getKpisPorFiltro } from "@/lib/repos/frotas";
-import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
+import { listFrotas } from "@/lib/repos/frotas";
+import { setoresDistintosCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { requireAdminUser } from "@/lib/rbac";
 import type { StatusFrota } from "@/lib/rules";
@@ -55,7 +54,7 @@ export default async function FrotasPage({
     frota: sp.frota,
     placa: sp.placa,
     modelo: sp.modelo,
-    localizacao: sp.localizacao,
+    setor: sp.setor,
     cd: sp.cd,
     ano: ano && Number.isFinite(ano) ? ano : undefined,
     status,
@@ -68,13 +67,11 @@ export default async function FrotasPage({
     pageSize: 50,
   };
 
-  const [{ rows, total }, modelos, localizacoes, cds, kpisFiltro] = await Promise.all([
+  const [{ rows, total }, modelos, setores, cds] = await Promise.all([
     listFrotas(filters),
     modelosDistintosCached(),
-    localizacoesDistintasCached(),
+    setoresDistintosCached(),
     listCDsDisponibilidade(),
-    // KPIs filtrados — só carrega se houver filtro de localização
-    sp.localizacao ? getKpisPorFiltro(sp.localizacao) : Promise.resolve(null),
   ]);
   const totalPages = Math.ceil(total / 50);
   if (totalPages > 0 && page > totalPages) redirect(pageHref(sp, totalPages));
@@ -84,7 +81,7 @@ export default async function FrotasPage({
       <PageHeader
         eyebrow="Operação"
         title="Tabela de Frotas"
-        description={`${total} frota(s) encontrada(s)${sp.cd ? ` em ${sp.cd}` : sp.localizacao ? ` em ${sp.localizacao}` : ""}.`}
+        description={`${total} frota(s) encontrada(s)${sp.cd ? ` em ${sp.cd}` : sp.setor ? ` · ${sp.setor}` : ""}.`}
         icon={List}
         severity="INFO"
         actions={
@@ -103,35 +100,7 @@ export default async function FrotasPage({
           </>
         }
       />
-      <FrotasFilters modelos={modelos} localizacoes={localizacoes} cds={cds} />
-      {kpisFiltro && (
-        <MetricGrid cols={4}>
-          <MetricCard
-            label={`Total${sp.localizacao ? ` · ${sp.localizacao}` : ""}`}
-            value={kpisFiltro.total}
-            icon={Truck}
-            severity="INFO"
-          />
-          <MetricCard
-            label="Disponíveis"
-            value={kpisFiltro.disponiveis}
-            icon={CheckCircle2}
-            severity="OK"
-          />
-          <MetricCard
-            label="Manutenção"
-            value={kpisFiltro.manutencao}
-            icon={Wrench}
-            severity="MANUTENCAO"
-          />
-          <MetricCard
-            label="Indisponíveis"
-            value={kpisFiltro.indisponiveis}
-            icon={XCircle}
-            severity="CRITICO"
-          />
-        </MetricGrid>
-      )}
+      <FrotasFilters modelos={modelos} setores={setores} cds={cds} />
       <FrotasTable rows={rows} />
       <PagePagination page={page} totalPages={totalPages} href={(value) => pageHref(sp, value)} />
     </div>

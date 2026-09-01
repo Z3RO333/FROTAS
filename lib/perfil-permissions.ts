@@ -3,6 +3,7 @@ import type { PerfilUsuario } from "@/lib/perfis";
 export function canAccessPortaria(perfil: PerfilUsuario): boolean {
   return (
     perfil === "PORTARIA" ||
+    perfil === "SUPERVISOR_PORTARIA" ||
     perfil === "APROVADOR" ||
     perfil === "ADMIN" ||
     perfil === "GESTOR" ||
@@ -22,6 +23,7 @@ export function canAccessMotorista(perfil: PerfilUsuario): boolean {
   return (
     perfil === "MOTORISTA" ||
     perfil === "MOTORISTA_INTERNO" ||
+    perfil === "SUPERVISOR_PORTARIA" ||
     perfil === "ADMIN" ||
     perfil === "GESTOR" ||
     perfil === "DEV"

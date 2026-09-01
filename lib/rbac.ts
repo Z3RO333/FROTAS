@@ -74,7 +74,7 @@ export function canAccessAdmin(perfil: PerfilUsuario): boolean {
 }
 
 function redirectForOperationalProfile(perfil: PerfilUsuario): string {
-  if (perfil === "PORTARIA" || perfil === "APROVADOR") return "/portaria";
+  if (perfil === "PORTARIA" || perfil === "SUPERVISOR_PORTARIA" || perfil === "APROVADOR") return "/portaria";
   if (perfil === "MOTORISTA") return "/motorista";
   return "/";
 }
