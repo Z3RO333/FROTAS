@@ -832,23 +832,6 @@ export function DriverChecklistForm({
                 />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="foto_comprovante" className="text-xs">
-                Foto do comprovante (opcional)
-              </Label>
-              <label className="flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-white p-3 text-center text-xs text-muted-foreground hover:bg-slate-50">
-                <Camera className="mb-1 h-4 w-4 text-blue-600" aria-hidden="true" />
-                Anexar foto do comprovante
-                <input
-                  id="foto_comprovante"
-                  name="foto_comprovante"
-                  type="file"
-                  accept={IMAGE_ACCEPT}
-                  capture="environment"
-                  className="sr-only"
-                />
-              </label>
-            </div>
           </div>
         </div>
 

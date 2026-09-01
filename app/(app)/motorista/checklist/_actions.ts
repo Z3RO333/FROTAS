@@ -131,11 +131,6 @@ export async function enviarChecklistMotoristaAction(
         : null;
     const nivelArla =
       nivelArlaRaw != null && nivelArlaRaw >= 0 && nivelArlaRaw <= 4 ? nivelArlaRaw : null;
-    const fotoComprovante = await validateImage(
-      fileFromForm(formData.get("foto_comprovante")),
-      "Foto do comprovante"
-    );
-
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
       throw new Error(
@@ -155,7 +150,7 @@ export async function enviarChecklistMotoristaAction(
     );
 
     validateAggregateFileSize(
-      [fotoKm, fotoComprovante, ...itensDraft.map((item) => item.foto)],
+      [fotoKm, ...itensDraft.map((item) => item.foto)],
       32 * 1024 * 1024,
       "Checklist"
     );
@@ -179,14 +174,6 @@ export async function enviarChecklistMotoristaAction(
     const fotoKmUrl = await uploadChecklistImage(fotoKm, { frotaId, sourceType: "hodometro" });
     uploadedPaths.push(fotoKmUrl);
     inspections.push({ source_type: "hodometro", storage_path: fotoKmUrl });
-
-    const fotoComprovanteUrl = fotoComprovante
-      ? await uploadChecklistImage(fotoComprovante, { frotaId, sourceType: "abastecimento" })
-      : null;
-    if (fotoComprovanteUrl) {
-      uploadedPaths.push(fotoComprovanteUrl);
-      inspections.push({ source_type: "abastecimento", storage_path: fotoComprovanteUrl });
-    }
 
     // Uploads de itens em paralelo — antes era sequencial (somava ~500ms por foto)
     const itensComUpload = await Promise.all(
@@ -240,7 +227,6 @@ export async function enviarChecklistMotoristaAction(
       litros_arla: litrosArla,
       nivel_combustivel: nivelCombustivel,
       nivel_arla: nivelArla,
-      foto_comprovante_abastecimento_url: fotoComprovanteUrl,
     });
 
     // A fila de inspeção alimenta a análise de IA. Falha aqui não bloqueia o motorista,
