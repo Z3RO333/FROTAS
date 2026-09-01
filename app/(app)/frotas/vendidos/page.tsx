@@ -6,7 +6,7 @@ import { PagePagination } from "@/components/ui/page-pagination";
 import { FrotasFilters } from "@/components/frotas/frotas-filters";
 import { FrotasTable } from "@/components/frotas/frotas-table";
 import { listFrotas } from "@/lib/repos/frotas";
-import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
+import { setoresDistintosCached, modelosDistintosCached } from "@/lib/repos/frotas-cache";
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { requireAdminUser } from "@/lib/rbac";
 import type { StatusFrota } from "@/lib/rules";
@@ -45,7 +45,7 @@ export default async function FrotasVendidasPage({
     frota: sp.frota,
     placa: sp.placa,
     modelo: sp.modelo,
-    localizacao: sp.localizacao,
+    setor: sp.setor,
     cd: sp.cd,
     status,
     condicao,
@@ -57,10 +57,10 @@ export default async function FrotasVendidasPage({
     pageSize: 50,
   };
 
-  const [{ rows, total }, modelos, localizacoes, cds] = await Promise.all([
+  const [{ rows, total }, modelos, setores, cds] = await Promise.all([
     listFrotas(filters),
     modelosDistintosCached(),
-    localizacoesDistintasCached(),
+    setoresDistintosCached(),
     listCDsDisponibilidade(),
   ]);
   const totalPages = Math.ceil(total / 50);
@@ -82,7 +82,7 @@ export default async function FrotasVendidasPage({
         </Button>
       </div>
 
-      <FrotasFilters modelos={modelos} localizacoes={localizacoes} cds={cds} basePath="/frotas/vendidos" />
+      <FrotasFilters modelos={modelos} setores={setores} cds={cds} basePath="/frotas/vendidos" />
       <FrotasTable rows={rows} />
 
       <PagePagination page={page} totalPages={totalPages} href={(value) => pageHref(sp, value)} />
