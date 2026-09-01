@@ -89,13 +89,34 @@ export async function createChecklistImageInspections(inputs: ChecklistImageInsp
   if (error) throw new Error(`createChecklistImageInspections: ${error.message}`);
 }
 
-export async function countChecklistImageInspectionsByStatus(): Promise<Record<ChecklistVisionStatus, number>> {
+export async function countChecklistImageInspectionsByStatus(
+  checklistIds?: number[]
+): Promise<Record<ChecklistVisionStatus, number>> {
   const base: Record<ChecklistVisionStatus, number> = {
     queued: 0,
     processing: 0,
     processed: 0,
     failed: 0,
   };
+
+  if (checklistIds?.length === 0) return base;
+
+  if (checklistIds) {
+    const chunkSize = 200;
+    for (let index = 0; index < checklistIds.length; index += chunkSize) {
+      const { data, error } = await supabaseManutencao
+        .from("checklist_image_inspections")
+        .select("status")
+        .in("checklist_id", checklistIds.slice(index, index + chunkSize));
+
+      if (error) {
+        console.warn("[vision] contagem filtrada indisponivel", error);
+        return base;
+      }
+      addInspectionStatusCounts(base, data ?? []);
+    }
+    return base;
+  }
 
   const { data, error } = await supabaseManutencao
     .from("checklist_image_inspections")
@@ -106,12 +127,18 @@ export async function countChecklistImageInspectionsByStatus(): Promise<Record<C
     return base;
   }
 
-  for (const row of data ?? []) {
-    const status = String(row.status ?? "") as ChecklistVisionStatus;
-    if (status in base) base[status] += 1;
-  }
-
+  addInspectionStatusCounts(base, data ?? []);
   return base;
+}
+
+function addInspectionStatusCounts(
+  counts: Record<ChecklistVisionStatus, number>,
+  rows: Array<{ status: string | null }>
+): void {
+  for (const row of rows) {
+    const status = String(row.status ?? "") as ChecklistVisionStatus;
+    if (status in counts) counts[status] += 1;
+  }
 }
 
 export async function listQueuedChecklistImageInspections(limit = 10): Promise<ChecklistImageInspection[]> {

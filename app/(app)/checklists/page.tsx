@@ -1,10 +1,12 @@
 import { Fragment } from "react";
-import { AlertTriangle, ClipboardCheck, Eye, Gauge, MapPin, ShieldCheck, Truck, UserRound } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Eye, Gauge, MapPin, Percent, ShieldCheck, Truck, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChecklistFilters } from "@/components/checklists/checklist-filters";
 import {
   checklistDashboardKpis,
+  checklistLocationKpis,
+  listChecklistIdsForFilters,
   listAdminChecklists,
   listOpenPendencias,
   periodoParaDatas,
@@ -38,15 +40,25 @@ export default async function ChecklistsAdminPage({
     localizacao: sp.localizacao?.trim() || undefined,
     setor: sp.setor?.trim() || undefined,
   };
-  const [kpis, checklists, pendencias, vision, setores] = await Promise.all([
-    checklistDashboardKpis(),
+  const temFiltro = Object.values(filtros).some(Boolean);
+  const temFiltroLocal = Boolean(filtros.localizacao || filtros.setor);
+  const visionPromise = temFiltro
+    ? listChecklistIdsForFilters(filtros).then((ids) => countChecklistImageInspectionsByStatus(ids))
+    : countChecklistImageInspectionsByStatus();
+  const [kpis, checklists, pendencias, vision, setores, localKpis] = await Promise.all([
+    checklistDashboardKpis(filtros),
     listAdminChecklists(100, filtros),
-    listOpenPendencias(5),
-    countChecklistImageInspectionsByStatus(),
+    listOpenPendencias(5, filtros),
+    visionPromise,
     setoresDistintos(),
+    temFiltroLocal ? checklistLocationKpis(filtros) : Promise.resolve(null),
   ]);
   const localizacoes: string[] = [...CDS_OPERACIONAIS];
   const checklistGroups = groupChecklistsByDate(checklists);
+  const periodoSelecionado = Boolean(filtros.dataInicio || filtros.dataFim);
+  const totalKpiTitle = periodoSelecionado && sp.periodo !== "hoje" ? "No período" : "Hoje";
+  const checklistLocalTitle = periodoSelecionado && sp.periodo !== "hoje" ? "Com checklist" : "Com checklist hoje";
+  const escopoLocal = [filtros.localizacao, filtros.setor].filter(Boolean).join(" · ");
 
   return (
     <div className="space-y-5">
@@ -57,12 +69,29 @@ export default async function ChecklistsAdminPage({
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi title="Hoje" value={kpis.total_hoje} icon={<ClipboardCheck className="h-4 w-4" />} />
+        <Kpi title={totalKpiTitle} value={kpis.total_hoje} icon={<ClipboardCheck className="h-4 w-4" />} />
         <Kpi title="Aprovados" value={kpis.aprovados_hoje} icon={<ShieldCheck className="h-4 w-4" />} />
         <Kpi title="Pendências" value={kpis.pendentes_hoje} icon={<AlertTriangle className="h-4 w-4" />} />
         <Kpi title="Críticas abertas" value={kpis.criticos_abertos} icon={<AlertTriangle className="h-4 w-4" />} />
         <Kpi title="Visão IA na fila" value={vision.queued + vision.processing} icon={<Eye className="h-4 w-4" />} />
       </div>
+
+      {localKpis ? (
+        <section className="space-y-2" aria-label={`Resumo de ${escopoLocal}`}>
+          <p className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500" title={escopoLocal}>
+            Resumo do local · {escopoLocal}
+          </p>
+          <div className="grid max-w-2xl grid-cols-3 gap-2 sm:gap-3">
+            <CompactKpi title="Total de frotas" value={formatNumber(localKpis.total_frotas)} icon={<Truck />} />
+            <CompactKpi
+              title={checklistLocalTitle}
+              value={formatNumber(localKpis.frotas_com_checklist)}
+              icon={<ClipboardCheck />}
+            />
+            <CompactKpi title="Percentual" value={`${localKpis.percentual_checklist}%`} icon={<Percent />} />
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <section className="overflow-hidden rounded-md border bg-white shadow-sm">
@@ -230,6 +259,20 @@ function Kpi({ title, value, icon }: { title: string; value: number; icon: React
       </CardHeader>
       <CardContent className="p-3 pt-1 sm:p-4 sm:pt-0">
         <div className="text-xl font-semibold tabular-nums sm:text-2xl">{formatNumber(value)}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CompactKpi({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
+  return (
+    <Card className="min-w-0 rounded-lg border-blue-100 bg-blue-50/40 shadow-sm">
+      <CardContent className="flex min-h-20 items-center justify-between gap-2 p-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium leading-4 text-muted-foreground sm:text-xs">{title}</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums text-slate-950 sm:text-xl">{value}</p>
+        </div>
+        <span className="shrink-0 text-blue-700 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>
       </CardContent>
     </Card>
   );

@@ -369,26 +369,31 @@ async function findVehicleIdsBySetor(setor: string): Promise<number[]> {
   return (data ?? []).map((row) => Number(row.id)).filter(Number.isFinite);
 }
 
+async function resolveVehicleIds(filters: ChecklistListFilters): Promise<number[] | null> {
+  let frotaIds: number[] | null = null;
+
+  if (filters.veiculo) {
+    frotaIds = await findVehicleIdsBySearch(filters.veiculo);
+  }
+  if (filters.localizacao) {
+    const porLocalizacao = new Set(await findVehicleIdsByLocalizacao(filters.localizacao));
+    frotaIds = frotaIds ? frotaIds.filter((id) => porLocalizacao.has(id)) : [...porLocalizacao];
+  }
+  if (filters.setor) {
+    const porSetor = new Set(await findVehicleIdsBySetor(filters.setor));
+    frotaIds = frotaIds ? frotaIds.filter((id) => porSetor.has(id)) : [...porSetor];
+  }
+
+  return frotaIds;
+}
+
 export async function listAdminChecklists(
   limit = 100,
   filters: ChecklistListFilters = {}
 ): Promise<ChecklistListRow[]> {
   return safeSupabase("listagem admin", async () => {
-    let frotaIds: number[] | null = null;
-    if (filters.veiculo) {
-      frotaIds = await findVehicleIdsBySearch(filters.veiculo);
-      if (frotaIds.length === 0) return [];
-    }
-    if (filters.localizacao) {
-      const porLocalizacao = new Set(await findVehicleIdsByLocalizacao(filters.localizacao));
-      frotaIds = frotaIds ? frotaIds.filter((id) => porLocalizacao.has(id)) : [...porLocalizacao];
-      if (frotaIds.length === 0) return [];
-    }
-    if (filters.setor) {
-      const porSetor = new Set(await findVehicleIdsBySetor(filters.setor));
-      frotaIds = frotaIds ? frotaIds.filter((id) => porSetor.has(id)) : [...porSetor];
-      if (frotaIds.length === 0) return [];
-    }
+    const frotaIds = await resolveVehicleIds(filters);
+    if (frotaIds?.length === 0) return [];
 
     let query = supabaseManutencao
       .from("checklists_frota")
@@ -439,14 +444,25 @@ export async function listChecklistItems(checklistId: number): Promise<Checklist
   }, []);
 }
 
-export async function listOpenPendencias(limit = 100): Promise<PendenciaRow[]> {
+export async function listOpenPendencias(
+  limit = 100,
+  filters: ChecklistListFilters = {}
+): Promise<PendenciaRow[]> {
   return safeSupabase("pendencias abertas", async () => {
-    const { data, error } = await supabaseManutencao
+    const frotaIds = await resolveVehicleIds(filters);
+    if (frotaIds?.length === 0) return [];
+
+    let query = supabaseManutencao
       .from("pendencias_frota")
       .select(COLS_PENDENCIA_LIST)
       .in("status", ["ABERTA", "EM_TRATATIVA"])
       .order("criado_em", { ascending: false })
       .limit(limit);
+    if (frotaIds) query = query.in("frota_id", frotaIds);
+    if (filters.dataInicio) query = query.gte("criado_em", dateRange(filters.dataInicio).start);
+    if (filters.dataFim) query = query.lt("criado_em", dateRange(filters.dataFim).end);
+
+    const { data, error } = await query;
 
     if (error) throw error;
     const pendencias = (data ?? []) as PendenciaDbRow[];
@@ -519,32 +535,56 @@ async function fetchChecklistsByIds(ids: number[]): Promise<Map<number, Checklis
   );
 }
 
-export async function checklistDashboardKpis(): Promise<{
+export async function checklistDashboardKpis(filters: ChecklistListFilters = {}): Promise<{
   total_hoje: number;
   aprovados_hoje: number;
   pendentes_hoje: number;
   criticos_abertos: number;
 }> {
   return safeSupabase("kpis", async () => {
-    const { start, end } = todayRange();
+    const frotaIds = await resolveVehicleIds(filters);
+    if (frotaIds?.length === 0) {
+      return { total_hoje: 0, aprovados_hoje: 0, pendentes_hoje: 0, criticos_abertos: 0 };
+    }
+
+    const defaultRange = !filters.dataInicio && !filters.dataFim ? todayRange() : null;
+    const start = filters.dataInicio ? dateRange(filters.dataInicio).start : defaultRange?.start;
+    const end = filters.dataFim ? dateRange(filters.dataFim).end : defaultRange?.end;
     // 3 queries de COUNT em paralelo — só conta no banco, não transfere rows
+    let totalQuery = supabaseManutencao
+      .from("checklists_frota")
+      .select("id", { count: "exact", head: true });
+    let aprovadosQuery = supabaseManutencao
+      .from("checklists_frota")
+      .select("id", { count: "exact", head: true })
+      .eq("status_geral", "APROVADO");
+    let pendenciasQuery = supabaseManutencao
+      .from("pendencias_frota")
+      .select("id", { count: "exact", head: true })
+      .eq("gravidade", "CRITICA")
+      .in("status", ["ABERTA", "EM_TRATATIVA"]);
+
+    if (start) {
+      totalQuery = totalQuery.gte("data_checklist", start);
+      aprovadosQuery = aprovadosQuery.gte("data_checklist", start);
+      if (filters.dataInicio) pendenciasQuery = pendenciasQuery.gte("criado_em", start);
+    }
+    if (end) {
+      totalQuery = totalQuery.lt("data_checklist", end);
+      aprovadosQuery = aprovadosQuery.lt("data_checklist", end);
+      if (filters.dataFim) pendenciasQuery = pendenciasQuery.lt("criado_em", end);
+    }
+
+    if (frotaIds) {
+      totalQuery = totalQuery.in("frota_id", frotaIds);
+      aprovadosQuery = aprovadosQuery.in("frota_id", frotaIds);
+      pendenciasQuery = pendenciasQuery.in("frota_id", frotaIds);
+    }
+
     const [totalRes, aprovadosRes, pendencias] = await Promise.all([
-      supabaseManutencao
-        .from("checklists_frota")
-        .select("id", { count: "exact", head: true })
-        .gte("data_checklist", start)
-        .lt("data_checklist", end),
-      supabaseManutencao
-        .from("checklists_frota")
-        .select("id", { count: "exact", head: true })
-        .eq("status_geral", "APROVADO")
-        .gte("data_checklist", start)
-        .lt("data_checklist", end),
-      supabaseManutencao
-        .from("pendencias_frota")
-        .select("id", { count: "exact", head: true })
-        .eq("gravidade", "CRITICA")
-        .in("status", ["ABERTA", "EM_TRATATIVA"]),
+      totalQuery,
+      aprovadosQuery,
+      pendenciasQuery,
     ]);
 
     if (totalRes.error) throw totalRes.error;
@@ -565,6 +605,95 @@ export async function checklistDashboardKpis(): Promise<{
     pendentes_hoje: 0,
     criticos_abertos: 0,
   });
+}
+
+export type ChecklistLocationKpis = {
+  total_frotas: number;
+  frotas_com_checklist: number;
+  percentual_checklist: number;
+};
+
+export async function checklistLocationKpis(
+  filters: Pick<ChecklistListFilters, "dataInicio" | "dataFim" | "localizacao" | "setor">
+): Promise<ChecklistLocationKpis> {
+  const fallback = { total_frotas: 0, frotas_com_checklist: 0, percentual_checklist: 0 };
+
+  return safeSupabase("kpis do local", async () => {
+    let veiculosQuery = supabaseManutencao
+      .from("veiculos")
+      .select("id")
+      .eq("ativo", true)
+      .eq("vendido", false);
+    if (filters.localizacao) veiculosQuery = veiculosQuery.eq("local", filters.localizacao);
+    if (filters.setor) veiculosQuery = veiculosQuery.eq("setor", filters.setor);
+
+    const { data: veiculosData, error: veiculosError } = await veiculosQuery;
+    if (veiculosError) throw veiculosError;
+
+    const frotaIds = (veiculosData ?? []).map((row) => Number(row.id)).filter(Number.isFinite);
+    if (frotaIds.length === 0) return fallback;
+
+    const defaultRange = !filters.dataInicio && !filters.dataFim ? todayRange() : null;
+    const start = filters.dataInicio ? dateRange(filters.dataInicio).start : defaultRange?.start;
+    const end = filters.dataFim ? dateRange(filters.dataFim).end : defaultRange?.end;
+    const checklistsData: Array<{ frota_id: number }> = [];
+    const pageSize = 1000;
+
+    for (let from = 0; ; from += pageSize) {
+      let checklistsQuery = supabaseManutencao
+        .from("checklists_frota")
+        .select("id,frota_id")
+        .in("frota_id", frotaIds)
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (start) checklistsQuery = checklistsQuery.gte("data_checklist", start);
+      if (end) checklistsQuery = checklistsQuery.lt("data_checklist", end);
+
+      const { data, error } = await checklistsQuery;
+      if (error) throw error;
+      const page = (data ?? []) as Array<{ frota_id: number }>;
+      checklistsData.push(...page);
+      if (page.length < pageSize) break;
+    }
+
+    const frotasComChecklist = new Set(
+      checklistsData.map((row) => Number(row.frota_id)).filter(Number.isFinite)
+    ).size;
+
+    return {
+      total_frotas: frotaIds.length,
+      frotas_com_checklist: frotasComChecklist,
+      percentual_checklist: Math.round((frotasComChecklist / frotaIds.length) * 100),
+    };
+  }, fallback);
+}
+
+export async function listChecklistIdsForFilters(filters: ChecklistListFilters): Promise<number[]> {
+  return safeSupabase("ids de checklists filtrados", async () => {
+    const frotaIds = await resolveVehicleIds(filters);
+    if (frotaIds?.length === 0) return [];
+
+    const ids: number[] = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      let query = supabaseManutencao
+        .from("checklists_frota")
+        .select("id")
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
+      if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
+      if (frotaIds) query = query.in("frota_id", frotaIds);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      const page = data ?? [];
+      ids.push(...page.map((row) => Number(row.id)).filter(Number.isFinite));
+      if (page.length < pageSize) break;
+    }
+
+    return ids;
+  }, []);
 }
 
 export async function listPortariaForDate(dateStr?: string): Promise<PortariaRow[]> {
