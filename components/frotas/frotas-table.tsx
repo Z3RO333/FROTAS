@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin, Save } from "lucide-react";
+import { CalendarClock, Edit, Eye, FileText, Gauge, History, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,8 +25,6 @@ import { BemolTruck } from "@/components/frotas/bemol-truck";
 import { MissingInfoBadge } from "@/components/frotas/missing-info-badge";
 import { EnviarManutencaoDialog } from "@/components/frotas/manutencao/enviar-manutencao-dialog";
 import { RetornarOperacaoDialog } from "@/components/frotas/manutencao/retornar-operacao-dialog";
-import { CDS_OPERACIONAIS } from "@/lib/cds";
-import { normalizeCdNome } from "@/lib/cd-utils";
 import type { Frota } from "@/lib/repos/frotas";
 import { calcularIdade } from "@/lib/rules";
 import {
@@ -70,19 +68,7 @@ function EmptyValue() {
   return <span className="text-muted-foreground">&mdash;</span>;
 }
 
-type UpdateLocalizacaoAction = (formData: FormData) => void | Promise<void>;
-
-function localizacaoOptions(): string[] {
-  return [...CDS_OPERACIONAIS];
-}
-
-export function FrotasTable({
-  rows,
-  updateLocalizacaoAction,
-}: {
-  rows: Frota[];
-  updateLocalizacaoAction?: UpdateLocalizacaoAction;
-}) {
+export function FrotasTable({ rows }: { rows: Frota[] }) {
   const [selected, setSelected] = useState<Frota | null>(null);
   const [tab, setTab] = useState<Tab>("Resumo");
 
@@ -131,7 +117,6 @@ export function FrotasTable({
               <FrotaRow
                 key={f.id}
                 frota={f}
-                updateLocalizacaoAction={updateLocalizacaoAction}
                 onOpen={() => openDrawer(f)}
               />
             ))}
@@ -144,7 +129,6 @@ export function FrotasTable({
           <FrotaDrawer
             frota={selected}
             tab={tab}
-            updateLocalizacaoAction={updateLocalizacaoAction}
             onTabChange={setTab}
           />
         ) : null}
@@ -155,11 +139,9 @@ export function FrotasTable({
 
 function FrotaRow({
   frota,
-  updateLocalizacaoAction,
   onOpen,
 }: {
   frota: Frota;
-  updateLocalizacaoAction?: UpdateLocalizacaoAction;
   onOpen: () => void;
 }) {
   const status = statusOperacional(frota);
@@ -181,13 +163,9 @@ function FrotaRow({
       </TableCell>
       <TableCell>{frota.placa ?? <EmptyValue />}</TableCell>
       <TableCell className="max-w-[220px] truncate">{frota.modelo ?? <EmptyValue />}</TableCell>
-      <TableCell className="min-w-[240px]" onClick={(event) => event.stopPropagation()}>
+      <TableCell className="min-w-[180px]">
         <div className="space-y-1">
-          {updateLocalizacaoAction ? (
-            <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} compact />
-          ) : (
-            <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
-          )}
+          <span className="block max-w-[220px] truncate">{frota.localizacao ?? <EmptyValue />}</span>
           <span className="block max-w-[220px] truncate text-xs text-muted-foreground">
             {frota.setor ?? "Sem setor"}
           </span>
@@ -293,62 +271,13 @@ function MobileFrotaCard({ frota, onOpen }: { frota: Frota; onOpen: () => void }
   );
 }
 
-function LocalizacaoSelectForm({
-  frota,
-  action,
-  compact = false,
-}: {
-  frota: Frota;
-  action: UpdateLocalizacaoAction;
-  compact?: boolean;
-}) {
-  const options = localizacaoOptions();
-  const normalizado = normalizeCdNome(frota.localizacao);
-
-  return (
-    <form
-      key={`${frota.id}-${normalizado}`}
-      action={action}
-      className={compact ? "flex min-w-[220px] items-center gap-1" : "flex flex-col gap-2 sm:flex-row"}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <input type="hidden" name="id" value={frota.id} />
-      <select
-        name="localizacao"
-        defaultValue={normalizado === "Sem CD" ? "" : normalizado}
-        aria-label="CD ou localização da frota"
-        className={
-          compact
-            ? "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs"
-            : "h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-        }
-      >
-        <option value="">Sem CD</option>
-        {options
-          .filter((local) => local !== "Sem CD")
-          .map((local) => (
-            <option key={local} value={local}>
-              {local}
-            </option>
-          ))}
-      </select>
-      <Button type="submit" variant="outline" size={compact ? "sm" : "default"} className="shrink-0">
-        <Save className="h-4 w-4" aria-hidden="true" />
-        {!compact ? "Salvar" : null}
-      </Button>
-    </form>
-  );
-}
-
 function FrotaDrawer({
   frota,
   tab,
-  updateLocalizacaoAction,
   onTabChange,
 }: {
   frota: Frota;
   tab: Tab;
-  updateLocalizacaoAction?: UpdateLocalizacaoAction;
   onTabChange: (tab: Tab) => void;
 }) {
   const status = statusOperacional(frota);
@@ -404,9 +333,7 @@ function FrotaDrawer({
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        {tab === "Resumo" ? (
-          <ResumoTab frota={frota} updateLocalizacaoAction={updateLocalizacaoAction} />
-        ) : null}
+        {tab === "Resumo" ? <ResumoTab frota={frota} /> : null}
         {tab === "Cadastro" ? <CadastroTab frota={frota} /> : null}
         {tab === "KM" ? <KmTab frota={frota} /> : null}
         {tab === "Histórico" ? <HistoricoTab frota={frota} /> : null}
@@ -445,25 +372,11 @@ function FrotaDrawer({
   );
 }
 
-function ResumoTab({
-  frota,
-  updateLocalizacaoAction,
-}: {
-  frota: Frota;
-  updateLocalizacaoAction?: UpdateLocalizacaoAction;
-}) {
+function ResumoTab({ frota }: { frota: Frota }) {
   const motivos = motivosAtencao(frota);
 
   return (
     <div className="space-y-5">
-      {updateLocalizacaoAction ? (
-        <div className="rounded-md border bg-slate-50 p-3">
-          <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-            Trocar CD / localização
-          </div>
-          <LocalizacaoSelectForm frota={frota} action={updateLocalizacaoAction} />
-        </div>
-      ) : null}
       <InfoGrid>
         <Field label="Localização" value={frota.localizacao} />
         <Field label="Setor" value={frota.setor} />

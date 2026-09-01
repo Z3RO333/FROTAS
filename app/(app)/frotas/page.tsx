@@ -13,7 +13,7 @@ import { localizacoesDistintasCached, modelosDistintosCached } from "@/lib/repos
 import { listCDsDisponibilidade } from "@/lib/repos/disponibilidade";
 import { requireAdminUser } from "@/lib/rbac";
 import type { StatusFrota } from "@/lib/rules";
-import { atualizarLocalizacaoFrotaAction, enviarRelatorioGeralAction } from "./_actions";
+import { enviarRelatorioGeralAction } from "./_actions";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +132,7 @@ export default async function FrotasPage({
           />
         </MetricGrid>
       )}
-      <FrotasTable rows={rows} updateLocalizacaoAction={atualizarLocalizacaoFrotaAction} />
+      <FrotasTable rows={rows} />
       <PagePagination page={page} totalPages={totalPages} href={(value) => pageHref(sp, value)} />
     </div>
   );
