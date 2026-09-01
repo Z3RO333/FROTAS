@@ -68,8 +68,8 @@ const STATUS_GERAL_CLASS: Record<string, string> = {
 const STATUS_GERAL_LABEL: Record<string, string> = {
   APROVADO: "Aprovado",
   COM_OBSERVACAO: "Com observação",
-  NAO_APTO: "Com inconformidade",
-  CRITICO: "Inconformidade crítica",
+  NAO_APTO: "Com não conformidade",
+  CRITICO: "Não conformidade crítica",
 };
 
 function FotoPreview({ url, label }: { url: string | null; label: string }) {
@@ -181,7 +181,7 @@ export function VeiculoSheet({
               {itensObrigatoriosInconformes.length > 0 && (
                 <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                   <XCircle className="h-3 w-3" />
-                  {itensObrigatoriosInconformes.length} obrigatório(s) inconforme(s) — requer atenção
+                  {itensObrigatoriosInconformes.length} obrigatório(s) não conforme(s) — requer atenção
                 </span>
               )}
               {itensNaoObrigatoriosInconformes.length > 0 && itensObrigatoriosInconformes.length === 0 && (
@@ -223,11 +223,11 @@ export function VeiculoSheet({
               </div>
             )}
 
-            {/* Itens obrigatórios inconforme (impedem liberação) */}
+            {/* Itens obrigatórios não conforme (impedem liberação) */}
             {itensObrigatoriosInconformes.length > 0 && (
               <div className="space-y-2">
                 <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                  <XCircle className="h-3 w-3" /> Itens obrigatórios inconforme ({itensObrigatoriosInconformes.length})
+                  <XCircle className="h-3 w-3" /> Itens obrigatórios não conforme ({itensObrigatoriosInconformes.length})
                 </p>
                 {itensObrigatoriosInconformes.map((item) => {
                   const fotoItem = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
@@ -370,10 +370,10 @@ export function VeiculoSheet({
                 </form>
               )}
 
-              {/* Liberação forçada — quando itens obrigatórios estão inconforme */}
+              {/* Liberação forçada — quando itens obrigatórios estão não conforme */}
               {canLiberarForcado && !showCorrecaoForm && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                  <p className="font-semibold">Veículo bloqueado por itens obrigatórios inconforme.</p>
+                  <p className="font-semibold">Veículo bloqueado por itens obrigatórios não conforme.</p>
                   <p className="mt-0.5">Para liberar mesmo assim, registre uma justificativa.</p>
                 </div>
               )}

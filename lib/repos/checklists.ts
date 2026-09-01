@@ -1074,7 +1074,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   };
 }
 
-// O checklist nunca tira a frota de operação. Item inconforme — crítico ou não —
+// O checklist nunca tira a frota de operação. Item não conforme — crítico ou não —
 // deixa a frota em PENDENTE_ANALISE: ela segue disponível/aguardando saída, mas
 // carrega a marca de que tem algo a analisar. BLOQUEADA_CHECKLIST ficou reservado
 // pra bloqueio deliberado, não pra consequência automática de um checklist.

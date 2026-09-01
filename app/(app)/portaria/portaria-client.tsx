@@ -289,7 +289,7 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
                       )}
                     >
                       <AlertTriangle className="mr-1 h-3 w-3" />
-                      {row.status_geral === "CRITICO" ? "Inconformidade crítica" : "Item inconforme"}
+                      {row.status_geral === "CRITICO" ? "Não conformidade crítica" : "Item não conforme"}
                     </Badge>
                   )}
                 </div>

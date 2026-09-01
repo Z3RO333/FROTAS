@@ -176,7 +176,7 @@ export function ChecklistsListClient({ rows, frotaId }: Props) {
               {itensProblema.length > 0 && (
                 <div className="space-y-2">
                   <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                    <AlertTriangle className="h-3 w-3" /> Itens inconforme ({itensProblema.length})
+                    <AlertTriangle className="h-3 w-3" /> Itens não conforme ({itensProblema.length})
                   </p>
                   {itensProblema.map((item) => {
                     const foto = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
