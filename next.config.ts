@@ -23,6 +23,10 @@ const config: NextConfig = {
   // Reduz fingerprinting da tecnologia usada pelo servidor.
   poweredByHeader: false,
   experimental: {
+    // Com proxy.ts no projeto, o Next bufferiza o corpo antes da Server Action e
+    // corta em 10MB por padrão — o checklist do motorista chegava truncado e
+    // estourava "Unexpected end of form". Mantido igual ao bodySizeLimit abaixo.
+    proxyClientMaxBodySize: "45mb",
     serverActions: {
       // Defesa global; cada fluxo ainda aplica um limite agregado mais baixo.
       // Uploads maiores devem usar URL assinada e processamento assíncrono.
