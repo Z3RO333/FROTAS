@@ -127,7 +127,7 @@ export async function solicitarCorrecaoAction(formData: FormData) {
     if (!row || !row.motorista_id) {
       redirect(`/portaria?erro=${encodeURIComponent("Frota não encontrada.")}`);
     }
-    if (!["BLOQUEADA_CHECKLIST", "CHECKLIST_REALIZADO"].includes(row.status_portaria)) {
+    if (NAO_LIBERA_SAIDA.includes(row.status_portaria)) {
       redirect(`/portaria?erro=${encodeURIComponent("O checklist não está em um estado que permita solicitar correção.")}`);
     }
 

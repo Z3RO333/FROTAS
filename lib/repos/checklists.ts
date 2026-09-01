@@ -755,19 +755,11 @@ function statusPortariaFromRow(row: Omit<PortariaRow, "status_portaria">): Statu
 
   if (!row.checklist_id) return "PENDENTE_CHECKLIST";
 
-  // Regra de liberação: bloqueia apenas quando há itens OBRIGATÓRIOS inconforme.
-  // status_geral = "NAO_APTO" → item obrigatório inconforme
-  // status_geral = "CRITICO" → item obrigatório crítico inconforme
-  // status_geral = "COM_OBSERVACAO" → apenas itens não-obrigatórios inconforme → LIBERA
-  // status_geral = "APROVADO" → tudo ok → LIBERA
-  if (row.status_geral === "NAO_APTO" || row.status_geral === "CRITICO") {
-    return "BLOQUEADA_CHECKLIST";
-  }
-
-  // APROVADO ou COM_OBSERVACAO (não-obrigatórios) → liberado pela portaria
-  if (row.status_geral === "APROVADO" || row.status_geral === "COM_OBSERVACAO") {
-    return "LIBERADA_SAIDA";
-  }
+  // O checklist não bloqueia a saída — nem NAO_APTO, nem CRITICO. Quem decide é a
+  // portaria, olhando o detalhe. Todo veículo com checklist do dia fica aguardando
+  // liberação; a inconformidade vira sinalização (status_geral), não trava.
+  // Bloqueio real só vem de manutenção ou de movimentação já registrada (acima).
+  if (row.status_geral) return "LIBERADA_SAIDA";
 
   return "CHECKLIST_REALIZADO";
 }
@@ -856,7 +848,10 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   };
 
   const statusOperacional = resolveStatusOperacional(input.status_geral);
-  const statusFrota = input.status_geral === "CRITICO" ? "critico" : null;
+  // "critico" derruba a frota pra indisponível em toda a plataforma (frota-derived,
+  // disponibilidade). Como o checklist não bloqueia mais, marca "atencao": aparece
+  // sinalizada na condição da frota sem sair da operação.
+  const statusFrota = input.status_geral === "CRITICO" ? "atencao" : null;
 
   const { data: rpcResult, error: rpcError } = await supabaseManutencao.rpc(
     "criar_checklist_atomico_v2",
@@ -950,11 +945,14 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
   };
 }
 
+// O checklist nunca tira a frota de operação. Item inconforme — crítico ou não —
+// deixa a frota em PENDENTE_ANALISE: ela segue disponível/aguardando saída, mas
+// carrega a marca de que tem algo a analisar. BLOQUEADA_CHECKLIST ficou reservado
+// pra bloqueio deliberado, não pra consequência automática de um checklist.
 function resolveStatusOperacional(status: ChecklistStatusGeral): string {
   switch (status) {
     case "CRITICO":
     case "NAO_APTO":
-      return "BLOQUEADA_CHECKLIST";
     case "COM_OBSERVACAO":
       return "PENDENTE_ANALISE";
     case "APROVADO":

@@ -56,11 +56,20 @@ type Props = {
   canApproveExit: boolean;
 };
 
+// Nenhum destes bloqueia a saída — são leitura do estado do veículo. Por isso
+// NAO_APTO fica em âmbar (atenção) e só o crítico usa vermelho.
 const STATUS_GERAL_CLASS: Record<string, string> = {
   APROVADO: "border-emerald-200 bg-emerald-50 text-emerald-800",
   COM_OBSERVACAO: "border-amber-200 bg-amber-50 text-amber-800",
-  NAO_APTO: "border-red-200 bg-red-50 text-red-800",
+  NAO_APTO: "border-amber-300 bg-amber-50 text-amber-900",
   CRITICO: "border-red-300 bg-red-100 text-red-900",
+};
+
+const STATUS_GERAL_LABEL: Record<string, string> = {
+  APROVADO: "Aprovado",
+  COM_OBSERVACAO: "Com observação",
+  NAO_APTO: "Com inconformidade",
+  CRITICO: "Inconformidade crítica",
 };
 
 function FotoPreview({ url, label }: { url: string | null; label: string }) {
@@ -125,7 +134,9 @@ export function VeiculoSheet({
   const NAO_LIBERA: StatusPortaria[] = ["BLOQUEADA_MANUTENCAO", "SAIDA_REGISTRADA", "ENTRADA_REGISTRADA"];
   const canLiberar = statusPortaria != null && !NAO_LIBERA.includes(statusPortaria);
   const canBloquear = canLiberar;
-  const canCorrecao = statusPortaria === "BLOQUEADA_CHECKLIST" || statusPortaria === "CHECKLIST_REALIZADO";
+  // Correção acompanha a liberação: como o checklist não bloqueia mais, a portaria
+  // pode pedir correção de qualquer frota que ainda poderia sair.
+  const canCorrecao = canLiberar;
   // Liberação forçada: mantida só como caminho legado — sem sentido agora que o checklist não bloqueia mais.
   const canLiberarForcado = canApproveExit && statusPortaria === "BLOQUEADA_CHECKLIST" && !canLiberar;
 
@@ -165,7 +176,7 @@ export function VeiculoSheet({
             {/* Status geral + alertas */}
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={cn("text-sm", STATUS_GERAL_CLASS[detalhe.status_geral ?? ""] ?? "")}>
-                {detalhe.status_geral ?? "—"}
+                {STATUS_GERAL_LABEL[detalhe.status_geral ?? ""] ?? detalhe.status_geral ?? "—"}
               </Badge>
               {itensObrigatoriosInconformes.length > 0 && (
                 <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">

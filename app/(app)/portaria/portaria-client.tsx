@@ -37,11 +37,7 @@ const STATUS_LABELS: Record<StatusPortaria, string> = {
   ENTRADA_REGISTRADA: "Entrada registrada",
 };
 
-type FiltroStatus = StatusPortaria | "TODAS" | "COM_CHECKLIST" | "BLOQUEADAS";
-
-function isBloqueada(status: StatusPortaria): boolean {
-  return status === "BLOQUEADA_CHECKLIST" || status === "BLOQUEADA_MANUTENCAO";
-}
+type FiltroStatus = StatusPortaria | "TODAS" | "COM_CHECKLIST";
 
 const FILTER_TABS: {
   label: string;
@@ -52,7 +48,6 @@ const FILTER_TABS: {
   { label: "Todas", value: "TODAS", icon: Layers },
   { label: "Aguardando", value: "LIBERADA_SAIDA", icon: LogOut, severity: "OK" },
   { label: "Pendentes", value: "PENDENTE_CHECKLIST", icon: Clock, severity: "ATENCAO" },
-  { label: "Bloqueadas", value: "BLOQUEADAS", icon: AlertTriangle, severity: "CRITICO" },
   { label: "Saídas", value: "SAIDA_REGISTRADA", icon: LogIn, severity: "INFO" },
 ];
 
@@ -70,8 +65,6 @@ function parseInitialStatus(value: string | null | undefined): FiltroStatus {
     "PENDENTE_CHECKLIST",
     "CHECKLIST_REALIZADO",
     "LIBERADA_SAIDA",
-    "BLOQUEADAS",
-    "BLOQUEADA_CHECKLIST",
     "BLOQUEADA_MANUTENCAO",
     "SAIDA_REGISTRADA",
     "ENTRADA_REGISTRADA",
@@ -123,11 +116,9 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
     if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
     if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
     if (filtroStatus === "COM_CHECKLIST" && !r.checklist_id) return false;
-    if (filtroStatus === "BLOQUEADAS" && !isBloqueada(r.status_portaria)) return false;
     if (
       filtroStatus !== "TODAS" &&
       filtroStatus !== "COM_CHECKLIST" &&
-      filtroStatus !== "BLOQUEADAS" &&
       r.status_portaria !== filtroStatus
     )
       return false;
@@ -237,9 +228,7 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
             const count =
               tab.value === "TODAS"
                 ? rowsFiltradas.length
-                : tab.value === "BLOQUEADAS"
-                  ? rowsFiltradas.filter((r) => isBloqueada(r.status_portaria)).length
-                  : rowsFiltradas.filter((r) => r.status_portaria === tab.value).length;
+                : rowsFiltradas.filter((r) => r.status_portaria === tab.value).length;
             return (
               <FilterChip
                 key={tab.value}
@@ -288,6 +277,21 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
                   <Badge variant="outline" className={cn("text-xs", STATUS_CLASS[row.status_portaria])}>
                     {STATUS_LABELS[row.status_portaria]}
                   </Badge>
+                  {/* A inconformidade não impede a saída — acompanha o status só como aviso. */}
+                  {(row.status_geral === "NAO_APTO" || row.status_geral === "CRITICO") && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs",
+                        row.status_geral === "CRITICO"
+                          ? "border-red-300 bg-red-50 text-red-800"
+                          : "border-amber-300 bg-amber-50 text-amber-900"
+                      )}
+                    >
+                      <AlertTriangle className="mr-1 h-3 w-3" />
+                      {row.status_geral === "CRITICO" ? "Inconformidade crítica" : "Item inconforme"}
+                    </Badge>
+                  )}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                   {row.motorista_nome && <span>{row.motorista_nome}</span>}
