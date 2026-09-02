@@ -57,6 +57,28 @@ export async function sendOperationalScheduleReports({
       getPendenciasCriadasNoDiaPorFrota(calendarDate, setores),
       getObservacoesCriadasNoDiaPorFrota(calendarDate, setores),
     ]);
+
+    // Setor configurado que não casa com nenhuma frota gera um relatório todo
+    // zerado e indistinguível de um dia sem checklist — foi exatamente o que
+    // aconteceu quando os setores da agenda ficaram órfãos após a revisão do
+    // cadastro. Falhar aqui deixa o erro de configuração visível.
+    const frotasNoEscopo = frotasChecklist.fizeram.length + frotasChecklist.naoFizeram.length;
+    if (audience.setores !== null && frotasNoEscopo === 0) {
+      results.push({
+        setores: audience.setores,
+        destinatarios: audience.destinatarios,
+        totalChecklists: 0,
+        totalApontamentos: 0,
+        frotasFizeram: 0,
+        frotasNaoFizeram: 0,
+        enviado: false,
+        erro:
+          `Setor(es) ${audience.setores.join(", ")} não correspondem a nenhuma frota ativa. ` +
+          "Revise os setores da agenda em /administracao/emails.",
+      });
+      continue;
+    }
+
     const totalApontamentos =
       pendenciasPorFrota.reduce((sum, grupo) => sum + grupo.itens.length, 0) +
       observacoesPorFrota.reduce((sum, grupo) => sum + grupo.observacoes.length, 0);
