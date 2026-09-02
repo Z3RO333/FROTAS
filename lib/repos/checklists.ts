@@ -178,6 +178,7 @@ export type CreateChecklistInput = {
   status_geral: ChecklistStatusGeral;
   observacao_original?: string | null;
   observacao_corrigida_ia?: string | null;
+  justificativa_km?: string | null;
   itens: ChecklistItemInput[];
   tipo_combustivel?: string | null;
   litros_combustivel?: number | null;
@@ -971,6 +972,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     diferenca_km: kmAnterior != null ? input.km_informado - kmAnterior : null,
     origem: kmOrigem,
     foto_km_url: input.foto_km_url ?? null,
+    justificativa_km: input.justificativa_km ?? null,
     validado: kmAutoValidado,
     validado_por: null,
     validado_em: kmAutoValidado ? new Date().toISOString() : null,

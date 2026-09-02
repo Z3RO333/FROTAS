@@ -133,6 +133,13 @@ export async function enviarChecklistMotoristaAction(
       nivelArlaRaw != null && nivelArlaRaw >= 0 && nivelArlaRaw <= 4 ? nivelArlaRaw : null;
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
+      if (kmValidation.reason === "SALTO_IMPOSSIVEL") {
+        throw new Error(
+          `KM informado (${kmInformado.toLocaleString("pt-BR")}) é impossível: são ` +
+            `${kmValidation.diff?.toLocaleString("pt-BR")} km a mais que o último registrado ` +
+            `(${frota.km_atual?.toLocaleString("pt-BR")}). Confira os dígitos no painel e corrija o número.`
+        );
+      }
       throw new Error(
         kmValidation.reason === "MENOR_QUE_ULTIMO"
           ? "O KM informado é menor que o último registrado. Informe uma justificativa."
@@ -221,6 +228,9 @@ export async function enviarChecklistMotoristaAction(
       status_geral: statusGeral,
       observacao_original: observacaoOriginal,
       observacao_corrigida_ia: observacaoCorrigida,
+      // Até aqui a justificativa era descartada, então não havia rastro do que
+      // autorizou uma divergência de KM. Vai para o histórico de KM.
+      justificativa_km: justificativaKm,
       itens,
       tipo_combustivel: tipoCombustivel,
       litros_combustivel: litrosCombustivel,

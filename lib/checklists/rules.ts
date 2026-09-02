@@ -14,11 +14,24 @@ export type ChecklistItemInput = {
 
 export type KmValidation = {
   ok: boolean;
-  reason?: "MENOR_QUE_ULTIMO" | "VARIACAO_INCOMUM";
+  reason?: "MENOR_QUE_ULTIMO" | "VARIACAO_INCOMUM" | "SALTO_IMPOSSIVEL";
   diff: number | null;
 };
 
 export const KM_VARIACAO_INCOMUM = 1500;
+
+/**
+ * Teto absoluto de variação por turno. Diferente de KM_VARIACAO_INCOMUM, este
+ * limite NÃO é liberado por justificativa: acima dele o número é erro de
+ * digitação, não uma viagem longa.
+ *
+ * Sem esse teto, a justificativa em texto livre era um cheque em branco. Foi
+ * assim que o checklist 584 (frota 112) gravou 233.363.362 km — o campo vinha
+ * pré-preenchido com a leitura da IA (233363), o motorista digitou por cima e
+ * os dígitos concatenaram. O valor sobrescreveu o km_atual da frota e passou a
+ * invalidar toda leitura futura do hodômetro dela.
+ */
+export const KM_SALTO_IMPOSSIVEL = 20_000;
 
 export function validateKm(
   kmInformado: number,
@@ -28,6 +41,9 @@ export function validateKm(
   if (ultimoKm == null) return { ok: true, diff: null };
 
   const diff = kmInformado - ultimoKm;
+  if (diff > KM_SALTO_IMPOSSIVEL) {
+    return { ok: false, reason: "SALTO_IMPOSSIVEL", diff };
+  }
   if (diff < 0 && !justificativa?.trim()) {
     return { ok: false, reason: "MENOR_QUE_ULTIMO", diff };
   }

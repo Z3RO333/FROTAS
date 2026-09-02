@@ -9,7 +9,7 @@ import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
 import { filtrarFrotasPorNumeroEPlaca } from "@/lib/checklists/frota-filter";
-import { KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
+import { KM_SALTO_IMPOSSIVEL, KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import type { Frota } from "@/lib/repos/frotas";
 import { formatNumber } from "@/lib/utils";
@@ -276,6 +276,17 @@ export function DriverChecklistForm({
         );
         return;
       }
+    }
+    // Acima do teto absoluto não há justificativa possível: é digitação errada
+    // (dígito colado no valor pré-preenchido, décimos tratados como inteiros).
+    // Bloquear aqui evita perder o upload das fotos na recusa do servidor.
+    if (selected?.km_atual != null && km - selected.km_atual > KM_SALTO_IMPOSSIVEL) {
+      e.preventDefault();
+      setStepErro(
+        `KM informado (${formatNumber(km)}) é impossível: ${formatNumber(km - selected.km_atual)} km ` +
+          `a mais que o último registrado (${formatNumber(selected.km_atual)}). Confira os dígitos no painel.`
+      );
+      return;
     }
     // Salto grande demais (ex: digitou o hodômetro com décimos como se fossem inteiros,
     // "110856.7" virando "1108567") também exige justificativa — evita corromper o KM da frota.
@@ -784,6 +795,10 @@ export function DriverChecklistForm({
                 
                 value={kmValue}
                 onChange={(e) => setKmValue(e.target.value)}
+                // O campo chega pré-preenchido com a leitura da IA. Sem seleção
+                // no foco, digitar acrescenta dígitos ao valor existente em vez
+                // de trocá-lo — foi assim que 233363 virou 233363362.
+                onFocus={(e) => e.currentTarget.select()}
               />
               <p className="text-xs text-muted-foreground">
                 Último KM registrado: {formatNumber(selected?.km_atual)}
