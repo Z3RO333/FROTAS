@@ -4,7 +4,7 @@ import { type ChangeEvent, useActionState, useCallback, useEffect, useMemo, useR
 import { cn } from "@/lib/utils";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Camera, CheckCircle2, ChevronRight, Info, Loader2, Search, Send, XCircle } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, ChevronRight, ImagePlus, Info, Loader2, Search, Send, XCircle } from "lucide-react";
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
 import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
@@ -91,10 +91,7 @@ export function DriverChecklistForm({
       formData.set("submission_id", submissionIdRef.current);
       const file = fotoKmFileRef.current;
       if (file) {
-        const existing = formData.get("foto_km");
-        if (!(existing instanceof File) || existing.size === 0) {
-          formData.set("foto_km", file);
-        }
+        formData.set("foto_km", file);
       }
       return enviarChecklistMotoristaAction(prevState, formData);
     },
@@ -157,6 +154,7 @@ export function DriverChecklistForm({
     const controller = new AbortController();
     ocrAbortRef.current = controller;
     const file = event.target.files?.[0];
+    event.target.value = "";
     setOcrState(null);
     // Revoga blob URL anterior antes de criar uma nova
     if (fotoKmPreview) URL.revokeObjectURL(fotoKmPreview);
@@ -695,9 +693,9 @@ export function DriverChecklistForm({
           <div className="space-y-1">
             <p className="font-medium">Registre o hodômetro e (se aplicável) o abastecimento.</p>
             <p className="text-xs opacity-90">
-              Tire a foto do painel com o hodômetro nítido — a IA lê automaticamente, mas você pode
-              ajustar o valor se necessário. Os campos de abastecimento são opcionais; só preencha
-              se houve abastecimento neste turno.
+              Tire uma foto do painel ou escolha uma imagem nítida da galeria — a IA lê o hodômetro
+              automaticamente, mas você pode ajustar o valor se necessário. Os campos de abastecimento
+              são opcionais; só preencha se houve abastecimento neste turno.
             </p>
           </div>
         </div>
@@ -710,39 +708,56 @@ export function DriverChecklistForm({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="foto_km">Foto do painel / hodômetro</Label>
-            <label className={cn(
-              "relative flex cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-slate-50 text-center text-sm text-muted-foreground hover:bg-slate-100 transition-colors overflow-hidden",
-              fotoKmPreview ? "min-h-0 p-0 border-blue-200" : "min-h-36 p-4"
+            <Label>Foto do painel / hodômetro</Label>
+            <div className={cn(
+              "relative flex flex-col items-center justify-center overflow-hidden rounded-md border border-dashed bg-slate-50 text-center text-sm text-muted-foreground",
+              fotoKmPreview ? "min-h-0 border-blue-200 p-0" : "min-h-36 p-4"
             )}>
               {fotoKmPreview ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={fotoKmPreview}
-                    alt="Preview do painel"
-                    className="w-full max-h-72 object-contain rounded-md bg-slate-100"
-                  />
-                  <span className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-white">
-                    Trocar foto
-                  </span>
-                </>
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={fotoKmPreview}
+                  alt="Preview do painel"
+                  className="max-h-72 w-full rounded-md bg-slate-100 object-contain"
+                />
               ) : (
                 <>
                   <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
-                  Tirar foto ou anexar imagem
+                  Tire uma foto ou escolha uma imagem já salva
                 </>
               )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label
+                htmlFor="foto_km_camera"
+                className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                <Camera className="h-4 w-4" aria-hidden="true" />
+                Tirar foto
+              </label>
               <input
-                id="foto_km"
-                name="foto_km"
+                id="foto_km_camera"
                 type="file"
                 accept={IMAGE_ACCEPT}
                 capture="environment"
                 className="sr-only"
                 onChange={handleFotoKmChange}
               />
-            </label>
+              <label
+                htmlFor="foto_km_galeria"
+                className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-slate-50"
+              >
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                Escolher da galeria
+              </label>
+              <input
+                id="foto_km_galeria"
+                type="file"
+                accept={IMAGE_ACCEPT}
+                className="sr-only"
+                onChange={handleFotoKmChange}
+              />
+            </div>
             {ocrLoading ? (
               <div className="flex items-center gap-2 rounded-md border bg-blue-50 p-3 text-sm text-blue-900">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
