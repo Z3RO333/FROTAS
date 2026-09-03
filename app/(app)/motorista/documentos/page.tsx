@@ -1,5 +1,3 @@
-"use server";
-
 import { FileText, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
