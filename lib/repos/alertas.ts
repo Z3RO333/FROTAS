@@ -79,11 +79,15 @@ export async function resolverAlerta(
   resolvidoPor: string,
   novoStatus: "RESOLVIDO" | "IGNORADO"
 ): Promise<void> {
-  const { error } = await supabaseManutencao
+  const { data, error } = await supabaseManutencao
     .from("alertas_frota")
     .update({ status: novoStatus, resolvido_por: resolvidoPor, resolvido_em: new Date().toISOString() })
-    .eq("id", alertaId);
+    .eq("id", alertaId)
+    .eq("status", "ABERTO")
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("Este alerta já foi tratado ou não está mais disponível.");
 }
 
 export async function countAlertasAbertos(): Promise<number> {

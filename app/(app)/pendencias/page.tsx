@@ -1,14 +1,7 @@
-import { AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  abrirManutencaoPendenciaAction,
-  liberarFrotaPendenciaAction,
-  resolverPendenciaAction,
-} from "./_actions";
+import { ShieldAlert } from "lucide-react";
 import { listOpenPendencias } from "@/lib/repos/checklists";
 import { requireAdminUser } from "@/lib/rbac";
-import { formatDate } from "@/lib/utils";
+import { PendenciasWorkspace } from "@/components/pendencias/pendencias-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -17,56 +10,22 @@ export default async function PendenciasPage() {
   const rows = await listOpenPendencias(200);
 
   return (
-    <div className="space-y-5">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Administração</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Pendências e não conformidades</h1>
+    <div className="space-y-6 pb-8">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-7">
+        <div className="absolute inset-y-0 left-0 w-1.5 bg-blue-700" />
+        <div className="flex items-start gap-4">
+          <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100 sm:flex">
+            <ShieldAlert className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Central de alertas</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Pendências e não conformidades</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">Acompanhe ocorrências abertas e escolha a ação operacional adequada para cada frota.</p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-3">
-        {rows.length > 0 ? (
-          rows.map((pendencia) => (
-            <article key={pendencia.id} className="rounded-md border bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
-                    <h2 className="text-lg font-semibold">{pendencia.item_nome}</h2>
-                    <Badge variant="outline">{pendencia.gravidade}</Badge>
-                    <Badge variant="outline">{pendencia.status}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Frota: {pendencia.frota_geral ?? pendencia.placa ?? pendencia.frota_id} | Motorista:{" "}
-                    {pendencia.motorista_nome ?? pendencia.motorista_id ?? "-"} | Criada em {formatDate(pendencia.criado_em)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <form action={liberarFrotaPendenciaAction}>
-                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
-                    <Button type="submit" variant="outline">
-                      Liberar frota
-                    </Button>
-                  </form>
-                  <form action={abrirManutencaoPendenciaAction}>
-                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
-                    <Button type="submit" variant="outline">
-                      Abrir manutenção
-                    </Button>
-                  </form>
-                  <form action={resolverPendenciaAction}>
-                    <input type="hidden" name="pendencia_id" value={pendencia.id} />
-                    <Button type="submit">Resolver</Button>
-                  </form>
-                </div>
-              </div>
-            </article>
-          ))
-        ) : (
-          <div className="rounded-md border bg-white p-6 text-sm text-muted-foreground">
-            Nenhuma pendência aberta.
-          </div>
-        )}
-      </div>
+      <PendenciasWorkspace rows={rows} />
     </div>
   );
 }

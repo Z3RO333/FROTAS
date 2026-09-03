@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export function ChecklistFilters({
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  function applyChanges(changes: Record<string, string>) {
+  const applyChanges = useCallback((changes: Record<string, string>) => {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(changes)) {
       if (value) next.set(key, value);
@@ -38,7 +38,7 @@ export function ChecklistFilters({
     startTransition(() => {
       router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
     });
-  }
+  }, [basePath, router, searchParams]);
 
   const periodo = searchParams.get("periodo") ?? "";
   const dataInicio = searchParams.get("dataInicio") ?? "";
@@ -51,9 +51,16 @@ export function ChecklistFilters({
 
   useEffect(() => setVeiculoQuery(veiculo), [veiculo]);
 
-  function pesquisarVeiculo() {
-    applyChanges({ veiculo: veiculoQuery.trim(), rota: "" });
-  }
+  useEffect(() => {
+    const query = veiculoQuery.trim();
+    if (query === veiculo) return;
+
+    const timer = window.setTimeout(() => {
+      applyChanges({ veiculo: query, rota: "" });
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [applyChanges, veiculo, veiculoQuery]);
 
   return (
     <div className="rounded-xl border bg-white p-3 shadow-sm" aria-busy={isPending}>
@@ -80,33 +87,26 @@ export function ChecklistFilters({
         </FilterField>
 
         <FilterField label="Frota ou placa">
-          <div className="flex min-w-0">
+          <div className="relative min-w-0">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              aria-hidden="true"
+            />
             <Input
               type="search"
               value={veiculoQuery}
               onChange={(event) => setVeiculoQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  pesquisarVeiculo();
-                }
-              }}
               placeholder="Ex.: 280 ou TRZ-8G44"
               aria-label="Pesquisar por frota ou placa"
-              className="rounded-r-none"
+              className="pl-9 pr-9"
               autoComplete="off"
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={pesquisarVeiculo}
-              disabled={isPending || veiculoQuery.trim() === veiculo}
-              aria-label="Pesquisar veículo"
-              className="shrink-0 rounded-l-none border-l-0"
-            >
-              {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
-            </Button>
+            {isPending && veiculoQuery.trim() !== veiculo ? (
+              <Loader2
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-600"
+                aria-label="Atualizando resultados"
+              />
+            ) : null}
           </div>
         </FilterField>
 

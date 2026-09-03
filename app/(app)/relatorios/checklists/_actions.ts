@@ -6,12 +6,30 @@ import { resolverAlerta } from "@/lib/repos/alertas";
 import { revisarAnalise } from "@/lib/repos/analises-ia";
 import { requireAdminUser } from "@/lib/rbac";
 
+export type RelatorioActionResult = {
+  ok: boolean;
+  message: string;
+};
+
 export async function resolverAlertaAction(formData: FormData) {
   const user = await requireAdminUser();
-  const alertaId = z.coerce.number().int().positive().parse(formData.get("alerta_id"));
-  const status = z.enum(["RESOLVIDO", "IGNORADO"]).parse(formData.get("status"));
-  await resolverAlerta(alertaId, user.email, status);
-  revalidatePath("/relatorios/checklists");
+  try {
+    const alertaId = z.coerce.number().int().positive().parse(formData.get("alerta_id"));
+    const status = z.enum(["RESOLVIDO", "IGNORADO"]).parse(formData.get("status"));
+    await resolverAlerta(alertaId, user.email, status);
+    revalidatePath("/relatorios/checklists");
+
+    return {
+      ok: true,
+      message: status === "RESOLVIDO" ? "Alerta marcado como resolvido." : "Alerta ignorado.",
+    } satisfies RelatorioActionResult;
+  } catch (error) {
+    console.error("[relatorios/checklists] Falha ao atualizar alerta", error);
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Não foi possível atualizar o alerta.",
+    } satisfies RelatorioActionResult;
+  }
 }
 
 export async function revisarAnaliseAction(formData: FormData) {

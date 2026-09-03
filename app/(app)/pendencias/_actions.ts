@@ -11,6 +11,11 @@ const PendenciaSchema = z.object({
   pendencia_id: z.coerce.number().int().positive(),
 });
 
+export type PendenciaActionResult = {
+  ok: boolean;
+  message: string;
+};
+
 type PendenciaActionRow = {
   id: number;
   frota_id: number;
@@ -71,78 +76,109 @@ function revalidatePendenciaViews(frotaId: number) {
   revalidatePath("/portaria");
   revalidatePath("/frotas");
   revalidatePath(`/frotas/${frotaId}`);
+  revalidatePath("/relatorios/checklists");
 }
 
-export async function resolverPendenciaAction(formData: FormData) {
-  const user = await requireAdminUser();
-  const pendencia = await getPendencia(formData);
-
-  await resolvePendenciaAtomic(pendencia.id, user.email, false);
-
-  revalidatePendenciaViews(pendencia.frota_id);
+function actionError(error: unknown, fallback: string): PendenciaActionResult {
+  console.error("[pendencias] Falha ao executar ação", error);
+  return {
+    ok: false,
+    message: error instanceof Error ? error.message : fallback,
+  };
 }
 
-export async function liberarFrotaPendenciaAction(formData: FormData) {
+export async function resolverPendenciaAction(formData: FormData): Promise<PendenciaActionResult> {
   const user = await requireAdminUser();
-  const pendencia = await getPendencia(formData);
+  try {
+    const pendencia = await getPendencia(formData);
 
-  const result = await resolvePendenciaAtomic(pendencia.id, user.email, true);
-  const bloqueiosRestantes = result.bloqueios_restantes;
+    await resolvePendenciaAtomic(pendencia.id, user.email, false);
 
-  if ((bloqueiosRestantes ?? 0) > 0) {
+    revalidatePendenciaViews(pendencia.frota_id);
+    return { ok: true, message: "Pendência resolvida com sucesso." };
+  } catch (error) {
+    return actionError(error, "Não foi possível resolver a pendência.");
+  }
+}
+
+export async function liberarFrotaPendenciaAction(formData: FormData): Promise<PendenciaActionResult> {
+  const user = await requireAdminUser();
+  try {
+    const pendencia = await getPendencia(formData);
+
+    const result = await resolvePendenciaAtomic(pendencia.id, user.email, true);
+    const bloqueiosRestantes = result.bloqueios_restantes;
+
+    if ((bloqueiosRestantes ?? 0) > 0) {
+      await recordEvent({
+        veiculo_id: pendencia.frota_id,
+        tipo_evento: "PENDENCIA_RESOLVIDA",
+        origem: "pendencias",
+        origem_id: pendencia.id,
+        titulo: `Pendencia resolvida: ${pendencia.item_nome ?? "item"}`,
+        descricao: `Frota mantida bloqueada por ${bloqueiosRestantes} pendência(s) crítica(s).`,
+        severidade: "ATENCAO",
+        payload: { bloqueios_restantes: bloqueiosRestantes },
+        usuario_id: user.email,
+      });
+      revalidatePendenciaViews(pendencia.frota_id);
+      return {
+        ok: true,
+        message: `Pendência resolvida. A frota continua bloqueada por ${bloqueiosRestantes} pendência(s) crítica(s).`,
+      };
+    }
+
+    if (!result.liberada) {
+      if (result.em_manutencao) throw new Error("Pendência resolvida, mas a frota permanece em manutenção e não foi liberada.");
+      throw new Error("Pendência resolvida, mas o estado da frota não permitiu a liberação.");
+    }
+
     await recordEvent({
       veiculo_id: pendencia.frota_id,
-      tipo_evento: "PENDENCIA_RESOLVIDA",
+      tipo_evento: "LIBERACAO_FORCADA",
       origem: "pendencias",
       origem_id: pendencia.id,
-      titulo: `Pendencia resolvida: ${pendencia.item_nome ?? "item"}`,
-      descricao: `Frota mantida bloqueada por ${bloqueiosRestantes} pendência(s) crítica(s).`,
+      titulo: `Frota liberada com pendência: ${pendencia.item_nome ?? "item"}`,
+      descricao: "Liberação manual feita pela administração.",
       severidade: "ATENCAO",
-      payload: { bloqueios_restantes: bloqueiosRestantes },
+      payload: { gravidade: pendencia.gravidade, checklist_id: pendencia.checklist_id },
       usuario_id: user.email,
     });
+
     revalidatePendenciaViews(pendencia.frota_id);
-    return;
+    return { ok: true, message: "Pendência resolvida e frota liberada." };
+  } catch (error) {
+    return actionError(error, "Não foi possível liberar a frota.");
   }
-
-  if (!result.liberada) {
-    if (result.em_manutencao) throw new Error("Pendência resolvida, mas a frota permanece em manutenção e não foi liberada.");
-    throw new Error("Pendência resolvida, mas o estado da frota não permitiu a liberação.");
-  }
-
-  await recordEvent({
-    veiculo_id: pendencia.frota_id,
-    tipo_evento: "LIBERACAO_FORCADA",
-    origem: "pendencias",
-    origem_id: pendencia.id,
-    titulo: `Frota liberada com pendencia: ${pendencia.item_nome ?? "item"}`,
-    descricao: "Liberacao manual feita pela administracao.",
-    severidade: "ATENCAO",
-    payload: { gravidade: pendencia.gravidade, checklist_id: pendencia.checklist_id },
-    usuario_id: user.email,
-  });
-
-  revalidatePendenciaViews(pendencia.frota_id);
 }
 
-export async function abrirManutencaoPendenciaAction(formData: FormData) {
+export async function abrirManutencaoPendenciaAction(formData: FormData): Promise<PendenciaActionResult> {
   const user = await requireAdminUser();
-  const pendencia = await getPendencia(formData);
+  try {
+    const pendencia = await getPendencia(formData);
 
-  const result = await enviarFrotaParaManutencao({
-    frotaId: pendencia.frota_id,
-    motivo: `Pendencia de checklist: ${pendencia.item_nome ?? "item nao conforme"}`,
-    tipo: pendencia.gravidade === "CRITICA" ? "EMERGENCIAL" : "CORRETIVA",
-    observacao: `Aberta a partir da pendencia #${pendencia.id}.`,
-    bloqueiaChecklist: true,
-    destino: "CORRETIVA",
-    usuarioEmail: user.email,
-  });
+    if (pendencia.status !== "ABERTA") {
+      throw new Error("Esta pendência já está em tratativa ou foi encerrada.");
+    }
 
-  if (!result.ok) throw new Error(result.error);
+    const result = await enviarFrotaParaManutencao({
+      frotaId: pendencia.frota_id,
+      motivo: `Pendência de checklist: ${pendencia.item_nome ?? "item não conforme"}`,
+      tipo: pendencia.gravidade === "CRITICA" ? "EMERGENCIAL" : "CORRETIVA",
+      observacao: `Aberta a partir da pendência #${pendencia.id}.`,
+      bloqueiaChecklist: true,
+      destino: "CORRETIVA",
+      usuarioEmail: user.email,
+    });
 
-  await markPendencia(pendencia, { status: "EM_TRATATIVA", responsavelId: user.email });
-  revalidatePendenciaViews(pendencia.frota_id);
-  revalidatePath("/planejamento/paradas");
-  revalidatePath("/manutencao");
+    if (!result.ok) throw new Error(result.error);
+
+    await markPendencia(pendencia, { status: "EM_TRATATIVA", responsavelId: user.email });
+    revalidatePendenciaViews(pendencia.frota_id);
+    revalidatePath("/planejamento/paradas");
+    revalidatePath("/manutencao");
+    return { ok: true, message: "Frota enviada para manutenção." };
+  } catch (error) {
+    return actionError(error, "Não foi possível abrir a manutenção.");
+  }
 }

@@ -1,5 +1,8 @@
 import type { AnaliseIaRow } from "@/lib/repos/analises-ia";
 import Link from "next/link";
+import { ArrowRight, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const BADGE: Record<string, string> = {
   OK: "bg-emerald-100 text-emerald-800",
@@ -11,12 +14,12 @@ const BADGE: Record<string, string> = {
 
 export function ChecklistIaTable({ analises }: { analises: AnaliseIaRow[] }) {
   if (analises.length === 0) {
-    return <p className="text-sm text-muted-foreground">Nenhuma análise encontrada.</p>;
+    return <EmptyState icon={Bot} title="Nenhuma análise encontrada" description="As análises concluídas hoje aparecerão aqui." />;
   }
 
   return (
-    <div className="overflow-hidden rounded-md border bg-white">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border bg-white shadow-sm">
+      <table className="min-w-[900px] w-full text-sm">
         <thead className="bg-slate-50 text-xs font-medium text-muted-foreground">
           <tr>
             <th className="p-3 text-left">Checklist</th>
@@ -30,11 +33,7 @@ export function ChecklistIaTable({ analises }: { analises: AnaliseIaRow[] }) {
         <tbody className="divide-y">
           {analises.map((analise) => (
             <tr key={analise.id} className="hover:bg-slate-50">
-              <td className="p-3">
-                <Link href={`/checklists/${analise.checklist_id}`} className="text-blue-600 hover:underline">
-                  #{analise.checklist_id}
-                </Link>
-              </td>
+              <td className="p-3 font-medium text-slate-700">#{analise.checklist_id}</td>
               <td className="p-3">{analise.frota_id}</td>
               <td className="p-3 text-xs">{analise.motorista_id.split("@")[0]}</td>
               <td className="p-3">
@@ -42,8 +41,18 @@ export function ChecklistIaTable({ analises }: { analises: AnaliseIaRow[] }) {
                   {(analise.criticidade_revisada ?? analise.criticidade).replace("_", " ")}
                 </span>
               </td>
-              <td className="max-w-xs p-3 text-xs text-muted-foreground truncate">{analise.resumo_ia}</td>
-              <td className="p-3 text-xs">{analise.acao_recomendada ?? "—"}</td>
+              <td className="max-w-xs p-3 text-xs text-muted-foreground"><p className="line-clamp-2">{analise.resumo_ia}</p></td>
+              <td className="p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="line-clamp-2 text-xs">{analise.acao_recomendada ?? "—"}</span>
+                  <Button asChild variant="ghost" size="sm" className="shrink-0 text-blue-700 hover:text-blue-800">
+                    <Link href={`/checklists/${analise.checklist_id}`} aria-label={`Abrir checklist ${analise.checklist_id}`}>
+                      Abrir
+                      <ArrowRight aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
