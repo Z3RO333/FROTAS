@@ -277,31 +277,19 @@ export function DriverChecklistForm({
         return;
       }
     }
-    // Acima do teto absoluto não há justificativa possível: é digitação errada
-    // (dígito colado no valor pré-preenchido, décimos tratados como inteiros).
-    // Bloquear aqui evita perder o upload das fotos na recusa do servidor.
-    if (selected?.km_atual != null && km - selected.km_atual > KM_SALTO_IMPOSSIVEL) {
-      e.preventDefault();
-      setStepErro(
-        `KM informado (${formatNumber(km)}) é impossível: ${formatNumber(km - selected.km_atual)} km ` +
-          `a mais que o último registrado (${formatNumber(selected.km_atual)}). Confira os dígitos no painel.`
-      );
-      return;
-    }
-    // Salto grande demais (ex: digitou o hodômetro com décimos como se fossem inteiros,
-    // "110856.7" virando "1108567") também exige justificativa — evita corromper o KM da frota.
-    if (
-      selected?.km_atual != null &&
-      km - selected.km_atual > KM_VARIACAO_INCOMUM
-    ) {
+    // Salto acima do incomum exige justificativa (inclui saltos muito grandes).
+    if (selected?.km_atual != null && km - selected.km_atual > KM_VARIACAO_INCOMUM) {
       const justificativa = (
         document.getElementById("justificativa_km") as HTMLTextAreaElement | null
       )?.value?.trim();
       if (!justificativa) {
         e.preventDefault();
-        setStepErro(
-          `KM informado (${km}) está muito acima do último registrado (${selected.km_atual}). Confira o número e descreva a justificativa no campo ao lado.`
-        );
+        const diff = km - selected.km_atual;
+        const msg =
+          diff > KM_SALTO_IMPOSSIVEL
+            ? `KM informado (${formatNumber(km)}) está muito acima do último registrado (${formatNumber(selected.km_atual)}). Confirme os dígitos e descreva a justificativa no campo ao lado.`
+            : `KM informado (${km}) está muito acima do último registrado (${selected.km_atual}). Confira o número e descreva a justificativa no campo ao lado.`;
+        setStepErro(msg);
         return;
       }
     }

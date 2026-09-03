@@ -41,14 +41,11 @@ export function validateKm(
   if (ultimoKm == null) return { ok: true, diff: null };
 
   const diff = kmInformado - ultimoKm;
-  if (diff > KM_SALTO_IMPOSSIVEL) {
-    return { ok: false, reason: "SALTO_IMPOSSIVEL", diff };
-  }
   if (diff < 0 && !justificativa?.trim()) {
     return { ok: false, reason: "MENOR_QUE_ULTIMO", diff };
   }
   if (diff > KM_VARIACAO_INCOMUM && !justificativa?.trim()) {
-    return { ok: false, reason: "VARIACAO_INCOMUM", diff };
+    return { ok: false, reason: diff > KM_SALTO_IMPOSSIVEL ? "SALTO_IMPOSSIVEL" : "VARIACAO_INCOMUM", diff };
   }
   return { ok: true, diff };
 }

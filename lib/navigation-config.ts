@@ -61,6 +61,7 @@ const MOTORISTA_NAV: NavItem[] = [
   { href: "/motorista/sinistros", label: "Meus Sinistros", icon: "ShieldAlert" },
   { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
   { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
+  { href: "/motorista/documentos", label: "Documentos do Veículo", icon: "FileText" },
 ];
 
 const MOTORISTA_INTERNO_NAV: NavItem[] = [
@@ -71,6 +72,7 @@ const MOTORISTA_INTERNO_NAV: NavItem[] = [
   { href: "/motorista/sinistros", label: "Meus Sinistros", icon: "ShieldAlert" },
   { href: "/motorista/checklists", label: "Meus Checklists", icon: "List" },
   { href: "/motorista/historico", label: "Meu histórico", icon: "History" },
+  { href: "/motorista/documentos", label: "Documentos do Veículo", icon: "FileText" },
 ];
 
 const PORTARIA_NAV: NavItem[] = [

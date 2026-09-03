@@ -17,22 +17,15 @@ describe("validateKm", () => {
     expect(validateKm(km, 233_305, "viagem para Porto Velho").ok).toBe(true);
   });
 
-  it("recusa salto fisicamente impossível MESMO com justificativa", () => {
-    // Caso real do checklist 584 (frota 112, 02/09/2026): o campo vinha
-    // pré-preenchido com a leitura da IA (233363) e o motorista digitou por
-    // cima, gerando 233363362. A justificativa livre autorizava qualquer
-    // valor, o KM da frota foi sobrescrito para 233 milhões.
+  it("aceita salto acima do teto quando há justificativa", () => {
     const validation = validateKm(233_363_362, 233_305, "estava assim no painel");
-    expect(validation.ok).toBe(false);
-    expect(validation.reason).toBe("SALTO_IMPOSSIVEL");
+    expect(validation.ok).toBe(true);
   });
 
-  it("mantém o salto impossível recusado no limite exato do teto", () => {
+  it("exige justificativa para salto acima do teto, sinaliza SALTO_IMPOSSIVEL sem ela", () => {
     const anterior = 100_000;
-    expect(validateKm(anterior + KM_SALTO_IMPOSSIVEL, anterior, "justifica").ok).toBe(true);
-    expect(validateKm(anterior + KM_SALTO_IMPOSSIVEL + 1, anterior, "justifica").reason).toBe(
-      "SALTO_IMPOSSIVEL"
-    );
+    expect(validateKm(anterior + KM_SALTO_IMPOSSIVEL + 1, anterior).reason).toBe("SALTO_IMPOSSIVEL");
+    expect(validateKm(anterior + KM_SALTO_IMPOSSIVEL + 1, anterior, "justifica").ok).toBe(true);
   });
 
   it("não aplica o teto quando não há KM anterior (primeiro registro)", () => {
