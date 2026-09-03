@@ -73,7 +73,7 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
         )}
       </div>
 
-      {/* Barra segmentada em pílulas */}
+      {/* Barra segmentada em pílulas — todas as barras preenchidas usam a cor do nível atual */}
       <div className="mt-3 flex gap-1.5">
         {[1, 2, 3, 4].map((level) => {
           const filled = level <= value;
@@ -82,7 +82,7 @@ export function FuelGauge({ label, nivel, atualizadoEm, origem, className }: Pro
               key={level}
               className={cn(
                 "h-3 flex-1 rounded-full transition-all duration-300",
-                filled ? levelTone(level) : "bg-slate-100"
+                filled ? levelTone(value) : "bg-slate-100"
               )}
             />
           );
