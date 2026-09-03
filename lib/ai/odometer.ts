@@ -186,9 +186,30 @@ REGRAS DE CONFIANÇA:
 
 Retorne km_lido como INTEGER (sem pontos, vírgulas ou espaços). Se o display mostrar décimos (ex: "110746.7"), ARREDONDE para o inteiro mais próximo (110747) — não concatene os dígitos.`.trim();
 
+// ------- Correção automática de escala -------
+// Erro mais comum: display com decimal ("0381569.2") lido como inteiro concatenado
+// ("3815692") — o km_lido fica ~10x acima do esperado.
+// Se o km_lido for entre 8× e 12× o kmAnterior, divide por 10 e rebaixa confiança.
+function autocorrectScale(reading: OdometerReading, kmAnterior: number | null): OdometerReading {
+  if (reading.km_lido == null || kmAnterior == null || kmAnterior <= 0) return reading;
+  const ratio = reading.km_lido / kmAnterior;
+  if (ratio >= 8 && ratio <= 12) {
+    const corrigido = Math.round(reading.km_lido / 10);
+    return {
+      ...reading,
+      km_lido: corrigido,
+      confianca: Math.min(reading.confianca, 0.75),
+      leitura_segura: false,
+      precisa_digitacao_manual: true,
+      motivo: `Valor corrigido automaticamente: leitura original (${reading.km_lido}) era ~10× o KM anterior (${kmAnterior}), provavelmente decimal concatenado. Confirme o KM no painel.`,
+    };
+  }
+  return reading;
+}
+
 // ------- API pública -------
 
-export async function analyzeOdometerImage(file: File): Promise<OdometerReading> {
+export async function analyzeOdometerImage(file: File, kmAnterior?: number | null): Promise<OdometerReading> {
   // Pré-calcula hash uma vez pra usar tanto em cache quanto em resize
   const buffer = Buffer.from(await file.arrayBuffer());
   const hash = await hashBuffer(buffer);
@@ -231,7 +252,17 @@ export async function analyzeOdometerImage(file: File): Promise<OdometerReading>
 PASSO 1: Liste todos os números visíveis na imagem.
 PASSO 2: Identifique qual é o hodômetro (maior número acumulado, geralmente >100.000 km).
 PASSO 3: Descarte velocímetro, trip, RPM, hora. Liste como candidatos_descartados.
-PASSO 4: Retorne km_lido como inteiro.
+PASSO 4: Retorne km_lido como inteiro.${
+  kmAnterior != null && kmAnterior > 0
+    ? `
+
+VERIFICAÇÃO OBRIGATÓRIA — KM anterior registrado neste veículo: ${kmAnterior.toLocaleString("pt-BR")} km.
+Antes de retornar, compare seu resultado com o KM anterior:
+• Se o seu km_lido for ~10× maior (ex: você leu ${(kmAnterior * 10).toLocaleString("pt-BR")} mas o anterior era ${kmAnterior.toLocaleString("pt-BR")}), você provavelmente concatenou o dígito decimal como inteiro — corrija dividindo por 10.
+• Se a diferença for negativa ou maior que 5.000 km em relação ao anterior, revise sua leitura antes de retornar.
+• Uma variação de 0–2.000 km por turno é normal.`
+    : ""
+}
 
 Se não conseguir identificar o hodômetro com clareza, retorne km_lido=null.
 
@@ -290,12 +321,14 @@ Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:
     const kmLido = parsed.km_lido;
     const confiancaFinal = parsed.confianca;
 
-    const final: OdometerReading = {
+    const base: OdometerReading = {
       ...parsed,
       confianca: confiancaFinal,
       leitura_segura: parsed.leitura_segura && confiancaFinal >= 0.7 && kmLido != null,
       precisa_digitacao_manual: parsed.precisa_digitacao_manual || confiancaFinal < 0.7 || kmLido == null,
     };
+
+    const final = autocorrectScale(base, kmAnterior ?? null);
 
     // Cacheia o resultado (5 min) — mesmo se for FALHOU, evita re-chamar IA pra mesma imagem ruim
     setCachedOcr(hash, final);

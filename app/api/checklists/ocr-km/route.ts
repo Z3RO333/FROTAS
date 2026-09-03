@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return apiError("KM anterior inválido.", 400, "INVALID_PREVIOUS_KM");
     }
 
-    const reading = await analyzeOdometerImage(file);
+    const reading = await analyzeOdometerImage(file, kmAnterior);
     const status_leitura = calcStatusLeitura(reading, kmAnterior);
 
     return NextResponse.json({ ...reading, status_leitura, km_anterior_usado: kmAnterior });

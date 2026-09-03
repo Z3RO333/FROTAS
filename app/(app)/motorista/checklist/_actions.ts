@@ -96,7 +96,7 @@ export async function enviarChecklistMotoristaAction(
 
     // A leitura persistida é calculada novamente a partir da própria foto
     // recebida pela Server Action. Valores enviados pelo navegador são ignorados.
-    const leituraKm = await analyzeOdometerImage(fotoKm);
+    const leituraKm = await analyzeOdometerImage(fotoKm, frota.km_atual ?? null);
 
     const statusLeituraServidor = calcStatusLeitura(leituraKm, frota.km_atual);
 
