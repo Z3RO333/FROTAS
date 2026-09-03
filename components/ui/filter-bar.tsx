@@ -46,6 +46,7 @@ export function FilterSearch({ value, onChange, placeholder = "Buscar…", class
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        autoComplete="off"
         className={cn(
           "h-11 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-11 text-base text-slate-900 placeholder:text-slate-400 sm:h-9 sm:pr-8 sm:text-sm",
           "focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"

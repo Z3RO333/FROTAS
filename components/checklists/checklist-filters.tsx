@@ -94,6 +94,7 @@ export function ChecklistFilters({
               placeholder="Ex.: 280 ou TRZ-8G44"
               aria-label="Pesquisar por frota ou placa"
               className="rounded-r-none"
+              autoComplete="off"
             />
             <Button
               type="button"
