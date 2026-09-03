@@ -6,7 +6,7 @@ import { SocorroStatusForm } from "@/components/sinistros/socorro-status-form";
 import { SinistroStatusForm } from "@/components/sinistros/sinistro-status-form";
 import { createSignedSinistroImageUrl } from "@/lib/repos/sinistro-images";
 import { listAdminSinistros, sinistrosDashboardKpis, type SinistroRow } from "@/lib/repos/sinistros";
-import { requireAdminUser } from "@/lib/rbac";
+import { requireSinistrosUser } from "@/lib/rbac";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function SinistrosAdminPage({
 }: {
   searchParams: Promise<{ tipo?: string }>;
 }) {
-  await requireAdminUser();
+  await requireSinistrosUser();
   const { tipo: filtroTipo } = await searchParams;
 
   const [kpis, rows] = await Promise.all([sinistrosDashboardKpis(), listAdminSinistros(200)]);

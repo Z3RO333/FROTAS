@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { publicActionError } from "@/lib/public-error";
 import { z } from "zod";
-import { requireAdminUser } from "@/lib/rbac";
+import { requireSinistrosUser } from "@/lib/rbac";
 import { updateSocorroStatus, updateSinistroStatus, type SocorroStatus, type SinistroStatus } from "@/lib/repos/sinistros";
 
 const StatusSchema = z.enum(["ABERTO", "EM_ATENDIMENTO", "GUINCHO_ACIONADO", "RESOLVIDO", "CANCELADO"]);
@@ -13,7 +13,7 @@ export async function atualizarStatusSocorroAction(
   _prevState: { ok: boolean; error: string | null },
   formData: FormData
 ): Promise<{ ok: boolean; error: string | null }> {
-  const admin = await requireAdminUser();
+  const admin = await requireSinistrosUser();
 
   try {
     const sinistroId = z.coerce.number().int().positive().parse(formData.get("sinistro_id"));
@@ -34,7 +34,7 @@ export async function atualizarStatusSinistroAction(
   _prevState: { ok: boolean; error: string | null },
   formData: FormData
 ): Promise<{ ok: boolean; error: string | null }> {
-  const admin = await requireAdminUser();
+  const admin = await requireSinistrosUser();
 
   try {
     const sinistroId = z.coerce.number().int().positive().parse(formData.get("sinistro_id"));

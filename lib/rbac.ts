@@ -136,6 +136,16 @@ export async function requirePortariaUser(): Promise<AppUser> {
   return user;
 }
 
+export function canAccessSinistros(perfil: PerfilUsuario): boolean {
+  return canAccessAdmin(perfil) || perfil === "SUPERVISOR_PORTARIA";
+}
+
+export async function requireSinistrosUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canAccessSinistros(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
+  return user;
+}
+
 export async function requireMotoristaUser(): Promise<AppUser> {
   const user = await requireAppUser();
   if (!canAccessMotorista(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));

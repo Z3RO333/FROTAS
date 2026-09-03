@@ -88,6 +88,13 @@ export function navigationForProfile(perfil: PerfilUsuario): NavSection[] {
 
   if (perfil === "APROVADOR") return [{ title: "Aprovação", items: PORTARIA_NAV }];
 
+  if (perfil === "SUPERVISOR_PORTARIA") {
+    return [
+      { title: "Portaria", items: PORTARIA_NAV },
+      { title: "Ocorrências", items: [{ href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" }] },
+    ];
+  }
+
   if (perfil === "PORTARIA") {
     const sections: NavSection[] = [{ title: "Portaria", items: PORTARIA_NAV }];
     if (canAccessDocumentos(perfil)) sections.push({ title: "Documentos", items: DOCUMENTOS_NAV });
