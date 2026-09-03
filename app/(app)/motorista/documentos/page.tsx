@@ -1,13 +1,31 @@
-import { FileText } from "lucide-react";
+"use server";
+
+import { FileText, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
 import { listAllDocuments } from "@/lib/repos/manutencao/documents";
 
 export const dynamic = "force-dynamic";
 
-export default async function MotoristaDocumentosPage() {
-  const documentos = await listAllDocuments();
-  const comArquivos = documentos.filter((d) => d.dut_url || d.crlv_url);
+export default async function MotoristaDocumentosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const termo = q?.trim().toLowerCase() ?? "";
+
+  const todos = await listAllDocuments();
+  const comArquivos = todos.filter((d) => d.dut_url || d.crlv_url);
+
+  const documentos = termo
+    ? comArquivos.filter(
+        (d) =>
+          d.frota.toLowerCase() === termo ||
+          d.placa.toLowerCase().includes(termo) ||
+          d.modelo.toLowerCase().includes(termo)
+      )
+    : comArquivos;
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -18,9 +36,29 @@ export default async function MotoristaDocumentosPage() {
         icon={FileText}
       />
 
-      {comArquivos.length === 0 ? (
+      <form method="GET" className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <input
+            name="q"
+            type="search"
+            defaultValue={q ?? ""}
+            placeholder="Nº da frota, placa ou modelo..."
+            className="h-10 w-full rounded-md border bg-white pl-9 pr-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+            autoComplete="off"
+          />
+        </div>
+        <button
+          type="submit"
+          className="h-10 rounded-md border bg-white px-4 text-sm font-medium hover:bg-slate-50"
+        >
+          Buscar
+        </button>
+      </form>
+
+      {documentos.length === 0 ? (
         <p className="rounded-md border bg-white p-6 text-center text-sm text-muted-foreground">
-          Nenhum documento disponível no momento.
+          {termo ? `Nenhum documento encontrado para "${q}".` : "Nenhum documento disponível no momento."}
         </p>
       ) : (
         <div className="overflow-hidden rounded-md border bg-white">
@@ -35,7 +73,7 @@ export default async function MotoristaDocumentosPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {comArquivos.map((doc) => (
+              {documentos.map((doc) => (
                 <tr key={doc.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-medium tabular-nums">{doc.frota}</td>
                   <td className="px-4 py-3 tabular-nums">{doc.placa}</td>
