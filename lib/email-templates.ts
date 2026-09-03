@@ -686,6 +686,7 @@ export type SinistroNotificationInput = {
   samuBombeirosPresente: boolean | null;
   terceiros: SinistroTerceiroInfo[];
   anexosQuantidade: number;
+  anexosUrls?: string[];
   criadoEm: Date;
   logoImageSrc?: string;
 };
@@ -735,10 +736,18 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
           .join("")
       : `<div style="font-size:13px;color:${MUTED};">Nenhum terceiro informado.</div>`;
 
+  const urls = input.anexosUrls ?? [];
   const anexosBlock =
-    input.anexosQuantidade > 0
-      ? `<div style="font-size:13px;color:${MUTED};">${input.anexosQuantidade} evidência(s) disponível(is) somente no painel autenticado.</div>`
-      : `<div style="font-size:13px;color:${MUTED};">Nenhum anexo enviado.</div>`;
+    urls.length > 0
+      ? urls
+          .map(
+            (url) =>
+              `<div style="margin-bottom:8px;"><img src="${url}" alt="Evidência do sinistro" style="max-width:100%;max-height:400px;border-radius:6px;border:1px solid #e2e8f0;" /></div>`
+          )
+          .join("")
+      : input.anexosQuantidade > 0
+        ? `<div style="font-size:13px;color:${MUTED};">${input.anexosQuantidade} evidência(s) disponível(is) somente no painel autenticado.</div>`
+        : `<div style="font-size:13px;color:${MUTED};">Nenhum anexo enviado.</div>`;
 
   const body = `
     <tr>

@@ -8,6 +8,7 @@ import { isValidCPF, isValidTelefoneBR } from "@/lib/br-format";
 import { getFrota } from "@/lib/repos/frotas";
 import { createSinistro, getSinistroBySubmissionId } from "@/lib/repos/sinistros";
 import {
+  createSignedSinistroImageUrl,
   removeSinistroImages,
   uploadSinistroImage,
 } from "@/lib/repos/sinistro-images";
@@ -173,24 +174,29 @@ export async function enviarSinistroMotoristaAction(
         media_paths: uploadedPaths,
       });
 
-      sendSinistroNotification({
-        ticketNumber,
-        tipoSinistro,
-        motoristaNome: user.name,
-        motoristaEmail: user.email,
-        numeroFrota: frota.frota_geral ?? null,
-        placa: frota.placa ?? null,
-        endereco,
-        latitude: optionalNumber(formData, "latitude"),
-        longitude: optionalNumber(formData, "longitude"),
-        descricao,
-        houveFeridos,
-        samuBombeirosPresente,
-        terceiros,
-        // Evidências permanecem no bucket privado e só são abertas pelo painel autenticado.
-        anexosQuantidade: uploadedPaths.length,
-        criadoEm: new Date(),
-      }).catch((err) => console.warn("[sinistro] falha ao enviar notificacao por e-mail", err));
+      const SETE_DIAS = 60 * 60 * 24 * 7;
+      Promise.all(
+        uploadedPaths.map((p) => createSignedSinistroImageUrl(p, SETE_DIAS).catch(() => null))
+      ).then((urls) =>
+        sendSinistroNotification({
+          ticketNumber,
+          tipoSinistro,
+          motoristaNome: user.name,
+          motoristaEmail: user.email,
+          numeroFrota: frota.frota_geral ?? null,
+          placa: frota.placa ?? null,
+          endereco,
+          latitude: optionalNumber(formData, "latitude"),
+          longitude: optionalNumber(formData, "longitude"),
+          descricao,
+          houveFeridos,
+          samuBombeirosPresente,
+          terceiros,
+          anexosQuantidade: uploadedPaths.length,
+          anexosUrls: urls.filter((u): u is string => u !== null),
+          criadoEm: new Date(),
+        })
+      ).catch((err) => console.warn("[sinistro] falha ao enviar notificacao por e-mail", err));
     }
 
     revalidatePath("/motorista");
