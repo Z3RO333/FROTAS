@@ -1,4 +1,5 @@
 import { AlertTriangle, ClipboardCheck, Eye, Percent, ShieldCheck, Truck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChecklistFilters } from "@/components/checklists/checklist-filters";
 import { AdminChecklistsTable } from "@/components/checklists/admin-checklists-table";
