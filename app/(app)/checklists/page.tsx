@@ -1,4 +1,5 @@
-import { AlertTriangle, ClipboardCheck, Eye, Percent, ShieldCheck, Truck } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ChevronLeft, ChevronRight, ClipboardCheck, Eye, Percent, ShieldCheck, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChecklistFilters } from "@/components/checklists/checklist-filters";
@@ -10,6 +11,7 @@ import {
   listAdminChecklists,
   listOpenPendencias,
   periodoParaDatas,
+  ADMIN_CHECKLISTS_PAGE_SIZE,
 } from "@/lib/repos/checklists";
 import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
 import { setoresDistintos } from "@/lib/repos/frotas";
@@ -40,6 +42,8 @@ export default async function ChecklistsAdminPage({
     localizacao: sp.localizacao?.trim() || undefined,
     setor: sp.setor?.trim() || undefined,
   };
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+  const offset = (page - 1) * ADMIN_CHECKLISTS_PAGE_SIZE;
   const temFiltro = Object.values(filtros).some(Boolean);
   const temFiltroLocal = Boolean(filtros.localizacao || filtros.setor);
   const visionPromise = temFiltro
@@ -47,7 +51,7 @@ export default async function ChecklistsAdminPage({
     : countChecklistImageInspectionsByStatus();
   const [kpis, checklists, pendencias, vision, setores, localKpis] = await Promise.all([
     checklistDashboardKpis(filtros),
-    listAdminChecklists(100, filtros),
+    listAdminChecklists(ADMIN_CHECKLISTS_PAGE_SIZE, filtros, offset),
     listOpenPendencias(5, filtros),
     visionPromise,
     setoresDistintos(),
@@ -55,6 +59,7 @@ export default async function ChecklistsAdminPage({
   ]);
   const localizacoes: string[] = [...CDS_OPERACIONAIS];
   const checklistGroups = groupChecklistsByDate(checklists);
+  const hasNextPage = checklists.length === ADMIN_CHECKLISTS_PAGE_SIZE;
   const periodoSelecionado = Boolean(filtros.dataInicio || filtros.dataFim);
   const totalKpiTitle = periodoSelecionado && sp.periodo !== "hoje" ? "No período" : "Hoje";
   const checklistLocalTitle = periodoSelecionado && sp.periodo !== "hoje" ? "Com checklist" : "Com checklist hoje";
@@ -100,6 +105,29 @@ export default async function ChecklistsAdminPage({
             <ChecklistFilters localizacoes={localizacoes} setores={setores} />
           </div>
           <AdminChecklistsTable groups={checklistGroups} />
+          {(page > 1 || hasNextPage) && (
+            <div className="flex items-center justify-between border-t px-4 py-3">
+              <Link
+                href={buildPageUrl(sp, page - 1)}
+                aria-disabled={page <= 1}
+                className={page <= 1 ? "pointer-events-none opacity-40" : ""}
+              >
+                <span className="flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline">
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </span>
+              </Link>
+              <span className="text-sm text-muted-foreground">Página {page}</span>
+              <Link
+                href={buildPageUrl(sp, page + 1)}
+                aria-disabled={!hasNextPage}
+                className={!hasNextPage ? "pointer-events-none opacity-40" : ""}
+              >
+                <span className="flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline">
+                  Próxima <ChevronRight className="h-4 w-4" />
+                </span>
+              </Link>
+            </div>
+          )}
         </section>
 
         <section className="space-y-3">
@@ -125,6 +153,16 @@ export default async function ChecklistsAdminPage({
       </div>
     </div>
   );
+}
+
+function buildPageUrl(sp: Record<string, string | undefined>, targetPage: number): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (v && k !== "page") params.set(k, v);
+  }
+  if (targetPage > 1) params.set("page", String(targetPage));
+  const qs = params.toString();
+  return `/checklists${qs ? `?${qs}` : ""}`;
 }
 
 type Checklist = Awaited<ReturnType<typeof listAdminChecklists>>[number];

@@ -388,9 +388,12 @@ async function resolveVehicleIds(filters: ChecklistListFilters): Promise<number[
   return frotaIds;
 }
 
+export const ADMIN_CHECKLISTS_PAGE_SIZE = 50;
+
 export async function listAdminChecklists(
-  limit = 100,
-  filters: ChecklistListFilters = {}
+  limit = ADMIN_CHECKLISTS_PAGE_SIZE,
+  filters: ChecklistListFilters = {},
+  offset = 0
 ): Promise<ChecklistListRow[]> {
   return safeSupabase("listagem admin", async () => {
     const frotaIds = await resolveVehicleIds(filters);
@@ -400,7 +403,7 @@ export async function listAdminChecklists(
       .from("checklists_frota")
       .select(COLS_CHECKLIST_ADMIN_LIST)
       .order("criado_em", { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
     if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
