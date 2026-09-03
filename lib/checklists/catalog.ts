@@ -12,7 +12,7 @@ export type ChecklistCatalogItem = {
 };
 
 export const CHECKLIST_ITEMS: ChecklistCatalogItem[] = [
-  { codigo: "iluminacao", nome: "Iluminação", grupo: "Seguranca", obrigatorio: true, critico: true },
+  { codigo: "iluminacao", nome: "Iluminação", grupo: "Seguranca", obrigatorio: false, critico: false },
   { codigo: "tacografo", nome: "Tacógrafo", grupo: "Seguranca", obrigatorio: false, critico: false },
   {
     codigo: "kit_seguranca",
