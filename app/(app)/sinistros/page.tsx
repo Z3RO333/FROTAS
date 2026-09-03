@@ -3,6 +3,7 @@ import { AlertTriangle, Camera, ExternalLink, LifeBuoy, MapPin, Phone, ShieldAle
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SocorroStatusForm } from "@/components/sinistros/socorro-status-form";
+import { SinistroStatusForm } from "@/components/sinistros/sinistro-status-form";
 import { createSignedSinistroImageUrl } from "@/lib/repos/sinistro-images";
 import { listAdminSinistros, sinistrosDashboardKpis, type SinistroRow } from "@/lib/repos/sinistros";
 import { requireAdminUser } from "@/lib/rbac";
@@ -168,7 +169,9 @@ function SinistroCard({ sinistro }: { sinistro: SinistroAdminRow }) {
 
           {isSocorro ? (
             <SocorroStatusForm sinistroId={sinistro.id} currentStatus={sinistro.status} />
-          ) : null}
+          ) : (
+            <SinistroStatusForm sinistroId={sinistro.id} currentStatus={sinistro.status} />
+          )}
         </div>
 
         <div className="w-full shrink-0 xl:w-80">

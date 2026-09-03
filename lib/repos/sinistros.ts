@@ -165,6 +165,37 @@ export async function sinistrosDashboardKpis(): Promise<{
 }
 
 export type SocorroStatus = "ABERTO" | "EM_ATENDIMENTO" | "GUINCHO_ACIONADO" | "RESOLVIDO" | "CANCELADO";
+export type SinistroStatus = "PENDENTE" | "RESOLVIDO" | "CANCELADO";
+
+export async function updateSinistroStatus(
+  sinistroId: number,
+  novoStatus: SinistroStatus,
+  adminEmail: string
+): Promise<void> {
+  const { data: row, error: fetchError } = await supabaseManutencao
+    .from("sinistros_frota")
+    .select("id,tipo_sinistro")
+    .eq("id", sinistroId)
+    .single();
+
+  if (fetchError || !row) throw new Error("Sinistro nao encontrado.");
+  if (row.tipo_sinistro === "socorro") throw new Error("Use atualizarStatusSocorro para sinistros de socorro.");
+
+  const updates: Record<string, unknown> = {
+    status: novoStatus,
+    responsavel_atendimento: adminEmail,
+  };
+  if (novoStatus === "RESOLVIDO" || novoStatus === "CANCELADO") {
+    updates.atendimento_concluido_em = new Date().toISOString();
+  }
+
+  const { error } = await supabaseManutencao
+    .from("sinistros_frota")
+    .update(updates)
+    .eq("id", sinistroId);
+
+  if (error) throw error;
+}
 
 export async function updateSocorroStatus(
   sinistroId: number,
