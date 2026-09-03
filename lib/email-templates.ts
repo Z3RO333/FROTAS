@@ -231,7 +231,10 @@ function summaryCell(label: string, value: string, color: string, note?: string,
 }
 
 function shell(content: string): string {
-  return `
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body style="margin:0;padding:0;background:${SURFACE};">
   <div style="margin:0;padding:0;background:${SURFACE};">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:${SURFACE};">
       <tr>
@@ -242,7 +245,9 @@ function shell(content: string): string {
         </td>
       </tr>
     </table>
-  </div>`;
+  </div>
+</body>
+</html>`;
 }
 
 function header(title: string, subtitle: string, options: ReportOptions): string {
@@ -696,14 +701,6 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
   const GREEN = "#22c55e";
   const dataHora = input.criadoEm.toLocaleString("pt-BR", { timeZone: "America/Manaus" });
   const tipoLabel = input.tipoSinistro === "veiculo" ? "Veiculo" : "Casa";
-  const maskCpf = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    return digits.length >= 2 ? `***.***.***-${digits.slice(-2)}` : "***";
-  };
-  const maskPhone = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    return digits.length >= 4 ? `******${digits.slice(-4)}` : "***";
-  };
 
   const mapsLink =
     input.latitude != null && input.longitude != null
@@ -728,8 +725,8 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
           <div style="font-size:12px;font-weight:700;color:${BLUE};margin-bottom:6px;">Terceiro ${index + 1}</div>
           <div style="font-size:13px;line-height:1.6;">
             <strong>Nome:</strong> ${escapeHtml(terceiro.nome)}<br>
-            <strong>CPF:</strong> ${escapeHtml(maskCpf(terceiro.cpf))}<br>
-            <strong>Telefone:</strong> ${escapeHtml(maskPhone(terceiro.telefone))}
+            <strong>CPF:</strong> ${escapeHtml(terceiro.cpf)}<br>
+            <strong>Telefone:</strong> ${escapeHtml(terceiro.telefone)}
           </div>
         </div>`
           )
