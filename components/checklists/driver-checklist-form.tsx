@@ -514,7 +514,7 @@ export function DriverChecklistForm({
                 Itens com <span className="font-semibold text-red-600">*</span> são obrigatórios — você precisa marcar OK ou Problema.
               </li>
               <li>
-                Itens <span className="font-semibold text-red-700">críticos</span> (freios, pneus) bloqueiam a saída se marcados como Problema.
+                Itens <span className="font-semibold text-red-700">críticos</span> (kit segurança, pneus) bloqueiam a saída se marcados como Problema.
               </li>
               <li>Itens não obrigatórios podem ficar sem marcação se não se aplicam.</li>
               <li>Ao marcar <span className="font-semibold">Problema</span>, descreva o que aconteceu na observação ao lado.</li>
