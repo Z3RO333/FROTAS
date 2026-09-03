@@ -15,9 +15,15 @@ export function matchesVehicleSearch(vehicle: SearchableVehicle, search: string)
   const query = normalize(search);
   if (!query) return true;
 
+  const isNumericOnly = /^\d+$/.test(query);
+
+  if (isNumericOnly) {
+    // Busca por frota: exata (ex.: "11" não bate em "111" ou "115")
+    return normalize(vehicle.codigo_frota ?? "") === query;
+  }
+
+  // Busca por placa: parcial sem separadores (ex.: "TRZ" bate em "TRZ-8G44")
   const compactQuery = compact(query);
-  return [vehicle.codigo_frota, vehicle.placa].some((value) => {
-    const normalizedValue = normalize(value ?? "");
-    return normalizedValue.includes(query) || (compactQuery !== "" && compact(normalizedValue).includes(compactQuery));
-  });
+  const compactPlaca = compact(normalize(vehicle.placa ?? ""));
+  return compactPlaca.includes(compactQuery);
 }

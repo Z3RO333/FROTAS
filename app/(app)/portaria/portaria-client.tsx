@@ -113,8 +113,12 @@ export function PortariaClient({ rows, erro, canApproveExit, initialStatus }: Pr
   const filtered = rowsFiltradas.filter((r) => {
     const frota = queryFrota.trim().toLowerCase();
     const placa = queryPlaca.trim().toLowerCase();
-    if (frota && !String(r.frota_geral ?? "").toLowerCase().includes(frota)) return false;
-    if (placa && !String(r.placa ?? "").toLowerCase().includes(placa)) return false;
+    if (frota) {
+      const frotaValue = String(r.frota_geral ?? "").toLowerCase();
+      const isNumeric = /^\d+$/.test(frota);
+      if (isNumeric ? frotaValue !== frota : !frotaValue.includes(frota)) return false;
+    }
+    if (placa && !String(r.placa ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").includes(placa.replace(/[^a-z0-9]/g, ""))) return false;
     if (filtroStatus === "COM_CHECKLIST" && !r.checklist_id) return false;
     if (
       filtroStatus !== "TODAS" &&
