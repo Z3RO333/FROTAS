@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -337,7 +338,7 @@ export default async function FrotasDisponibilidadesPage({
                 <Field label="Horario">
                   <Input name="hora_envio" type="time" defaultValue="07:00" required />
                 </Field>
-                <Button type="submit">Criar</Button>
+                <SubmitButton pendingLabel="Criando...">Criar</SubmitButton>
               </form>
             </CardContent>
           </Card>
@@ -379,15 +380,21 @@ export default async function FrotasDisponibilidadesPage({
                     <form action={toggleDisponibilidadeScheduleAction}>
                       <input type="hidden" name="id" value={schedule.id} />
                       <input type="hidden" name="ativo" value={String(schedule.ativo)} />
-                      <Button type="submit" variant="outline" size="sm">
+                      <SubmitButton pendingLabel="Atualizando..." variant="outline" size="sm">
                         {schedule.ativo ? "Pausar" : "Ativar"}
-                      </Button>
+                      </SubmitButton>
                     </form>
                     <form action={deleteDisponibilidadeScheduleAction}>
                       <input type="hidden" name="id" value={schedule.id} />
-                      <Button type="submit" variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                      <SubmitButton
+                        pendingLabel="Removendo..."
+                        confirmMessage={`Remover a programação “${schedule.nome}”?`}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                      >
                         Remover
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </div>
                 ) : null}

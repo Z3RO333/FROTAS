@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
+import { OnlineStatus } from "@/components/online-status";
 
 export default async function LoginPage({
   searchParams,
@@ -134,6 +135,27 @@ export default async function LoginPage({
           border-radius: 50%;
           background: #1fe0a1;
           box-shadow: 0 0 8px #1fe0a1;
+        }
+
+        .login-badge[data-status="checking"] {
+          color: #cbd5e1;
+          background: rgba(203,213,225,.08);
+          border-color: rgba(203,213,225,.18);
+        }
+        .login-badge[data-status="checking"] .login-badge-dot {
+          background: #94a3b8;
+          box-shadow: 0 0 8px #94a3b8;
+        }
+        .login-badge[data-status="offline"],
+        .login-badge[data-status="unavailable"] {
+          color: #fbbf24;
+          background: rgba(251,191,36,.08);
+          border-color: rgba(251,191,36,.22);
+        }
+        .login-badge[data-status="offline"] .login-badge-dot,
+        .login-badge[data-status="unavailable"] .login-badge-dot {
+          background: #fbbf24;
+          box-shadow: 0 0 8px #fbbf24;
         }
 
         .login-card h1 {
@@ -322,10 +344,7 @@ export default async function LoginPage({
       {/* Lado direito — card */}
       <div className="login-right">
         <div className="login-card">
-          <span className="login-badge">
-            <span className="login-badge-dot" />
-            Sistema online
-          </span>
+          <OnlineStatus variant="login" />
           <h1>Frotas Bemol</h1>
           <p>Entre com sua conta corporativa para acessar o painel.</p>
 

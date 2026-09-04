@@ -10,6 +10,7 @@ export function bloqueioChecklistRestanteMs(
   _ultimoChecklistEm: string | null | undefined,
   _agora = Date.now()
 ): number {
+  void _agora;
   return 0;
 }
 

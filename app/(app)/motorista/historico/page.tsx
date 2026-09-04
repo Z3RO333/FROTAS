@@ -65,7 +65,7 @@ export default async function MotoristaHistoricoPage() {
                     className="border-b odd:bg-white even:bg-slate-50/60 last:border-0"
                   >
                     <td className="p-3 font-medium">
-                      <Link href={`/frotas/${f.frota_id}`} className="hover:text-blue-600 hover:underline">
+                      <Link href={`/motorista/frotas/${f.frota_id}`} className="hover:text-blue-600 hover:underline">
                         {f.frota_geral ?? String(f.frota_id)}
                       </Link>
                     </td>

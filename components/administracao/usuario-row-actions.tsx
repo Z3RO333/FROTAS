@@ -3,6 +3,7 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { KeyRound, Save, ShieldOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,9 +124,9 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
               <Button type="button" variant="outline" onClick={() => setExcluirOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" variant="destructive">
+              <SubmitButton pendingLabel="Excluindo..." variant="destructive">
                 Sim, excluir permanentemente
-              </Button>
+              </SubmitButton>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -139,7 +140,7 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
               Nova senha de acesso pra <span className="font-medium text-slate-900">{usuarioLabel}</span>.
             </DialogDescription>
           </DialogHeader>
-          <form action={redefinirSenhaTerceiroAction} className="space-y-3" onSubmit={() => setSenhaOpen(false)}>
+          <form action={redefinirSenhaTerceiroAction} className="space-y-3">
             <input type="hidden" name="id" value={usuarioId} />
             <div className="space-y-1.5">
               <Label htmlFor={`senha-${usuarioId}`}>Nova senha</Label>
@@ -149,7 +150,7 @@ export function UsuarioRowActions({ usuarioId, usuarioLabel, wasActive, disabled
               <Button type="button" variant="outline" onClick={() => setSenhaOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Salvar nova senha</Button>
+              <SubmitButton pendingLabel="Salvando...">Salvar nova senha</SubmitButton>
             </DialogFooter>
           </form>
         </DialogContent>

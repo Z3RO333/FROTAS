@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, PackageSearch, RefreshCw, Truck } from "lucide-react";
 import { PedidoPecasStatusBadge } from "@/components/manutencao/pedido-pecas-status";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { PageHeader, SectionHeader } from "@/components/ui/page-header";
 import { getPedidoPecas } from "@/lib/repos/pedidos-pecas";
 import { requireManutencaoUser } from "@/lib/rbac";
@@ -71,10 +72,10 @@ export default async function PedidoPecasDetailPage({
         {podeReenviar ? (
           <form action={reenviarCotacoesPedidoPecasAction}>
             <input type="hidden" name="pedido_id" value={pedido.id} />
-            <Button type="submit">
+            <SubmitButton pendingLabel="Reenviando...">
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
               Reenviar pendentes
-            </Button>
+            </SubmitButton>
           </form>
         ) : null}
       </div>

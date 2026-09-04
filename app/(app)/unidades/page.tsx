@@ -1,7 +1,7 @@
-import { Building2, Search } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DebouncedUrlSearch } from "@/components/ui/debounced-url-search";
 import { PageHeader } from "@/components/ui/page-header";
 import { countUnidades, listUnidades } from "@/lib/repos/unidades";
 import { requireAdminUser } from "@/lib/rbac";
@@ -39,22 +39,12 @@ export default async function UnidadesPage({
 
       <Card>
         <CardContent className="p-4">
-          <form className="flex flex-col gap-3 sm:flex-row">
-            <label className="relative flex-1">
-              <span className="sr-only">Pesquisar unidade</span>
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                name="search"
-                defaultValue={search}
-                placeholder="Pesquisar por loja, negócio, centro, CNPJ ou endereço"
-                className="h-10 w-full rounded-md border bg-white pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-              />
-            </label>
-            <Button type="submit">
-              <Search className="mr-2 h-4 w-4" aria-hidden="true" />
-              Pesquisar
-            </Button>
-          </form>
+          <DebouncedUrlSearch
+            paramName="search"
+            defaultValue={search}
+            placeholder="Pesquisar por loja, negócio, centro, CNPJ ou endereço"
+            ariaLabel="Pesquisar unidade"
+          />
         </CardContent>
       </Card>
 

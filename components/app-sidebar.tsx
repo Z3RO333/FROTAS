@@ -90,6 +90,26 @@ export function AppSidebar({
     setOpenSections((prev) => (prev[activeSectionTitle] ? prev : { ...prev, [activeSectionTitle]: true }));
   }, [activeSectionTitle]);
 
+  useEffect(() => {
+    try {
+      setCollapsed(window.localStorage.getItem("frotas:sidebar-collapsed") === "true");
+    } catch {
+      // Preferências locais indisponíveis: mantém o menu aberto.
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem("frotas:sidebar-collapsed", String(next));
+      } catch {
+        // A navegação continua funcional mesmo sem armazenamento local.
+      }
+      return next;
+    });
+  }
+
   function toggleSection(title: string) {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
   }
@@ -129,7 +149,7 @@ export function AppSidebar({
               variant="ghost"
               size="icon"
               className="absolute right-2 top-2 hidden h-6 w-6 bg-black/30 text-slate-300 hover:bg-black/50 hover:text-white lg:inline-flex"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={toggleCollapsed}
               aria-label="Recolher menu lateral"
               title="Recolher"
             >
@@ -165,7 +185,7 @@ export function AppSidebar({
               variant="ghost"
               size="icon"
               className="h-6 w-6 bg-white/[0.04] text-slate-400 hover:bg-white/10 hover:text-white"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={toggleCollapsed}
               aria-label="Expandir menu lateral"
               title="Expandir"
             >

@@ -858,6 +858,12 @@ export async function registrarMovimentacaoFrota(input: RegistrarMovimentacaoInp
   if (!/function .* does not exist/i.test(error.message)) {
     throw new Error(`registrarMovimentacaoFrota: ${error.message}`, { cause: error });
   }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "registrarMovimentacaoFrota: RPC idempotente ausente em produção; aplique as migrations antes de liberar a portaria.",
+      { cause: error }
+    );
+  }
   console.warn("[portaria] RPC registrar_movimentacao_idempotente ausente — usando insert direto");
   const { error: fbError } = await supabaseManutencao
     .from("movimentacoes_frota")

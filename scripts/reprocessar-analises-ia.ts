@@ -35,7 +35,6 @@ const supabaseManutencao = createClient(
 );
 
 const STATUS_PRESOS = ["ERRO", "PROCESSANDO"] as const;
-const TAMANHO_LOTE = 20;
 const PAUSA_ENTRE_LOTES_MS = 1_000;
 
 function arg(nome: string): string | undefined {

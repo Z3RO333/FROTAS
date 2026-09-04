@@ -40,22 +40,34 @@ export type ChecklistDetalhePortaria = {
 
 export async function getChecklistDetalhePortaria(
   checklistId: number,
-  frotaId: number
+  frotaId?: number
 ): Promise<ChecklistDetalhePortaria | null> {
   const { start, end } = reportDayUtcRange(reportCalendarDate());
 
-  const [checklistResult, itens, imagensResult, historicoResult] = await Promise.all([
-    supabaseManutencao
-      .from("checklists_frota")
-      .select(`
-        id, frota_id, motorista_id, motorista_nome,
-        km_informado, foto_km_url, status_geral, observacao_original,
-        observacao_corrigida_ia, criado_em,
-        veiculos!inner(codigo_frota, placa, modelo, km_atual)
-      `)
-      .eq("id", checklistId)
-      .single(),
+  const checklistResult = await supabaseManutencao
+    .from("checklists_frota")
+    .select(`
+      id, frota_id, motorista_id, motorista_nome,
+      km_informado, foto_km_url, status_geral, observacao_original,
+      observacao_corrigida_ia, criado_em,
+      veiculos!inner(codigo_frota, placa, modelo, km_atual)
+    `)
+    .eq("id", checklistId)
+    .single();
 
+  if (checklistResult.error || !checklistResult.data) {
+    console.warn("[portaria-detail] checklist não encontrado", checklistResult.error?.message);
+    return null;
+  }
+
+  const c = checklistResult.data;
+  const checklistFrotaId = Number((c as { frota_id: number }).frota_id);
+  if (frotaId != null && checklistFrotaId !== frotaId) {
+    console.warn("[portaria-detail] frota não corresponde ao checklist", { checklistId, frotaId });
+    return null;
+  }
+
+  const [itens, imagensResult, historicoResult] = await Promise.all([
     listChecklistItems(checklistId),
 
     supabaseManutencao
@@ -66,19 +78,12 @@ export async function getChecklistDetalhePortaria(
     supabaseManutencao
       .from("movimentacoes_frota")
       .select("id, tipo_acao, motivo_bloqueio, observacao, usuario_portaria_id, data_hora")
-      .eq("frota_id", frotaId)
+      .eq("frota_id", checklistFrotaId)
       .gte("data_hora", start)
       .lt("data_hora", end)
       .order("data_hora", { ascending: false })
       .limit(10),
   ]);
-
-  if (checklistResult.error || !checklistResult.data) {
-    console.warn("[portaria-detail] checklist não encontrado", checklistResult.error?.message);
-    return null;
-  }
-
-  const c = checklistResult.data;
   const veiculo = (c as unknown as { veiculos?: { codigo_frota?: string | null; placa?: string | null; modelo?: string | null; km_atual?: number | null } }).veiculos ?? {};
 
   const fotoKmPath = (c as { foto_km_url?: string | null }).foto_km_url ?? null;
@@ -115,7 +120,7 @@ export async function getChecklistDetalhePortaria(
 
   return {
     checklist_id: checklistId,
-    frota_id: frotaId,
+    frota_id: checklistFrotaId,
     frota_geral: veiculo.codigo_frota ?? null,
     placa: veiculo.placa ?? null,
     modelo: veiculo.modelo ?? null,

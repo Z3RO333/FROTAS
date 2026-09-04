@@ -1,5 +1,5 @@
 import { Truck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +49,7 @@ export default async function FornecedoresPecasPage({
               <Label htmlFor="novo-fornecedor-email">E-mail</Label>
               <Input id="novo-fornecedor-email" name="email" type="email" placeholder="vendas@fornecedor.com.br" required />
             </div>
-            <Button type="submit">Adicionar</Button>
+            <SubmitButton pendingLabel="Adicionando...">Adicionar</SubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -109,9 +109,9 @@ function FornecedorRow({ fornecedor }: { fornecedor: FornecedorPecas }) {
         </label>
       </div>
 
-      <Button type="submit" variant="outline" size="sm">
+      <SubmitButton pendingLabel="Salvando..." variant="outline" size="sm">
         Salvar
-      </Button>
+      </SubmitButton>
     </form>
   );
 }

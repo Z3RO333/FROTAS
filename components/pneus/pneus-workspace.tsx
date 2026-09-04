@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Flame, Gauge, RotateCcw, Save, Search, Truck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Flame, Gauge, RotateCcw, Save, Truck } from "lucide-react";
 import { registrarTrocaAction } from "@/app/(app)/pneus/_actions";
 import { Button } from "@/components/ui/button";
+import { DebouncedUrlSearch } from "@/components/ui/debounced-url-search";
 import { Input } from "@/components/ui/input";
 import { PageHero, HeroStat } from "@/components/ui/page-header";
 import { VehicleTireMap } from "@/components/pneus/vehicle-tire-map";
@@ -91,21 +92,13 @@ export function PneusWorkspace({
         description="Selecione a frota, marque as posições substituídas no desenho e registre a troca com número de fogo previsto."
         icon={Truck}
         actions={
-          <form className="flex w-full max-w-md items-center gap-2" action="/pneus">
-            <label className="relative flex-1">
-              <span className="sr-only">Buscar frota</span>
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
-              <Input
-                name="q"
-                defaultValue={query ?? ""}
-                placeholder="Buscar frota, placa ou modelo"
-                className="border-white/15 bg-white/10 pl-9 text-white placeholder:text-slate-400 focus-visible:ring-blue-400/30"
-              />
-            </label>
-            <Button type="submit" variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white">
-              Buscar
-            </Button>
-          </form>
+          <DebouncedUrlSearch
+            defaultValue={query ?? ""}
+            placeholder="Buscar frota, placa ou modelo"
+            ariaLabel="Buscar frota"
+            className="w-full max-w-md"
+            inputClassName="border-white/15 bg-white/10 text-white placeholder:text-slate-400 focus-visible:ring-blue-400/30"
+          />
         }
       >
         <HeroStat

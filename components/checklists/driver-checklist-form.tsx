@@ -46,6 +46,32 @@ const STEPS = ["Selecionar veículo", "Realizar checklist", "Registrar hodômetr
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
 const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
+type ChecklistDraft = {
+  version: 1;
+  step: number;
+  frotaId: string;
+  kmValue: string;
+  itemStatuses: Record<string, ChecklistItemStatus>;
+  itemObservacoes: Record<string, string>;
+  nivelCombustivel: number;
+  nivelArla: number;
+  justificativaKm: string;
+  tipoCombustivel: string;
+  litrosCombustivel: string;
+  litrosArla: string;
+  savedAt: number;
+};
+
+function initialItemStatuses(): Record<string, ChecklistItemStatus> {
+  return Object.fromEntries(
+    CHECKLIST_ITEMS.map((item) => [item.codigo, "NAO_SE_APLICA" as ChecklistItemStatus])
+  );
+}
+
+function initialItemObservacoes(): Record<string, string> {
+  return Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, ""]));
+}
+
 // Redimensiona e comprime a imagem no browser antes de enviar para OCR.
 // De ~4 MB (foto de câmera) para ~40-60 KB — reduz upload de 4s para <0.5s em rede móvel.
 // O preview usa a imagem original (boa qualidade); o OCR recebe a comprimida (suficiente para ler dígitos).
@@ -77,9 +103,11 @@ async function comprimirImagemParaOcr(file: File, maxPx = 1280, qualidade = 0.88
 export function DriverChecklistForm({
   frotas,
   agoraInicial,
+  draftOwner,
 }: {
   frotas: Frota[];
   agoraInicial: number;
+  draftOwner: string;
 }) {
   const router = useRouter();
   const fotoKmFileRef = useRef<File | null>(null);
@@ -111,17 +139,24 @@ export function DriverChecklistForm({
   const [ocrState, setOcrState] = useState<OcrState | null>(null);
   const ocrAbortRef = useRef<AbortController | null>(null);
   const [itemStatuses, setItemStatuses] = useState<Record<string, ChecklistItemStatus>>(
-    () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, "NAO_SE_APLICA" as ChecklistItemStatus]))
+    initialItemStatuses
   );
   const [nivelCombustivel, setNivelCombustivel] = useState(0);
   const [nivelArla, setNivelArla] = useState(0);
   const [stepErro, setStepErro] = useState<string | null>(null);
   const [itemObservacoes, setItemObservacoes] = useState<Record<string, string>>(
-    () => Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.codigo, ""]))
+    initialItemObservacoes
   );
   const [itemFotoNomes, setItemFotoNomes] = useState<Record<string, string>>({});
   const [fotoKmPreview, setFotoKmPreview] = useState<string | null>(null);
   const [agora, setAgora] = useState(agoraInicial);
+  const [justificativaKm, setJustificativaKm] = useState("");
+  const [tipoCombustivel, setTipoCombustivel] = useState("");
+  const [litrosCombustivel, setLitrosCombustivel] = useState("");
+  const [litrosArla, setLitrosArla] = useState("");
+  const [draftRecovered, setDraftRecovered] = useState(false);
+  const draftReadyRef = useRef(false);
+  const draftKey = `frotas:checklist-draft:v1:${draftOwner.toLowerCase()}`;
 
   const selected = useMemo(
     () => frotas.find((f) => String(f.id) === frotaId) ?? null,
@@ -129,8 +164,100 @@ export function DriverChecklistForm({
   );
 
   useEffect(() => {
-    if (actionState.ok) router.push(actionState.redirectTo);
-  }, [actionState, router]);
+    if (!actionState.ok) return;
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      // O envio já foi concluído; falha ao limpar cache local não bloqueia a navegação.
+    }
+    router.push(actionState.redirectTo);
+  }, [actionState, draftKey, router]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (raw) {
+        const draft = JSON.parse(raw) as Partial<ChecklistDraft>;
+        const frotaExiste = frotas.some((frota) => String(frota.id) === draft.frotaId);
+        if (draft.version === 1 && draft.frotaId && frotaExiste) {
+          setFrotaId(draft.frotaId);
+          setStep(Math.max(0, Math.min(2, Number(draft.step) || 0)));
+          setKmValue(draft.kmValue ?? "");
+          setItemStatuses({ ...initialItemStatuses(), ...(draft.itemStatuses ?? {}) });
+          setItemObservacoes({ ...initialItemObservacoes(), ...(draft.itemObservacoes ?? {}) });
+          setNivelCombustivel(Number(draft.nivelCombustivel) || 0);
+          setNivelArla(Number(draft.nivelArla) || 0);
+          setJustificativaKm(draft.justificativaKm ?? "");
+          setTipoCombustivel(draft.tipoCombustivel ?? "");
+          setLitrosCombustivel(draft.litrosCombustivel ?? "");
+          setLitrosArla(draft.litrosArla ?? "");
+          setDraftRecovered(true);
+        }
+      }
+    } catch {
+      try {
+        window.localStorage.removeItem(draftKey);
+      } catch {
+        // Armazenamento local indisponível.
+      }
+    } finally {
+      draftReadyRef.current = true;
+    }
+  }, [draftKey, frotas]);
+
+  useEffect(() => {
+    if (!draftReadyRef.current) return;
+    const hasProgress = Boolean(
+      frotaId ||
+      kmValue ||
+      justificativaKm ||
+      tipoCombustivel ||
+      litrosCombustivel ||
+      litrosArla ||
+      Object.values(itemStatuses).some((status) => status !== "NAO_SE_APLICA") ||
+      Object.values(itemObservacoes).some(Boolean)
+    );
+    const timer = window.setTimeout(() => {
+      try {
+        if (!hasProgress) {
+          window.localStorage.removeItem(draftKey);
+          return;
+        }
+        const draft: ChecklistDraft = {
+          version: 1,
+          step,
+          frotaId,
+          kmValue,
+          itemStatuses,
+          itemObservacoes,
+          nivelCombustivel,
+          nivelArla,
+          justificativaKm,
+          tipoCombustivel,
+          litrosCombustivel,
+          litrosArla,
+          savedAt: Date.now(),
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+      } catch {
+        // O checklist segue funcionando quando o navegador bloqueia armazenamento local.
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    draftKey,
+    frotaId,
+    itemObservacoes,
+    itemStatuses,
+    justificativaKm,
+    kmValue,
+    litrosArla,
+    litrosCombustivel,
+    nivelArla,
+    nivelCombustivel,
+    step,
+    tipoCombustivel,
+  ]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setAgora(Date.now()), 30_000);
@@ -283,9 +410,7 @@ export function DriverChecklistForm({
     // KM divergente sem justificativa também é bloqueado pelo servidor, mas avisar antes evita
     // o motorista perder o upload de todas as fotos.
     if (selected?.km_atual != null && km < selected.km_atual) {
-      const justificativa = (
-        document.getElementById("justificativa_km") as HTMLTextAreaElement | null
-      )?.value?.trim();
+      const justificativa = justificativaKm.trim();
       if (!justificativa) {
         e.preventDefault();
         setStepErro(
@@ -296,9 +421,7 @@ export function DriverChecklistForm({
     }
     // Salto acima do incomum exige justificativa (inclui saltos muito grandes).
     if (selected?.km_atual != null && km - selected.km_atual > KM_VARIACAO_INCOMUM) {
-      const justificativa = (
-        document.getElementById("justificativa_km") as HTMLTextAreaElement | null
-      )?.value?.trim();
+      const justificativa = justificativaKm.trim();
       if (!justificativa) {
         e.preventDefault();
         const diff = km - selected.km_atual;
@@ -332,6 +455,24 @@ export function DriverChecklistForm({
         <h1 className="text-2xl font-bold tracking-tight">Registrar Checklist</h1>
         <p className="text-sm text-muted-foreground">Registre o checklist do veículo.</p>
       </div>
+
+      {draftRecovered ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">Rascunho recuperado</p>
+            <p className="text-xs text-blue-800">Respostas e campos foram restaurados. Por segurança, anexe novamente as fotos.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-blue-200 bg-white"
+            onClick={() => setDraftRecovered(false)}
+          >
+            Entendi
+          </Button>
+        </div>
+      ) : null}
 
       {!actionState.ok && actionState.error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
@@ -827,6 +968,8 @@ export function DriverChecklistForm({
                 id="justificativa_km"
                 name="justificativa_km"
                 rows={3}
+                value={justificativaKm}
+                onChange={(event) => setJustificativaKm(event.target.value)}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
@@ -841,7 +984,8 @@ export function DriverChecklistForm({
                 <select
                   id="tipo_combustivel"
                   name="tipo_combustivel"
-                  defaultValue=""
+                  value={tipoCombustivel}
+                  onChange={(event) => setTipoCombustivel(event.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
                 >
                   <option value="">Nenhum</option>
@@ -863,6 +1007,8 @@ export function DriverChecklistForm({
                   inputMode="decimal"
                   placeholder="90"
                   className="h-9"
+                  value={litrosCombustivel}
+                  onChange={(event) => setLitrosCombustivel(event.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -876,6 +1022,8 @@ export function DriverChecklistForm({
                   inputMode="decimal"
                   placeholder="10"
                   className="h-9"
+                  value={litrosArla}
+                  onChange={(event) => setLitrosArla(event.target.value)}
                 />
               </div>
             </div>

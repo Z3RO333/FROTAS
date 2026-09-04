@@ -1,5 +1,6 @@
-import { FileText, Search } from "lucide-react";
+import { FileText } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { DebouncedUrlSearch } from "@/components/ui/debounced-url-search";
 import { DocumentPreviewDialog } from "@/components/documentos/document-preview-dialog";
 import { listAllDocuments } from "@/lib/repos/manutencao/documents";
 
@@ -34,25 +35,11 @@ export default async function MotoristaDocumentosPage({
         icon={FileText}
       />
 
-      <form method="GET" className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-          <input
-            name="q"
-            type="search"
-            defaultValue={q ?? ""}
-            placeholder="Nº da frota, placa ou modelo..."
-            className="h-10 w-full rounded-md border bg-white pl-9 pr-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
-            autoComplete="off"
-          />
-        </div>
-        <button
-          type="submit"
-          className="h-10 rounded-md border bg-white px-4 text-sm font-medium hover:bg-slate-50"
-        >
-          Buscar
-        </button>
-      </form>
+      <DebouncedUrlSearch
+        defaultValue={q ?? ""}
+        placeholder="Nº da frota, placa ou modelo..."
+        ariaLabel="Buscar documento por frota, placa ou modelo"
+      />
 
       {documentos.length === 0 ? (
         <p className="rounded-md border bg-white p-6 text-center text-sm text-muted-foreground">

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
@@ -89,7 +90,7 @@ export default async function UsuariosPage({
             </Field>
             <div className="lg:col-span-2" />
             <div className="flex items-center lg:pb-0.5">
-              <Button type="submit">Adicionar</Button>
+              <SubmitButton pendingLabel="Adicionando...">Adicionar</SubmitButton>
             </div>
           </form>
           <p className="text-xs text-muted-foreground">

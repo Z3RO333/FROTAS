@@ -64,6 +64,7 @@ export default auth((req) => {
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname === "/acesso-bloqueado" ||
+    pathname === "/api/health" ||
     pathname.startsWith("/api/auth/") ||
     // Rotas internas protegidas por FROTAS_INTERNAL_SECRET no proprio handler.
     // Liberadas aqui pra que o secret check rode (sem isso, sessao redireciona pra /login).
