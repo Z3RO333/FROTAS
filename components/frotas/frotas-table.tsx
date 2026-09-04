@@ -298,7 +298,7 @@ function FrotaDrawer({
           </SheetDescription>
         </SheetHeader>
         <div className="mt-4 grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
-          <BemolTruck frota={frota.frota_geral ?? frota.id} className="max-w-[200px]" />
+          <BemolTruck frota={frota.frota_geral ?? frota.id} modelo={frota.modelo} className="max-w-[200px]" />
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>

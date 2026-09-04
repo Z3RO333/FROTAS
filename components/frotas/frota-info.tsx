@@ -53,7 +53,7 @@ export function FrotaInfo({ frota }: { frota: Frota }) {
     <Card className="overflow-hidden border-blue-100 bg-white">
       <CardContent className="grid gap-6 p-6 lg:grid-cols-[240px_1fr]">
         <div className="space-y-3">
-          <BemolTruck frota={frota.frota_geral ?? frota.id} />
+          <BemolTruck frota={frota.frota_geral ?? frota.id} modelo={frota.modelo} />
           <div className="flex flex-wrap gap-2">
             <Badge className={STATUS_CLASS[status]}>{STATUS_OPERACIONAL_LABELS[status]}</Badge>
             <Badge variant="outline" className={CONDITION_CLASS[condicao]}>
