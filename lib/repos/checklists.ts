@@ -326,6 +326,8 @@ export type ChecklistListFilters = {
   localizacao?: string;
   // Setor/detalhe do veículo (coluna "setor" em veiculos), ex.: "EXPEDIÇÃO MANAUS".
   setor?: string;
+  // Situação consolidada do checklist.
+  status?: ChecklistStatusGeral;
 };
 
 async function findVehicleIdsBySearch(search: string): Promise<number[]> {
@@ -408,6 +410,7 @@ export async function listAdminChecklists(
     if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
     if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
     if (frotaIds) query = query.in("frota_id", frotaIds);
+    if (filters.status) query = query.eq("status_geral", filters.status);
 
     const { data, error } = await query;
 
@@ -688,6 +691,7 @@ export async function listChecklistIdsForFilters(filters: ChecklistListFilters):
       if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
       if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
       if (frotaIds) query = query.in("frota_id", frotaIds);
+      if (filters.status) query = query.eq("status_geral", filters.status);
 
       const { data, error } = await query;
       if (error) throw error;

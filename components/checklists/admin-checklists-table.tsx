@@ -3,9 +3,8 @@
 import { Fragment, useState } from "react";
 import {
   AlertTriangle, CheckCircle2, ChevronRight, Clock,
-  Gauge, MessageSquare, User, XCircle, ClipboardCheck,
+  Gauge, MessageSquare, User, XCircle, ClipboardCheck, ArrowRight,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
@@ -45,24 +44,24 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
     <>
       {/* Desktop */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-muted-foreground">
+        <table className="w-full min-w-[940px] text-sm">
+          <thead className="border-b bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-3">Data</th>
-              <th className="px-4 py-3">Frota</th>
-              <th className="px-4 py-3">Placa</th>
+              <th className="w-24 px-4 py-3">Horário</th>
+              <th className="px-4 py-3">Frota / placa</th>
               <th className="px-4 py-3">Setor</th>
               <th className="px-4 py-3">Motorista</th>
               <th className="px-4 py-3 text-right">KM</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Observações</th>
+              <th className="w-12 px-3 py-3"><span className="sr-only">Abrir</span></th>
             </tr>
           </thead>
           <tbody>
             {groups.map((group) => (
               <Fragment key={group.date}>
                 <tr className="border-t bg-slate-100">
-                  <td colSpan={8} className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <td colSpan={8} className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
                     {group.date} · {group.items.length} {group.items.length === 1 ? "checklist" : "checklists"}
                   </td>
                 </tr>
@@ -72,20 +71,52 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                   return (
                     <tr
                       key={checklist.id}
-                      className="cursor-pointer border-t align-top transition-colors hover:bg-blue-50"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Abrir checklist da frota ${checklist.frota_geral ?? checklist.placa ?? checklist.frota_id}`}
+                      className={cn(
+                        "group cursor-pointer border-t align-middle transition-colors hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
+                        checklist.status_geral === "CRITICO" || checklist.status_geral === "NAO_APTO"
+                          ? "bg-red-50/35"
+                          : checklist.status_geral === "COM_OBSERVACAO"
+                            ? "bg-amber-50/30"
+                            : "bg-white"
+                      )}
                       onClick={() => handleClick(checklist.id, checklist.frota_id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleClick(checklist.id, checklist.frota_id);
+                        }
+                      }}
                     >
-                      <td className="whitespace-nowrap px-4 py-3">{formatDate(checklist.data_checklist)}</td>
-                      <td className="px-4 py-3 font-medium">{checklist.frota_geral ?? "-"}</td>
-                      <td className="px-4 py-3">{checklist.placa ?? "-"}</td>
-                      <td className="max-w-52 truncate px-4 py-3" title={checklist.rota ?? undefined}>{checklist.rota ?? "-"}</td>
-                      <td className="px-4 py-3">{checklist.motorista_nome ?? checklist.motorista_id}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{formatNumber(checklist.km_informado)}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline">{checklist.status_geral}</Badge>
+                      <td className={cn(
+                        "whitespace-nowrap border-l-4 px-4 py-3 font-medium tabular-nums text-slate-600",
+                        checklist.status_geral === "APROVADO"
+                          ? "border-l-emerald-400"
+                          : checklist.status_geral === "COM_OBSERVACAO"
+                            ? "border-l-amber-400"
+                            : "border-l-red-500"
+                      )}>
+                        {formatTime(checklist.data_checklist)}
                       </td>
-                      <td className="min-w-56 max-w-80 whitespace-pre-wrap break-words px-4 py-3">
-                        {observacao}
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-950">Frota {checklist.frota_geral ?? checklist.frota_id}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{checklist.placa ?? "Sem placa"}</p>
+                      </td>
+                      <td className="max-w-48 px-4 py-3 text-slate-600">
+                        <p className="line-clamp-2" title={checklist.rota ?? undefined}>{checklist.rota ?? "—"}</p>
+                      </td>
+                      <td className="max-w-52 px-4 py-3"><p className="line-clamp-2">{checklist.motorista_nome ?? checklist.motorista_id}</p></td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-700">{formatNumber(checklist.km_informado)}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={checklist.status_geral} size="sm" />
+                      </td>
+                      <td className="min-w-56 max-w-80 px-4 py-3 text-xs leading-5 text-slate-600">
+                        <p className="line-clamp-2" title={observacao || undefined}>{observacao || "Sem observações"}</p>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <ArrowRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" aria-hidden="true" />
                       </td>
                     </tr>
                   );
@@ -118,7 +149,14 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                   key={checklist.id}
                   type="button"
                   onClick={() => handleClick(checklist.id, checklist.frota_id)}
-                  className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-blue-50"
+                  className={cn(
+                    "w-full rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                    checklist.status_geral === "APROVADO"
+                      ? "border-l-emerald-400"
+                      : checklist.status_geral === "COM_OBSERVACAO"
+                        ? "border-l-amber-400"
+                        : "border-l-red-500"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -128,7 +166,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                       </h2>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className="max-w-[40%] shrink-0 truncate">{checklist.status_geral}</Badge>
+                      <StatusBadge status={checklist.status_geral} size="sm" />
                       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
                   </div>
@@ -154,8 +192,8 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
 
       {/* Sheet de detalhe */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
-          <SheetHeader className="pb-2">
+        <SheetContent className="flex w-full flex-col overflow-y-auto bg-white sm:max-w-xl">
+          <SheetHeader className="border-b px-5 pb-4 pt-5 pr-16">
             <SheetTitle className="flex items-center gap-2 text-base">
               <ClipboardCheck className="h-4 w-4 text-blue-600" />
               {detalhe
@@ -177,7 +215,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
           )}
 
           {!loading && detalhe && (
-            <div className="space-y-5 pb-6">
+            <div className="space-y-5 px-5 py-5 pb-8">
               <div className="grid grid-cols-2 gap-3 rounded-xl border bg-slate-50 p-4">
                 <div>
                   <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -304,4 +342,9 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
       </Sheet>
     </>
   );
+}
+
+function formatTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }

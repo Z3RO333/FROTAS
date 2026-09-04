@@ -34,6 +34,7 @@ export function ChecklistFilters({
       if (value) next.set(key, value);
       else next.delete(key);
     }
+    next.delete("page");
     const qs = next.toString();
     startTransition(() => {
       router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
@@ -46,8 +47,9 @@ export function ChecklistFilters({
   const veiculo = searchParams.get("veiculo") ?? "";
   const localizacao = searchParams.get("localizacao") ?? "";
   const setor = searchParams.get("setor") ?? "";
+  const status = searchParams.get("status") ?? "";
   const [veiculoQuery, setVeiculoQuery] = useState(veiculo);
-  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo || localizacao || setor);
+  const temFiltro = Boolean(periodo || dataInicio || dataFim || veiculo || localizacao || setor || status);
 
   useEffect(() => setVeiculoQuery(veiculo), [veiculo]);
 
@@ -63,8 +65,8 @@ export function ChecklistFilters({
   }, [applyChanges, veiculo, veiculoQuery]);
 
   return (
-    <div className="rounded-xl border bg-white p-3 shadow-sm" aria-busy={isPending}>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(170px,0.8fr)_minmax(220px,1.3fr)_minmax(150px,0.8fr)_minmax(170px,0.9fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto] xl:items-end">
+    <div className="relative" aria-busy={isPending}>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.25fr)_minmax(0,0.85fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.85fr)_minmax(0,0.85fr)_auto] 2xl:items-end">
         <FilterField label="Período">
           <Select
             value={periodo || "all"}
@@ -144,6 +146,34 @@ export function ChecklistFilters({
                   {s}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </FilterField>
+
+        <FilterField label="Status">
+          <Select
+            value={status || "all"}
+            onValueChange={(v) => applyChanges({ status: v === "all" ? "" : v })}
+          >
+            <SelectTrigger aria-label="Filtrar por status">
+              <SelectValue>
+                {status === "APROVADO"
+                  ? "Aprovado"
+                  : status === "COM_OBSERVACAO"
+                    ? "Com observação"
+                    : status === "NAO_APTO"
+                      ? "Não apto"
+                      : status === "CRITICO"
+                        ? "Crítico"
+                        : "Todos os status"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="APROVADO">Aprovado</SelectItem>
+              <SelectItem value="COM_OBSERVACAO">Com observação</SelectItem>
+              <SelectItem value="NAO_APTO">Não apto</SelectItem>
+              <SelectItem value="CRITICO">Crítico</SelectItem>
             </SelectContent>
           </Select>
         </FilterField>
