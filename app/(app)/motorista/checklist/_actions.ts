@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { analyzeOdometerImage, calcStatusLeitura } from "@/lib/ai/odometer";
-import { CHECKLIST_ITEMS, type ChecklistStatusItem } from "@/lib/checklists/catalog";
+import { CHECKLIST_ITEMS, isCriticalChecklistProblem, type ChecklistStatusItem } from "@/lib/checklists/catalog";
 import {
   itemNeedsEvidence,
   normalizeDriverNote,
@@ -80,6 +80,15 @@ export async function enviarChecklistMotoristaAction(
     const kmDigitado = optionalInteger(formData.get("km_informado"));
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
+
+    const criticalProblem = CHECKLIST_ITEMS.find((item) =>
+      isCriticalChecklistProblem(item, formData.get(`item_status_${item.codigo}`))
+    );
+    if (criticalProblem) {
+      throw new Error(
+        `${criticalProblem.nome}: item crítico marcado com problema. Este checklist não pode ser enviado.`
+      );
+    }
 
     const frota = await getFrota(frotaId);
     if (!frota || !frota.ativo || frota.vendido) throw new Error("Frota indisponível para checklist.");

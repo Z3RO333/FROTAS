@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Camera, CheckCircle2, ChevronRight, ImagePlus, Info, Loader2, Search, Send, XCircle } from "lucide-react";
 import { enviarChecklistMotoristaAction } from "@/app/(app)/motorista/checklist/_actions";
 import { CHECKLIST_MOTORISTA_INITIAL_STATE } from "@/app/(app)/motorista/checklist/types";
-import { CHECKLIST_ITEMS } from "@/lib/checklists/catalog";
+import { CHECKLIST_ITEMS, isCriticalChecklistProblem } from "@/lib/checklists/catalog";
 import { filtrarFrotasPorNumeroEPlaca } from "@/lib/checklists/frota-filter";
 import { KM_SALTO_IMPOSSIVEL, KM_VARIACAO_INCOMUM } from "@/lib/checklists/rules";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
@@ -223,7 +223,12 @@ export function DriverChecklistForm({
         return next;
       });
     }
-    setStepErro(null);
+    const catalogItem = CHECKLIST_ITEMS.find((item) => item.codigo === codigo);
+    setStepErro(
+      catalogItem && isCriticalChecklistProblem(catalogItem, next)
+        ? `“${catalogItem.nome}” é um item crítico. Com problema, este checklist não pode ser enviado.`
+        : null
+    );
   }
 
   const progress = Math.round(((step + 1) / STEPS.length) * 100);
@@ -231,8 +236,15 @@ export function DriverChecklistForm({
   // Block submission when OCR returns divergent reading and user hasn't entered manual KM + justification
   const ocrDivergente = ocrState?.status_leitura === "LEITURA_DIVERGENTE";
   const kmManualPreenchido = kmValue.trim() !== "" && parseInt(kmValue, 10) > 0;
+  const criticalProblem = CHECKLIST_ITEMS.find((item) =>
+    isCriticalChecklistProblem(item, itemStatuses[item.codigo])
+  );
 
   function avancarParaStep2() {
+    if (criticalProblem) {
+      setStepErro(`“${criticalProblem.nome}” está com problema. Checklist crítico não pode ser enviado.`);
+      return;
+    }
     const pendente = CHECKLIST_ITEMS.find(
       (item) => item.obrigatorio && itemStatuses[item.codigo] === "NAO_SE_APLICA"
     );
@@ -252,6 +264,11 @@ export function DriverChecklistForm({
   }
 
   function handlePreSubmit(e: { preventDefault(): void }) {
+    if (criticalProblem) {
+      e.preventDefault();
+      setStepErro(`“${criticalProblem.nome}” está com problema. Checklist crítico não pode ser enviado.`);
+      return;
+    }
     if (!fotoKmFileRef.current) {
       e.preventDefault();
       setStepErro("Anexe a foto do hodômetro antes de enviar.");
@@ -514,13 +531,25 @@ export function DriverChecklistForm({
                 Itens com <span className="font-semibold text-red-600">*</span> são obrigatórios — você precisa marcar OK ou Problema.
               </li>
               <li>
-                Itens <span className="font-semibold text-red-700">críticos</span> (kit segurança, pneus) bloqueiam a saída se marcados como Problema.
+                Itens <span className="font-semibold text-red-700">críticos</span> (kit segurança e pneus) impedem o envio se marcados como Problema.
               </li>
               <li>Itens não obrigatórios podem ficar sem marcação se não se aplicam.</li>
               <li>Ao marcar <span className="font-semibold">Problema</span>, descreva o que aconteceu na observação ao lado.</li>
             </ul>
           </div>
         </div>
+
+        {criticalProblem ? (
+          <div role="alert" className="flex items-start gap-3 rounded-md border border-red-300 bg-red-50 p-4 text-red-900">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">Envio bloqueado por item crítico</p>
+              <p className="mt-1 text-xs leading-5">
+                “{criticalProblem.nome}” foi marcado com problema. Corrija a marcação se houve engano ou informe imediatamente o responsável pela frota.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="space-y-6 rounded-md border bg-white p-5 shadow-sm">
           <div className="grid grid-cols-2 gap-6">
@@ -575,7 +604,7 @@ export function DriverChecklistForm({
                       )}
                       {item.critico && (
                         <span className="text-[10px] font-normal normal-case text-red-700/80">
-                          Bloqueia saída se problema
+                          Impede o envio se houver problema
                         </span>
                       )}
                     </div>
@@ -679,8 +708,8 @@ export function DriverChecklistForm({
           <Button type="button" variant="outline" onClick={() => { setStep(0); setStepErro(null); }}>
             Voltar
           </Button>
-          <Button type="button" onClick={avancarParaStep2}>
-            Prosseguir
+          <Button type="button" onClick={avancarParaStep2} disabled={Boolean(criticalProblem)}>
+            {criticalProblem ? "Checklist bloqueado" : "Prosseguir"}
             <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
@@ -863,24 +892,32 @@ export function DriverChecklistForm({
           <Button type="button" variant="outline" onClick={() => { setStep(1); setStepErro(null); }}>
             Voltar
           </Button>
-          <SubmitButton blocked={ocrDivergente && !kmManualPreenchido} />
+          <SubmitButton
+            blockedReason={
+              criticalProblem
+                ? "Envio bloqueado por item crítico"
+                : ocrDivergente && !kmManualPreenchido
+                  ? "Corrija o KM antes de enviar"
+                  : undefined
+            }
+          />
         </div>
       </section>
     </form>
   );
 }
 
-function SubmitButton({ blocked }: { blocked?: boolean }) {
+function SubmitButton({ blockedReason }: { blockedReason?: string }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending || blocked}>
+    <Button type="submit" disabled={pending || Boolean(blockedReason)}>
       {pending ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
       ) : (
         <Send className="mr-2 h-4 w-4" aria-hidden="true" />
       )}
-      {pending ? "Enviando..." : blocked ? "Corrija o KM antes de enviar" : "Enviar checklist"}
+      {pending ? "Enviando..." : blockedReason ?? "Enviar checklist"}
     </Button>
   );
 }

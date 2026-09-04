@@ -45,3 +45,10 @@ export const CHECKLIST_GROUPS: ChecklistGrupo[] = [
 export function checklistItemByCode(codigo: string): ChecklistCatalogItem | undefined {
   return CHECKLIST_ITEMS.find((item) => item.codigo === codigo);
 }
+
+export function isCriticalChecklistProblem(
+  item: ChecklistCatalogItem,
+  status: ChecklistStatusItem | string | FormDataEntryValue | null | undefined
+): boolean {
+  return item.critico && status === "NAO_APTO";
+}

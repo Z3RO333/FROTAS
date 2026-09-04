@@ -953,6 +953,15 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
     }];
   });
 
+  const itemCriticoComProblema = itensPayload.find(
+    (item) => item.critico && item.status === "NAO_APTO"
+  );
+  if (itemCriticoComProblema) {
+    throw new Error(
+      `${itemCriticoComProblema.item_nome}: item crítico marcado com problema. Este checklist não pode ser enviado.`
+    );
+  }
+
   const pendenciasPayload = itensPayload
     .filter((item) => item.status === "NAO_APTO")
     .map((item) => ({
