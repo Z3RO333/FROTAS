@@ -143,6 +143,9 @@ export function VeiculoSheet({
   const itensProblema = detalhe?.itens.filter((i) => i.status === "NAO_APTO") ?? [];
   const itensObrigatoriosInconformes = itensProblema.filter((i) => i.obrigatorio);
   const itensNaoObrigatoriosInconformes = itensProblema.filter((i) => !i.obrigatorio);
+  // Vermelho é reservado ao crítico (kit de segurança e pneus/step). Obrigatório
+  // sem ser crítico é atenção, não bloqueio — por isso âmbar.
+  const itensCriticosInconformes = itensProblema.filter((i) => i.critico);
   const fotoHodometro = detalhe?.fotos.find((f) => f.source_type === "hodometro");
 
   const titulo = detalhe
@@ -179,8 +182,15 @@ export function VeiculoSheet({
                 {STATUS_GERAL_LABEL[detalhe.status_geral ?? ""] ?? detalhe.status_geral ?? "—"}
               </Badge>
               {itensObrigatoriosInconformes.length > 0 && (
-                <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                  <XCircle className="h-3 w-3" />
+                <span
+                  className={cn(
+                    "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                    itensCriticosInconformes.length > 0
+                      ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700"
+                  )}
+                >
+                  <AlertTriangle className="h-3 w-3" />
                   {itensObrigatoriosInconformes.length} obrigatório(s) não conforme(s) — requer atenção
                 </span>
               )}
@@ -226,23 +236,29 @@ export function VeiculoSheet({
             {/* Itens obrigatórios não conforme (impedem liberação) */}
             {itensObrigatoriosInconformes.length > 0 && (
               <div className="space-y-2">
-                <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                  <XCircle className="h-3 w-3" /> Itens obrigatórios não conforme ({itensObrigatoriosInconformes.length})
+                <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+                  <AlertTriangle className="h-3 w-3" /> Itens obrigatórios não conforme ({itensObrigatoriosInconformes.length})
                 </p>
                 {itensObrigatoriosInconformes.map((item) => {
                   const fotoItem = detalhe.fotos.find((f) => f.checklist_item_codigo === item.item_codigo);
                   return (
-                    <div key={item.id} className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "rounded-lg border p-3",
+                        item.critico ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"
+                      )}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-medium">
                             {item.item_nome}
-                            <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white">OBRIGATÓRIO</span>
+                            <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">OBRIGATÓRIO</span>
                             {item.critico && <span className="ml-1 rounded-full bg-red-800 px-1.5 py-0.5 text-[9px] font-bold text-white">CRÍTICO</span>}
                           </p>
                           {item.observacao && <p className="mt-0.5 text-xs text-muted-foreground">{item.observacao}</p>}
                         </div>
-                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                        <XCircle className={cn("mt-0.5 h-4 w-4 shrink-0", item.critico ? "text-red-600" : "text-amber-600")} />
                       </div>
                       {fotoItem?.signed_url && (
                         <div className="mt-2">

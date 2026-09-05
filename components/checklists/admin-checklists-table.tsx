@@ -285,7 +285,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                         key={item.id}
                         className={cn(
                           "rounded-lg border p-3",
-                          item.obrigatorio ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"
+                          item.critico ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"
                         )}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -293,7 +293,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                             <p className="text-sm font-medium">
                               {item.item_nome}
                               {item.obrigatorio && (
-                                <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white">OBR</span>
+                                <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">OBR</span>
                               )}
                               {item.critico && (
                                 <span className="ml-1 rounded-full bg-red-800 px-1.5 py-0.5 text-[9px] font-bold text-white">CRÍTICO</span>
@@ -303,7 +303,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                               <p className="mt-0.5 text-xs text-muted-foreground">{item.observacao}</p>
                             )}
                           </div>
-                          <XCircle className={cn("mt-0.5 h-4 w-4 shrink-0", item.obrigatorio ? "text-red-500" : "text-amber-500")} />
+                          <XCircle className={cn("mt-0.5 h-4 w-4 shrink-0", item.critico ? "text-red-500" : "text-amber-500")} />
                         </div>
                         {foto?.signed_url && (
                           <div className="mt-2">

@@ -19,3 +19,23 @@ describe("isCriticalChecklistProblem", () => {
     expect(isCriticalChecklistProblem(motor, "NAO_APTO")).toBe(false);
   });
 });
+
+describe("obrigatoriedade dos itens", () => {
+  it("só kit de segurança, pneus/step e documento são obrigatórios", () => {
+    const obrigatorios = CHECKLIST_ITEMS.filter((item) => item.obrigatorio).map((item) => item.codigo);
+    expect(obrigatorios.sort()).toEqual(["documento", "kit_seguranca", "pneus_step"]);
+  });
+
+  it("freios, motor, radiador e limpador não são obrigatórios nem críticos", () => {
+    for (const codigo of ["freios", "motor_oleo", "radiador", "limpador"]) {
+      const item = CHECKLIST_ITEMS.find((i) => i.codigo === codigo)!;
+      expect(item.obrigatorio, codigo).toBe(false);
+      expect(item.critico, codigo).toBe(false);
+    }
+  });
+
+  it("críticos continuam sendo apenas kit de segurança e pneus/step", () => {
+    const criticos = CHECKLIST_ITEMS.filter((item) => item.critico).map((item) => item.codigo);
+    expect(criticos.sort()).toEqual(["kit_seguranca", "pneus_step"]);
+  });
+});
