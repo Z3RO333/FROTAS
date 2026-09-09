@@ -83,6 +83,7 @@ export type ChecklistListRow = {
   frota_geral: string | null;
   placa: string | null;
   modelo: string | null;
+  localizacao: string | null;
   rota: string | null;
   motorista_id: string;
   motorista_nome: string | null;
@@ -282,6 +283,7 @@ function mapChecklist(row: ChecklistDbRow, veiculo?: VeiculoLite): ChecklistList
     frota_geral: veiculo?.codigo_frota ?? null,
     placa: veiculo?.placa ?? null,
     modelo: veiculo?.modelo ?? null,
+    localizacao: veiculo?.local ? normalizeCdNome(veiculo.local) : null,
     rota: veiculo?.setor ?? null,
   };
 }
@@ -419,6 +421,89 @@ export async function listAdminChecklists(
     const veiculos = await fetchVeiculosByIds(rows.map((row) => row.frota_id));
     return rows.map((row) => mapChecklist(row, veiculos.get(row.frota_id)));
   }, []);
+}
+
+// Limite de segurança: bem acima do volume atual (~1.500 checklists desde
+// agosto/2026), existe só pra não deixar a exportação subir uma planilha
+// gigante sem querer quando o filtro de data vem vazio.
+export const CHECKLIST_EXPORT_MAX_ROWS = 20_000;
+
+// Igual a listAdminChecklists, mas sem paginação de tela: busca todos os
+// checklists do intervalo/filtro pedido, em blocos de 1000 (limite do
+// PostgREST), para a exportação em planilha.
+export async function listChecklistsForExport(
+  filters: ChecklistListFilters = {}
+): Promise<ChecklistListRow[]> {
+  return safeSupabase("exportação de checklists", async () => {
+    const frotaIds = await resolveVehicleIds(filters);
+    if (frotaIds?.length === 0) return [];
+
+    const pageSize = 1000;
+    const all: ChecklistDbRow[] = [];
+    for (let from = 0; ; from += pageSize) {
+      let query = supabaseManutencao
+        .from("checklists_frota")
+        .select(COLS_CHECKLIST_ADMIN_LIST)
+        .order("criado_em", { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (filters.dataInicio) query = query.gte("data_checklist", dateRange(filters.dataInicio).start);
+      if (filters.dataFim) query = query.lt("data_checklist", dateRange(filters.dataFim).end);
+      if (frotaIds) query = query.in("frota_id", frotaIds);
+      if (filters.status) query = query.eq("status_geral", filters.status);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      const rows = (data ?? []) as ChecklistDbRow[];
+      all.push(...rows);
+      if (rows.length < pageSize || all.length > CHECKLIST_EXPORT_MAX_ROWS) break;
+    }
+
+    const veiculos = await fetchVeiculosByIds(all.map((row) => row.frota_id));
+    return all.map((row) => mapChecklist(row, veiculos.get(row.frota_id)));
+  }, []);
+}
+
+// Itens de vários checklists de uma vez (chunk de 200 ids por consulta),
+// para não bater no banco uma vez por checklist na exportação em planilha.
+export async function listChecklistItemsByChecklistIds(
+  checklistIds: number[]
+): Promise<Map<number, ChecklistItemRow[]>> {
+  const byChecklist = new Map<number, ChecklistItemRow[]>();
+  if (checklistIds.length === 0) return byChecklist;
+
+  return safeSupabase("itens de checklists (exportação)", async () => {
+    // O projeto Supabase tem um teto de 1000 linhas por requisição (mesmo
+    // teto que truncava o KPI de imagens aguardando IA). Com 200 checklists
+    // por chunk e ~14 itens cada, uma única página já passava de 1000 e o
+    // Supabase truncava sem erro — ninguém percebia, a planilha só saía
+    // incompleta. Chunk menor (rows esperadas por chunk fica bem abaixo do
+    // teto) + paginação por .range() dentro do chunk: correto mesmo se o
+    // catálogo de itens crescer no futuro.
+    const chunkSize = 60;
+    const pageSize = 1000;
+    for (let index = 0; index < checklistIds.length; index += chunkSize) {
+      const chunk = checklistIds.slice(index, index + chunkSize);
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabaseManutencao
+          .from("checklist_itens")
+          .select("*")
+          .in("checklist_id", chunk)
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        const rows = (data ?? []) as ChecklistItemRow[];
+        for (const row of rows) {
+          const list = byChecklist.get(row.checklist_id);
+          if (list) list.push(row);
+          else byChecklist.set(row.checklist_id, [row]);
+        }
+        if (rows.length < pageSize) break;
+      }
+    }
+    return byChecklist;
+  }, byChecklist);
 }
 
 export async function listChecklistsByFrota(frotaId: number, limit = 10): Promise<ChecklistListRow[]> {

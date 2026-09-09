@@ -92,6 +92,11 @@ export function navigationForProfile(perfil: PerfilUsuario): NavSection[] {
     return [
       { title: "Portaria", items: PORTARIA_NAV },
       { title: "Ocorrências", items: [{ href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" }] },
+      // canAccessMotorista libera o /motorista inteiro para este perfil desde
+      // c872638, mas o menu nunca ganhou o link — o supervisor conseguia abrir
+      // /motorista/checklist só digitando a URL. MOTORISTA_NAV inteiro porque
+      // canAccessDocumentos também libera Documentos do Veículo para o perfil.
+      { title: "Motorista", items: MOTORISTA_NAV },
     ];
   }
 

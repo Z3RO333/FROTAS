@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Download,
   Gauge,
   MapPin,
   Percent,
@@ -76,6 +77,9 @@ export default async function ChecklistsAdminPage({
   const localizacoes: string[] = [...CDS_OPERACIONAIS];
   const checklistGroups = groupChecklistsByDate(checklists);
   const hasNextPage = checklists.length === ADMIN_CHECKLISTS_PAGE_SIZE;
+  // Proxy sem consulta extra: se a primeira página já vem vazia, não há nada
+  // no filtro atual para exportar (se page > 1, existe ao menos algum registro).
+  const semResultados = checklists.length === 0 && page === 1;
   const periodoSelecionado = Boolean(filtros.dataInicio || filtros.dataFim);
   const totalKpiTitle = periodoSelecionado && sp.periodo !== "hoje" ? "No período" : "Hoje";
   const checklistLocalTitle = periodoSelecionado && sp.periodo !== "hoje" ? "Com checklist" : "Com checklist hoje";
@@ -156,7 +160,22 @@ export default async function ChecklistsAdminPage({
                 {checklists.length > 0 ? `${checklists.length} registros nesta página` : "Nenhum registro no filtro atual"}
               </p>
             </div>
-            {status ? <StatusBadge status={status} size="md" /> : null}
+            <div className="flex items-center gap-2">
+              {status ? <StatusBadge status={status} size="md" /> : null}
+              <Button asChild variant="outline" size="sm" className="gap-1.5" disabled={semResultados}>
+                {semResultados ? (
+                  <span>
+                    <Download className="h-4 w-4" aria-hidden="true" />
+                    Exportar planilha
+                  </span>
+                ) : (
+                  <a href={buildExportUrl(filtros)} download>
+                    <Download className="h-4 w-4" aria-hidden="true" />
+                    Exportar planilha
+                  </a>
+                )}
+              </Button>
+            </div>
           </div>
           <div className="border-b bg-white p-4 sm:p-5">
             <ChecklistFilters localizacoes={localizacoes} setores={setores} />
@@ -249,6 +268,22 @@ function buildPageUrl(sp: Record<string, string | undefined>, targetPage: number
   if (targetPage > 1) params.set("page", String(targetPage));
   const query = params.toString();
   return `/checklists${query ? `?${query}` : ""}`;
+}
+
+// Usa os filtros já resolvidos da página (preset de período convertido em
+// dataInicio/dataFim por periodoParaDatas) para o link de exportação baixar
+// exatamente o que está sendo exibido na tela — sem paginação, é a lista
+// inteira do filtro atual.
+function buildExportUrl(filtros: ChecklistListFilters): string {
+  const params = new URLSearchParams();
+  if (filtros.dataInicio) params.set("dataInicio", filtros.dataInicio);
+  if (filtros.dataFim) params.set("dataFim", filtros.dataFim);
+  if (filtros.veiculo) params.set("veiculo", filtros.veiculo);
+  if (filtros.localizacao) params.set("localizacao", filtros.localizacao);
+  if (filtros.setor) params.set("setor", filtros.setor);
+  if (filtros.status) params.set("status", filtros.status);
+  const query = params.toString();
+  return `/api/checklists/export${query ? `?${query}` : ""}`;
 }
 
 type Checklist = Awaited<ReturnType<typeof listAdminChecklists>>[number];
