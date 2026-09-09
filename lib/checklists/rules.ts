@@ -25,13 +25,18 @@ export const KM_VARIACAO_INCOMUM = 1500;
  * limite NÃO é liberado por justificativa: acima dele o número é erro de
  * digitação, não uma viagem longa.
  *
- * Sem esse teto, a justificativa em texto livre era um cheque em branco. Foi
- * assim que o checklist 584 (frota 112) gravou 233.363.362 km — o campo vinha
- * pré-preenchido com a leitura da IA (233363), o motorista digitou por cima e
- * os dígitos concatenaram. O valor sobrescreveu o km_atual da frota e passou a
- * invalidar toda leitura futura do hodômetro dela.
+ * Enquanto a justificativa em texto livre liberava qualquer valor, ela era um
+ * cheque em branco: foi assim que a frota 112 gravou 233.363.362 km e a frota
+ * 108 gravou 18.921.414 (hodômetro real 189.214). Em ambos os casos o campo
+ * vinha pré-preenchido com a leitura da IA e os dígitos concatenaram — e o
+ * valor sobrescrevia o km_atual do veículo, invalidando toda leitura seguinte.
+ *
+ * 50.000 km cobre com folga a redistribuição de frota em turno longo (o caso
+ * real que motivou remover o teto anterior, de 20.000). O mesmo limite é
+ * repetido no trigger trg_valida_teto_km_por_turno, última barreira antes da
+ * escrita — este aqui existe para dar mensagem decente ao motorista.
  */
-export const KM_SALTO_IMPOSSIVEL = 20_000;
+export const KM_SALTO_IMPOSSIVEL = 50_000;
 
 export function validateKm(
   kmInformado: number,
@@ -41,11 +46,16 @@ export function validateKm(
   if (ultimoKm == null) return { ok: true, diff: null };
 
   const diff = kmInformado - ultimoKm;
+  // Acima do teto o envio é recusado mesmo com justificativa — nenhum texto
+  // transforma um dígito a mais em viagem.
+  if (diff > KM_SALTO_IMPOSSIVEL) {
+    return { ok: false, reason: "SALTO_IMPOSSIVEL", diff };
+  }
   if (diff < 0 && !justificativa?.trim()) {
     return { ok: false, reason: "MENOR_QUE_ULTIMO", diff };
   }
   if (diff > KM_VARIACAO_INCOMUM && !justificativa?.trim()) {
-    return { ok: false, reason: diff > KM_SALTO_IMPOSSIVEL ? "SALTO_IMPOSSIVEL" : "VARIACAO_INCOMUM", diff };
+    return { ok: false, reason: "VARIACAO_INCOMUM", diff };
   }
   return { ok: true, diff };
 }
