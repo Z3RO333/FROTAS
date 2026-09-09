@@ -18,6 +18,7 @@ import {
 } from "@/lib/repos/checklist-images";
 import { checklistSubmissionExists, createChecklist } from "@/lib/repos/checklists";
 import { getFrota } from "@/lib/repos/frotas";
+import { formatNumber } from "@/lib/utils";
 import { bloqueioChecklistRestanteMs } from "@/lib/frota-derived";
 import { requireMotoristaUser } from "@/lib/rbac";
 import { fileFromForm, validateAggregateFileSize, validateImageFile } from "@/lib/upload-validation";
@@ -142,6 +143,12 @@ export async function enviarChecklistMotoristaAction(
       nivelArlaRaw != null && nivelArlaRaw >= 0 && nivelArlaRaw <= 4 ? nivelArlaRaw : null;
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
+      if (kmValidation.reason === "SALTO_IMPOSSIVEL") {
+        // Sem escape por justificativa: acima do teto é erro de digitação.
+        throw new Error(
+          `KM informado (${formatNumber(kmInformado)}) está ${formatNumber(kmValidation.diff ?? 0)} km acima do último registrado (${formatNumber(frota.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
+        );
+      }
       throw new Error(
         kmValidation.reason === "MENOR_QUE_ULTIMO"
           ? "O KM informado é menor que o último registrado. Informe uma justificativa."

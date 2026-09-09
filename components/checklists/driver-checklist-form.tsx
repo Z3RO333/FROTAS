@@ -419,17 +419,25 @@ export function DriverChecklistForm({
         return;
       }
     }
-    // Salto acima do incomum exige justificativa (inclui saltos muito grandes).
+    // Acima do teto o envio é recusado mesmo com justificativa: nesse patamar
+    // o número é dígito a mais, não viagem. O servidor e o trigger repetem a
+    // regra — aqui é só para o motorista não perder o upload das fotos.
+    if (selected?.km_atual != null && km - selected.km_atual > KM_SALTO_IMPOSSIVEL) {
+      e.preventDefault();
+      const diff = km - selected.km_atual;
+      setStepErro(
+        `KM informado (${formatNumber(km)}) está ${formatNumber(diff)} km acima do último registrado (${formatNumber(selected.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
+      );
+      return;
+    }
+    // Salto acima do incomum, mas dentro do teto: segue liberado com justificativa.
     if (selected?.km_atual != null && km - selected.km_atual > KM_VARIACAO_INCOMUM) {
       const justificativa = justificativaKm.trim();
       if (!justificativa) {
         e.preventDefault();
-        const diff = km - selected.km_atual;
-        const msg =
-          diff > KM_SALTO_IMPOSSIVEL
-            ? `KM informado (${formatNumber(km)}) está muito acima do último registrado (${formatNumber(selected.km_atual)}). Confirme os dígitos e descreva a justificativa no campo ao lado.`
-            : `KM informado (${km}) está muito acima do último registrado (${selected.km_atual}). Confira o número e descreva a justificativa no campo ao lado.`;
-        setStepErro(msg);
+        setStepErro(
+          `KM informado (${formatNumber(km)}) está muito acima do último registrado (${formatNumber(selected.km_atual)}). Confira o número e descreva a justificativa no campo ao lado.`
+        );
         return;
       }
     }

@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
-  Eye,
   Gauge,
   MapPin,
   Percent,
@@ -22,7 +21,6 @@ import { SeverityBadge, StatusBadge } from "@/components/ui/status-badge";
 import {
   checklistDashboardKpis,
   checklistLocationKpis,
-  listChecklistIdsForFilters,
   listAdminChecklists,
   listOpenPendencias,
   periodoParaDatas,
@@ -30,7 +28,6 @@ import {
   type ChecklistListFilters,
 } from "@/lib/repos/checklists";
 import type { ChecklistStatusGeral } from "@/lib/checklists/catalog";
-import { countChecklistImageInspectionsByStatus } from "@/lib/repos/checklist-images";
 import { setoresDistintos } from "@/lib/repos/frotas";
 import { CDS_OPERACIONAIS } from "@/lib/cds";
 import { requireAdminUser } from "@/lib/rbac";
@@ -67,16 +64,11 @@ export default async function ChecklistsAdminPage({
   };
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
   const offset = (page - 1) * ADMIN_CHECKLISTS_PAGE_SIZE;
-  const temFiltro = Object.values(filtros).some(Boolean);
   const temFiltroLocal = Boolean(filtros.localizacao || filtros.setor);
-  const visionPromise = temFiltro
-    ? listChecklistIdsForFilters(filtros).then((ids) => countChecklistImageInspectionsByStatus(ids))
-    : countChecklistImageInspectionsByStatus();
-  const [kpis, checklists, pendenciasRaw, vision, setores, localKpis] = await Promise.all([
+  const [kpis, checklists, pendenciasRaw, setores, localKpis] = await Promise.all([
     checklistDashboardKpis(filtros),
     listAdminChecklists(ADMIN_CHECKLISTS_PAGE_SIZE, filtros, offset),
     listOpenPendencias(15, filtros),
-    visionPromise,
     setoresDistintos(),
     temFiltroLocal ? checklistLocationKpis(filtros) : Promise.resolve(null),
   ]);
@@ -89,7 +81,6 @@ export default async function ChecklistsAdminPage({
   const checklistLocalTitle = periodoSelecionado && sp.periodo !== "hoje" ? "Com checklist" : "Com checklist hoje";
   const escopoLocal = [filtros.localizacao, filtros.setor].filter(Boolean).join(" · ");
   const taxaAprovacao = kpis.total_hoje > 0 ? Math.round((kpis.aprovados_hoje / kpis.total_hoje) * 100) : 0;
-  const imagensNaFila = vision.queued + vision.processing;
 
   return (
     <div className="space-y-6 pb-8">
@@ -109,7 +100,7 @@ export default async function ChecklistsAdminPage({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" aria-label="Indicadores dos checklists">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Indicadores dos checklists">
         <Kpi
           title={totalKpiTitle}
           value={kpis.total_hoje}
@@ -137,14 +128,6 @@ export default async function ChecklistsAdminPage({
           helper="exigem acompanhamento"
           icon={AlertTriangle}
           tone="red"
-        />
-        <Kpi
-          title="Imagens aguardando IA"
-          value={imagensNaFila}
-          helper={vision.processing > 0 ? `${vision.processing} em processamento` : "fila de análise visual"}
-          icon={Eye}
-          tone="violet"
-          className="col-span-2 md:col-span-1"
         />
       </section>
 
