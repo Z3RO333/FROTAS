@@ -120,46 +120,6 @@ export function EnviarManutencaoDialog({
             <Input id="oficina" name="oficina" placeholder="Opcional" />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="destino">Destino</Label>
-            <select
-              id="destino"
-              name="destino"
-              defaultValue=""
-              title="Destino da manutenção"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            >
-              {/* Preventiva/Corretiva/Outro saíram daqui: duplicavam o campo Tipo
-                  (acima) e o motivo podia ir em Observação (abaixo). Os valores
-                  continuam existindo no schema porque outras telas os preenchem
-                  sozinhas (registrar serviço, pendências, bateria). */}
-              <option value="">Selecione o destino (opcional)</option>
-              <option value="OFICINA">Oficina</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              Lavagem, alinhamento e serviços rápidos são registrados diretamente na página de cada serviço.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="destino_detalhe">Detalhe do destino (opcional)</Label>
-            <Input
-              id="destino_detalhe"
-              name="destino_detalhe"
-              placeholder="Ex: Oficina Amazonas Diesel"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="observacao">Observação</Label>
-            <textarea
-              id="observacao"
-              name="observacao"
-              rows={2}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-          </div>
-
           <label
             className={`flex items-center gap-2 rounded-md border p-3 text-sm ${
               bloqueiaChecklistDisponivel ? "bg-slate-50" : "bg-slate-50 opacity-50"
