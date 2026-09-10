@@ -28,6 +28,8 @@ function asChoice(value: string): "sim" | "nao" | undefined {
 }
 
 const STEP_IDS = SINISTRO_STEPS.map((s) => s.id);
+// Mesmo teto de app/(app)/motorista/sinistro/_actions.ts — mantém os dois em sincronia.
+const SINISTRO_MAX_FOTOS = 8;
 
 function parseStepParam(value: string | null): SinistroStepId {
   return STEP_IDS.includes(value as SinistroStepId) ? (value as SinistroStepId) : "urgencia";
@@ -89,7 +91,13 @@ export function DriverSinistroForm({
   const [houveFeridos, setHouveFeridos] = useState("");
   const [samuBombeiros, setSamuBombeiros] = useState("");
   const [terceiros, setTerceiros] = useState<TerceiroDraft[]>([]);
-  const [mediaCount, setMediaCount] = useState(0);
+  // No celular, capture="environment" abre a câmera direto e cada acionamento
+  // captura só 1 foto — o próprio navegador substitui o FileList do <input> a
+  // cada nova captura, então sem isso só a última foto sobrevivia até o envio.
+  // Aqui acumulamos em estado e resincronizamos o <input> via DataTransfer.
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const mediaInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaCount = mediaFiles.length;
   const {
     loading: locationLoading,
     endereco,
@@ -226,7 +234,24 @@ export function DriverSinistroForm({
   }
 
   function handleMediaChange(event: ChangeEvent<HTMLInputElement>) {
-    setMediaCount(event.target.files?.length ?? 0);
+    const input = event.target;
+    const novos = Array.from(input.files ?? []);
+    if (novos.length === 0) return; // usuário cancelou a captura — mantém o que já tinha
+
+    const combinados = [...mediaFiles, ...novos].slice(0, SINISTRO_MAX_FOTOS);
+
+    // Resincroniza o <input> pra refletir o total acumulado: é o FileList dele
+    // que vai de fato no FormData no submit, não o estado React sozinho.
+    const dt = new DataTransfer();
+    combinados.forEach((file) => dt.items.add(file));
+    input.files = dt.files;
+
+    setMediaFiles(combinados);
+  }
+
+  function limparMedia() {
+    setMediaFiles([]);
+    if (mediaInputRef.current) mediaInputRef.current.value = "";
   }
 
   function validateStep(target: SinistroStepId): string | null {
@@ -556,6 +581,7 @@ export function DriverSinistroForm({
           <Camera className="mb-2 h-6 w-6 text-blue-700" aria-hidden="true" />
           Tirar foto ou anexar imagens
           <input
+            ref={mediaInputRef}
             id="media"
             name="media"
             type="file"
@@ -566,7 +592,20 @@ export function DriverSinistroForm({
             onChange={handleMediaChange}
           />
         </label>
-        {mediaCount > 0 ? <p className="text-xs font-medium text-blue-700">{mediaCount} arquivo(s) selecionado(s)</p> : null}
+        {mediaCount > 0 ? (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-medium text-blue-700">
+              {mediaCount} arquivo(s) selecionado(s){mediaCount >= SINISTRO_MAX_FOTOS ? ` — máximo de ${SINISTRO_MAX_FOTOS} atingido` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={limparMedia}
+              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-red-700 hover:underline"
+            >
+              Limpar seleção
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {/* Passo 5 — Revisão */}
