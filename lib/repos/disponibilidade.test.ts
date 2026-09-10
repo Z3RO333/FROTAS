@@ -6,7 +6,13 @@ vi.mock("@/lib/supabase-manutencao", () => ({
 }));
 
 import { describe, expect, it } from "vitest";
-import { mapFrotaManutencao, asCdResumo, resumoTexto } from "@/lib/repos/disponibilidade";
+import {
+  mapFrotaManutencao,
+  asCdResumo,
+  resumoTexto,
+  buildDisponibilidadePorSetor,
+  buildDisponibilidadePorModelo,
+} from "@/lib/repos/disponibilidade";
 
 const AGORA = new Date("2026-08-12T12:00:00Z").getTime();
 
@@ -115,5 +121,113 @@ describe("resumoTexto", () => {
     expect(resumoTexto(cd)).toBe(
       "CD Manaus: 80% disponível, 8/10 frotas disponíveis, 2 em manutenção, 0 indisponíveis, 1 ponto(s) de atenção."
     );
+  });
+});
+
+// disponível: nem manutenção nem indisponível
+function disponivelRow(overrides: Partial<Parameters<typeof mapFrotaManutencao>[0]> = {}) {
+  return baseRow({ status: "disponivel", status_operacional: "EM_USO", ...overrides });
+}
+
+describe("buildDisponibilidadePorSetor", () => {
+  it("agrupa por unidade + setor e soma total/em_manutencao corretamente", () => {
+    const rows = [
+      baseRow({ id: 1, local: "CD Manaus", setor: "E-COMMERCE" }), // manutenção
+      disponivelRow({ id: 2, local: "CD Manaus", setor: "E-COMMERCE" }),
+      disponivelRow({ id: 3, local: "CD Manaus", setor: "E-COMMERCE" }),
+    ];
+
+    const result = buildDisponibilidadePorSetor(rows);
+    expect(result).toEqual([
+      { cd_nome: "CD Manaus", setor: "E-COMMERCE", total: 3, em_manutencao: 1, percentual_disponibilidade: 67 },
+    ]);
+  });
+
+  it("cai em 'Sem setor' quando o veículo não tem setor cadastrado", () => {
+    const result = buildDisponibilidadePorSetor([disponivelRow({ local: "CD Manaus", setor: null })]);
+    expect(result[0].setor).toBe("Sem setor");
+  });
+
+  it("não mistura grupos de setores com nomes parecidos entre unidades diferentes", () => {
+    const rows = [
+      disponivelRow({ id: 1, local: "CD Manaus", setor: "EXPEDIÇÃO" }),
+      disponivelRow({ id: 2, local: "CD Tarumã", setor: "EXPEDIÇÃO" }),
+    ];
+    const result = buildDisponibilidadePorSetor(rows);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.total)).toEqual([1, 1]);
+  });
+
+  it("filtra por cdNome quando informado", () => {
+    const rows = [
+      disponivelRow({ id: 1, local: "CD Manaus", setor: "EXPEDIÇÃO" }),
+      disponivelRow({ id: 2, local: "CD Tarumã", setor: "EXPEDIÇÃO" }),
+    ];
+    const result = buildDisponibilidadePorSetor(rows, "CD Manaus");
+    expect(result).toEqual([
+      { cd_nome: "CD Manaus", setor: "EXPEDIÇÃO", total: 1, em_manutencao: 0, percentual_disponibilidade: 100 },
+    ]);
+  });
+
+  it("ordena por unidade e depois por setor", () => {
+    const rows = [
+      disponivelRow({ id: 1, local: "CD Tarumã", setor: "Z" }),
+      disponivelRow({ id: 2, local: "CD Manaus", setor: "B" }),
+      disponivelRow({ id: 3, local: "CD Manaus", setor: "A" }),
+    ];
+    const result = buildDisponibilidadePorSetor(rows);
+    expect(result.map((r) => `${r.cd_nome}/${r.setor}`)).toEqual([
+      "CD Manaus/A",
+      "CD Manaus/B",
+      "CD Tarumã/Z",
+    ]);
+  });
+});
+
+describe("buildDisponibilidadePorModelo", () => {
+  it("agrupa por modelo e Disponível + Indisponível sempre fecha com o Total", () => {
+    const rows = [
+      baseRow({ id: 1, modelo: "ACCELO 815/ M. BENZ" }), // manutenção
+      disponivelRow({ id: 2, modelo: "ACCELO 815/ M. BENZ" }),
+      disponivelRow({ id: 3, modelo: "ACCELO 815/ M. BENZ" }),
+    ];
+
+    const result = buildDisponibilidadePorModelo(rows);
+    expect(result).toEqual([
+      { modelo: "ACCELO 815/ M. BENZ", disponiveis: 2, indisponiveis: 1, total: 3 },
+    ]);
+  });
+
+  it("também conta status 'indisponivel'/'critico' como indisponível, não só manutenção", () => {
+    const rows = [
+      disponivelRow({ id: 1, modelo: "HR/ HYUNDAI" }),
+      baseRow({ id: 2, modelo: "HR/ HYUNDAI", status: "indisponivel", status_operacional: null }),
+    ];
+    const result = buildDisponibilidadePorModelo(rows);
+    expect(result).toEqual([{ modelo: "HR/ HYUNDAI", disponiveis: 1, indisponiveis: 1, total: 2 }]);
+  });
+
+  it("cai em 'Sem modelo' quando o veículo não tem modelo cadastrado", () => {
+    const result = buildDisponibilidadePorModelo([disponivelRow({ modelo: null })]);
+    expect(result[0].modelo).toBe("Sem modelo");
+  });
+
+  it("filtra por cdNome quando informado", () => {
+    const rows = [
+      disponivelRow({ id: 1, local: "CD Manaus", modelo: "GOL" }),
+      disponivelRow({ id: 2, local: "CD Tarumã", modelo: "GOL" }),
+    ];
+    const result = buildDisponibilidadePorModelo(rows, "CD Manaus");
+    expect(result).toEqual([{ modelo: "GOL", disponiveis: 1, indisponiveis: 0, total: 1 }]);
+  });
+
+  it("ordena alfabeticamente por modelo", () => {
+    const rows = [
+      disponivelRow({ id: 1, modelo: "VOLVO VM 330" }),
+      disponivelRow({ id: 2, modelo: "ACCELO 815/ M. BENZ" }),
+      disponivelRow({ id: 3, modelo: "HR/ HYUNDAI" }),
+    ];
+    const result = buildDisponibilidadePorModelo(rows);
+    expect(result.map((r) => r.modelo)).toEqual(["ACCELO 815/ M. BENZ", "HR/ HYUNDAI", "VOLVO VM 330"]);
   });
 });

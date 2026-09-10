@@ -210,6 +210,86 @@ export async function getDisponibilidadePorCD(): Promise<DisponibilidadeCD[]> {
     .sort((a, b) => a.cd_nome.localeCompare(b.cd_nome, "pt-BR"));
 }
 
+export type DisponibilidadePorSetor = {
+  cd_nome: string;
+  setor: string;
+  total: number;
+  em_manutencao: number;
+  percentual_disponibilidade: number;
+};
+
+export function buildDisponibilidadePorSetor(
+  rows: VeiculoDisponibilidadeRow[],
+  cdNome?: string
+): DisponibilidadePorSetor[] {
+  const filtradas = cdNome ? rows.filter((row) => normalizeCdNome(row.local) === cdNome) : rows;
+
+  const grouped = new Map<string, { cd_nome: string; setor: string; rows: VeiculoDisponibilidadeRow[] }>();
+  for (const row of filtradas) {
+    const cd_nome = normalizeCdNome(row.local);
+    const setor = row.setor?.trim() || "Sem setor";
+    const key = `${cd_nome}${setor}`;
+    const grupo = grouped.get(key);
+    if (grupo) grupo.rows.push(row);
+    else grouped.set(key, { cd_nome, setor, rows: [row] });
+  }
+
+  return Array.from(grouped.values())
+    .map(({ cd_nome, setor, rows: grupoRows }) => {
+      const total = grupoRows.length;
+      const disponiveis = grupoRows.filter(isDisponivel).length;
+      return {
+        cd_nome,
+        setor,
+        total,
+        em_manutencao: grupoRows.filter(isManutencao).length,
+        percentual_disponibilidade: total > 0 ? Math.round((disponiveis / total) * 100) : 0,
+      };
+    })
+    .sort((a, b) => a.cd_nome.localeCompare(b.cd_nome, "pt-BR") || a.setor.localeCompare(b.setor, "pt-BR"));
+}
+
+export async function getDisponibilidadePorSetor(cdNome?: string): Promise<DisponibilidadePorSetor[]> {
+  const rows = await listVeiculosDisponibilidade();
+  return buildDisponibilidadePorSetor(rows, cdNome);
+}
+
+export type DisponibilidadePorModelo = {
+  modelo: string;
+  disponiveis: number;
+  indisponiveis: number;
+  total: number;
+};
+
+export function buildDisponibilidadePorModelo(
+  rows: VeiculoDisponibilidadeRow[],
+  cdNome?: string
+): DisponibilidadePorModelo[] {
+  const filtradas = cdNome ? rows.filter((row) => normalizeCdNome(row.local) === cdNome) : rows;
+
+  const grouped = new Map<string, VeiculoDisponibilidadeRow[]>();
+  for (const row of filtradas) {
+    const modelo = row.modelo?.trim() || "Sem modelo";
+    grouped.set(modelo, [...(grouped.get(modelo) ?? []), row]);
+  }
+
+  return Array.from(grouped.entries())
+    .map(([modelo, grupoRows]) => {
+      const total = grupoRows.length;
+      const disponiveis = grupoRows.filter(isDisponivel).length;
+      // "Indisponível" aqui é o oposto amplo de isDisponivel (manutenção +
+      // indisponível), não só o status "indisponivel" — é o que a coluna
+      // precisa pra Disponível + Indisponível sempre fechar com o Total.
+      return { modelo, disponiveis, indisponiveis: total - disponiveis, total };
+    })
+    .sort((a, b) => a.modelo.localeCompare(b.modelo, "pt-BR"));
+}
+
+export async function getDisponibilidadePorModelo(cdNome?: string): Promise<DisponibilidadePorModelo[]> {
+  const rows = await listVeiculosDisponibilidade();
+  return buildDisponibilidadePorModelo(rows, cdNome);
+}
+
 export async function getDisponibilidadeGeral(): Promise<DisponibilidadeGeral> {
   const rows = await listVeiculosDisponibilidade();
   return withoutCd(buildResumo(rows, "Todos os CDs"));

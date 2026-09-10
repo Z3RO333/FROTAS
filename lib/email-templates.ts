@@ -13,7 +13,13 @@ import type { PlanejamentoOverview } from "@/lib/repos/planejamento";
 import { formatReportDate } from "@/lib/report-date";
 import { calcularIdade } from "@/lib/rules";
 import { normalizeCdNome } from "@/lib/cd-utils";
-import type { DisponibilidadeCD, FrotaManutencaoDisponibilidade, PontoAtencao } from "@/lib/repos/disponibilidade";
+import type {
+  DisponibilidadeCD,
+  DisponibilidadePorModelo,
+  DisponibilidadePorSetor,
+  FrotaManutencaoDisponibilidade,
+  PontoAtencao,
+} from "@/lib/repos/disponibilidade";
 
 type ReportOptions = {
   logoImageSrc?: string;
@@ -31,7 +37,7 @@ export type DashboardReportInput = {
   plan: PlanejamentoOverview | null;
 };
 
-const BLUE = "#0b3f8e";
+const BLUE = "#2563eb";
 const BLUE_2 = "#0b64c0";
 const INK = "#0f172a";
 const MUTED = "#64748b";
@@ -422,13 +428,6 @@ export type RelatorioOperacionalDiarioInput = {
   }[];
 };
 
-function pendenciaGravidadeTone(gravidade: string): { bg: string; color: string; border: string } {
-  const g = gravidade.toUpperCase();
-  if (g === "CRITICA") return { bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
-  if (g === "ALTA") return { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" };
-  return { bg: "#f1f5f9", color: "#475569", border: "#cbd5e1" };
-}
-
 function frotasChecklistTable(
   titulo: string,
   frotas: { frota_id: number; frota_geral: string | null; placa: string | null; localizacao: string | null; setor: string | null; checklists: number; km_informado: number | null }[],
@@ -483,21 +482,6 @@ export function renderRelatorioOperacionalDiario(
   const totalFrotas = input.frotasFizeram.length + input.frotasNaoFizeram.length;
   const pctEmDia = percent(input.frotasFizeram.length, totalFrotas);
 
-  const pendenciasLinhas = input.pendenciasPorFrota
-    .flatMap((grupo) => grupo.itens.map((item, index) => ({ grupo, item, first: index === 0 })))
-    .map(({ grupo, item, first }, rowIndex) => {
-      const bg = rowIndex % 2 === 0 ? "#ffffff" : "#f8fafc";
-      return `<tr style="background:${bg};">
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${first ? display(grupo.frota_geral ?? grupo.frota_id) : ""}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(item.item_nome)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${badge(item.gravidade, pendenciaGravidadeTone(item.gravidade))}</td>
-      </tr>`;
-    })
-    .join("");
-  const pendenciasCorpo =
-    pendenciasLinhas ||
-    `<tr><td colspan="3" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma pendência criada no dia.</td></tr>`;
-
   const observacoesLinhas = input.observacoesPorFrota
     .flatMap((grupo) => grupo.observacoes.map((obs, index) => ({ grupo, obs, first: index === 0 })))
     .map(({ grupo, obs, first }, rowIndex) => {
@@ -516,7 +500,7 @@ export function renderRelatorioOperacionalDiario(
   return shell(`
     ${header(
       "Relatório Checklist Diário",
-      `${formatReportDate(dataRef)} · checklists, pendências e observações do dia`,
+      `${formatReportDate(dataRef)} · checklists e observações do dia`,
       options
     )}
     <tr>
@@ -529,19 +513,6 @@ export function renderRelatorioOperacionalDiario(
           </tr>
         </table>
         ${frotasChecklistTable("✅ Frotas que fizeram checklist", input.frotasFizeram, "Nenhuma frota fez checklist hoje.", true)}
-      </td>
-    </tr>
-    <tr>
-      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 14px 14px;padding:0 24px 24px;">
-        <div style="font-size:14px;font-weight:800;color:${INK};margin:4px 0 10px;">Pendências do dia por frota</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
-          <thead><tr style="background:${BLUE};color:#ffffff;">
-            <th style="padding:10px 8px;text-align:left;">Frota</th>
-            <th style="padding:10px 8px;text-align:left;">Item</th>
-            <th style="padding:10px 8px;text-align:left;">Gravidade</th>
-          </tr></thead>
-          <tbody>${pendenciasCorpo}</tbody>
-        </table>
       </td>
     </tr>
     <tr>
@@ -563,14 +534,22 @@ export type DisponibilidadeEmailInput = {
   resumo: DisponibilidadeCD;
   manutencoes: FrotaManutencaoDisponibilidade[];
   pontos: PontoAtencao[];
+  porSetor: DisponibilidadePorSetor[];
+  porModelo: DisponibilidadePorModelo[];
 };
+
+function disponibilidadeTone(pct: number): string {
+  if (pct >= 80) return "#059669";
+  if (pct >= 60) return "#c2410c";
+  return "#b91c1c";
+}
 
 export function renderDisponibilidadeEmail(
   input: DisponibilidadeEmailInput,
   dataRef: Date,
   options: ReportOptions = {}
 ): string {
-  const { resumo, manutencoes, pontos } = input;
+  const { resumo, manutencoes, pontos, porSetor, porModelo } = input;
 
   const manutencaoLinhas = manutencoes
     .map((f, index) => {
@@ -607,6 +586,37 @@ export function renderDisponibilidadeEmail(
     pontosLinhas ||
     `<tr><td colspan="4" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhum ponto de atenção automático para este CD.</td></tr>`;
 
+  const porSetorLinhas = porSetor
+    .map((s, index) => {
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;">${display(s.cd_nome)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(s.setor)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;">${formatNumber(s.total)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;color:#ea580c;">${formatNumber(s.em_manutencao)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;text-align:right;color:${disponibilidadeTone(s.percentual_disponibilidade)};">${s.percentual_disponibilidade}%</td>
+      </tr>`;
+    })
+    .join("");
+  const porSetorCorpo =
+    porSetorLinhas ||
+    `<tr><td colspan="5" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma frota no filtro atual.</td></tr>`;
+
+  const porModeloLinhas = porModelo
+    .map((m, index) => {
+      const bg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
+      return `<tr style="background:${bg};">
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700;color:${INK};">${display(m.modelo)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;color:#059669;">${formatNumber(m.disponiveis)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;color:#ea580c;">${formatNumber(m.indisponiveis)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right;">${formatNumber(m.total)}</td>
+      </tr>`;
+    })
+    .join("");
+  const porModeloCorpo =
+    porModeloLinhas ||
+    `<tr><td colspan="4" style="padding:14px 12px;color:${MUTED};font-size:13px;text-align:center;">Nenhuma frota no filtro atual.</td></tr>`;
+
   return shell(`
     ${header(
       "Disponibilidade de Frotas",
@@ -637,6 +647,35 @@ export function renderDisponibilidadeEmail(
             <th style="padding:10px 8px;text-align:left;">Prev. saída</th>
           </tr></thead>
           <tbody>${manutencaoCorpo}</tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 10px;">Disponibilidade por setor</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Unidade</th>
+            <th style="padding:10px 8px;text-align:left;">Setor</th>
+            <th style="padding:10px 8px;text-align:right;">Total</th>
+            <th style="padding:10px 8px;text-align:right;">Em manutenção</th>
+            <th style="padding:10px 8px;text-align:right;">Disponibilidade</th>
+          </tr></thead>
+          <tbody>${porSetorCorpo}</tbody>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};padding:0 24px 24px;">
+        <div style="font-size:14px;font-weight:800;color:${INK};margin:16px 0 10px;">Disponibilidade por modelo</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          <thead><tr style="background:${BLUE};color:#ffffff;">
+            <th style="padding:10px 8px;text-align:left;">Modelo</th>
+            <th style="padding:10px 8px;text-align:right;">Disponível</th>
+            <th style="padding:10px 8px;text-align:right;">Indisponível</th>
+            <th style="padding:10px 8px;text-align:right;">Total</th>
+          </tr></thead>
+          <tbody>${porModeloCorpo}</tbody>
         </table>
       </td>
     </tr>

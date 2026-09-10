@@ -1,4 +1,6 @@
 import {
+  getDisponibilidadePorModelo,
+  getDisponibilidadePorSetor,
   getDisponibilidadeResumo,
   getPontosAtencao,
   listFrotasEmManutencao,
@@ -40,16 +42,18 @@ function formatDateTime(date: Date): string {
 }
 
 export async function buildDisponibilidadeEmail(cdNome: string, generatedAt: Date): Promise<{ html: string; resumo: string }> {
-  const [resumoRaw, manutencoes, pontos] = await Promise.all([
+  const [resumoRaw, manutencoes, pontos, porSetor, porModelo] = await Promise.all([
     getDisponibilidadeResumo(cdNome),
     listFrotasEmManutencao(cdNome, 80),
     getPontosAtencao(30, cdNome),
+    getDisponibilidadePorSetor(cdNome),
+    getDisponibilidadePorModelo(cdNome),
   ]);
   const resumo = asCdResumo(resumoRaw, cdNome);
   const resumoCurto = resumoTexto(resumo);
 
   const html = renderDisponibilidadeEmail(
-    { resumo, manutencoes, pontos },
+    { resumo, manutencoes, pontos, porSetor, porModelo },
     generatedAt,
     { logoImageSrc: EMAIL_LOGO_URL, cdNome }
   );

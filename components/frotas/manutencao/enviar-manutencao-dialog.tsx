@@ -128,11 +128,12 @@ export function EnviarManutencaoDialog({
               title="Destino da manutenção"
               className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
             >
+              {/* Preventiva/Corretiva/Outro saíram daqui: duplicavam o campo Tipo
+                  (acima) e o motivo podia ir em Observação (abaixo). Os valores
+                  continuam existindo no schema porque outras telas os preenchem
+                  sozinhas (registrar serviço, pendências, bateria). */}
               <option value="">Selecione o destino (opcional)</option>
               <option value="OFICINA">Oficina</option>
-              <option value="PREVENTIVA">Manutenção preventiva</option>
-              <option value="CORRETIVA">Manutenção corretiva</option>
-              <option value="OUTRO">Outro destino</option>
             </select>
             <p className="text-xs text-muted-foreground">
               Lavagem, alinhamento e serviços rápidos são registrados diretamente na página de cada serviço.

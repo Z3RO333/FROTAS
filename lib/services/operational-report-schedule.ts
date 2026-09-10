@@ -6,7 +6,7 @@ import {
   getPendenciasCriadasNoDiaPorFrota,
 } from "@/lib/repos/relatorios";
 import { sendRelatorioOperacionalDiario } from "@/lib/email";
-import { getOperationalScheduleAudiences } from "@/lib/email-schedule-audiences";
+import { getOperationalScheduleAudiences, resumoSetoresAssunto } from "@/lib/email-schedule-audiences";
 
 export type OperationalScheduleSendResult = {
   setores: string[] | null;
@@ -89,7 +89,7 @@ export async function sendOperationalScheduleReports({
       enviadoPor,
       scheduleId: schedule.id,
       anexarResumoPdf: audience.setores === null,
-      contextoAssunto: audience.setores?.join(" + "),
+      contextoAssunto: audience.setores ? resumoSetoresAssunto(audience.setores) : undefined,
       input: {
         totalChecklists,
         totalApontamentos,

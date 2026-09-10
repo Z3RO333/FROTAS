@@ -10,6 +10,8 @@ import {
   toggleEmailSchedule,
 } from "@/lib/repos/email-schedule";
 import {
+  getDisponibilidadePorModelo,
+  getDisponibilidadePorSetor,
   getDisponibilidadeResumo,
   getPontosAtencao,
   listFrotasEmManutencao,
@@ -40,10 +42,12 @@ export async function enviarRelatorioDisponibilidadeCDAction(
     const raw = formData.get("destinatarios");
     if (typeof raw !== "string") return { ok: false, error: "Destinatários obrigatórios." };
     const destinatarios = EmailListSchema.parse(raw);
-    const [resumoRaw, manutencoes, pontos] = await Promise.all([
+    const [resumoRaw, manutencoes, pontos, porSetor, porModelo] = await Promise.all([
       getDisponibilidadeResumo(cdNome),
       listFrotasEmManutencao(cdNome, 80),
       getPontosAtencao(30, cdNome),
+      getDisponibilidadePorSetor(cdNome),
+      getDisponibilidadePorModelo(cdNome),
     ]);
     const resumo = asCdResumo(resumoRaw, cdNome ?? "Todos os CDs");
     const result = await sendDisponibilidadeEmail({
@@ -51,6 +55,8 @@ export async function enviarRelatorioDisponibilidadeCDAction(
       resumo,
       manutencoes,
       pontos,
+      porSetor,
+      porModelo,
       enviadoPor: user.email,
       cdNome,
     });

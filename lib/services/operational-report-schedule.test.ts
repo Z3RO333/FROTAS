@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EmailSchedule } from "@/lib/repos/email-schedule";
-import { getOperationalScheduleAudiences } from "@/lib/email-schedule-audiences";
+import { getOperationalScheduleAudiences, resumoSetoresAssunto } from "@/lib/email-schedule-audiences";
 
 function schedule(overrides: Partial<EmailSchedule> = {}): EmailSchedule {
   return {
@@ -98,5 +98,30 @@ describe("getOperationalScheduleAudiences", () => {
     }))).toEqual([
       { setores: ["TRANSPORTE", "OFICINA"], destinatarios: ["geral@bemol.com.br"] },
     ]);
+  });
+});
+
+describe("resumoSetoresAssunto", () => {
+  it("lista todos os setores quando são 3 ou menos", () => {
+    expect(resumoSetoresAssunto(["EXPEDIÇÃO"])).toBe("EXPEDIÇÃO");
+    expect(resumoSetoresAssunto(["EXPEDIÇÃO", "OFICINA"])).toBe("EXPEDIÇÃO + OFICINA");
+    expect(resumoSetoresAssunto(["A", "B", "C"])).toBe("A + B + C");
+  });
+
+  it("resume em 'e mais N setores' quando passa de 3, em vez de listar tudo", () => {
+    // Caso real que motivou a mudança: assunto de e-mail virando uma linha
+    // só com o nome de 13 setores separados por " + ".
+    const setores = [
+      "ASSISTENCIA TECNICA", "ASSISTENCIA TÉCNICA", "E-COMMERCE", "EXPEDIÇÃO",
+      "EXPEDIÇÃO MANAUS", "EXPOSIÇÃO", "EXPOSIÇÃO DE LOJAS", "MANUTENÇÃO",
+      "MANUTENÇÃO ESCRITORIO", "MARKETPLACE", "RAMPAP", "RR - BOA VISTA",
+    ];
+    expect(resumoSetoresAssunto(setores)).toBe(
+      "ASSISTENCIA TECNICA, ASSISTENCIA TÉCNICA, E-COMMERCE e mais 9 setores"
+    );
+  });
+
+  it("usa singular quando resta exatamente 1 setor além dos listados", () => {
+    expect(resumoSetoresAssunto(["A", "B", "C", "D"])).toBe("A, B, C e mais 1 setor");
   });
 });

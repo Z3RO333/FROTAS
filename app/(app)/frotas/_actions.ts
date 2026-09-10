@@ -6,7 +6,14 @@ import { z } from "zod";
 import { sendDisponibilidadeEmail, sendRelatorioIndividual, sendRelatorioPainelExecutivo } from "@/lib/email";
 import { createFrota, getFrota, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
-import { getDisponibilidadeGeral, getPontosAtencao, listFrotasEmManutencao, asCdResumo } from "@/lib/repos/disponibilidade";
+import {
+  getDisponibilidadeGeral,
+  getDisponibilidadePorModelo,
+  getDisponibilidadePorSetor,
+  getPontosAtencao,
+  listFrotasEmManutencao,
+  asCdResumo,
+} from "@/lib/repos/disponibilidade";
 import { getPlanejamentoOverview } from "@/lib/repos/planejamento";
 import { requireAdminUser, requireGestorUser } from "@/lib/rbac";
 import { TIPO_POR_QTD_PNEUS } from "@/lib/pneus-layout";
@@ -225,13 +232,23 @@ export async function enviarRelatorioGeralAction(formData: FormData): Promise<Re
   try {
     const email = await requireUser();
     const destinatarios = parseDestinatarios(formData);
-    const [resumoRaw, manutencoes, pontos] = await Promise.all([
+    const [resumoRaw, manutencoes, pontos, porSetor, porModelo] = await Promise.all([
       getDisponibilidadeGeral(),
       listFrotasEmManutencao(undefined, 500),
       getPontosAtencao(30, undefined),
+      getDisponibilidadePorSetor(),
+      getDisponibilidadePorModelo(),
     ]);
     const resumo = asCdResumo(resumoRaw, "Todos os CDs");
-    const result = await sendDisponibilidadeEmail({ destinatarios, resumo, manutencoes, pontos, enviadoPor: email });
+    const result = await sendDisponibilidadeEmail({
+      destinatarios,
+      resumo,
+      manutencoes,
+      pontos,
+      porSetor,
+      porModelo,
+      enviadoPor: email,
+    });
     return result.ok ? { ok: true } : { ok: false, error: result.error };
   } catch (error) {
     console.error("Erro ao enviar relatório geral", error);

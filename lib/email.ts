@@ -81,7 +81,13 @@ export async function sendDisponibilidadeEmail(
   const cdLabel = args.cdNome ? ` — ${args.cdNome}` : "";
   const assunto = `Disponibilidade de frotas${cdLabel} - ${formatReportDate(sentAt)}`;
   const html = renderDisponibilidadeEmail(
-    { resumo: args.resumo, manutencoes: args.manutencoes, pontos: args.pontos },
+    {
+      resumo: args.resumo,
+      manutencoes: args.manutencoes,
+      pontos: args.pontos,
+      porSetor: args.porSetor,
+      porModelo: args.porModelo,
+    },
     sentAt,
     { logoImageSrc: EMAIL_LOGO_URL, cdNome: args.cdNome }
   );
