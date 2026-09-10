@@ -13,7 +13,7 @@ export type StatusOperacional =
   | "LIBERADA"
   | "PENDENTE_ANALISE";
 
-export type TipoManutencao = "PREVENTIVA" | "CORRETIVA" | "EMERGENCIAL" | "OUTRA";
+export type TipoManutencao = "PREVENTIVA" | "CORRETIVA" | "EMERGENCIAL" | "OUTRA" | "SINISTRO";
 
 export type DestinoManutencao =
   | "OFICINA"

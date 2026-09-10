@@ -53,7 +53,7 @@ export function EnviarManutencaoDialog({
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState("CORRETIVA");
   const [state, formAction] = useActionState(enviarManutencaoAction, MANUTENCAO_INITIAL_STATE);
-  const bloqueiaChecklistDisponivel = tipo === "CORRETIVA";
+  const bloqueiaChecklistDisponivel = tipo === "CORRETIVA" || tipo === "SINISTRO";
 
   useEffect(() => {
     if (state.ok && state.mensagem) setOpen(false);
@@ -105,6 +105,7 @@ export function EnviarManutencaoDialog({
                 <option value="PREVENTIVA">Preventiva</option>
                 <option value="CORRETIVA">Corretiva</option>
                 <option value="EMERGENCIAL">Emergencial</option>
+                <option value="SINISTRO">Sinistro</option>
                 <option value="OUTRA">Outra</option>
               </select>
             </div>
@@ -178,7 +179,7 @@ export function EnviarManutencaoDialog({
               <span className="ml-1 text-xs text-muted-foreground">
                 {bloqueiaChecklistDisponivel
                   ? "(recomendado)"
-                  : "(somente para manutenção corretiva)"}
+                  : "(somente para corretiva ou sinistro)"}
               </span>
             </span>
           </label>

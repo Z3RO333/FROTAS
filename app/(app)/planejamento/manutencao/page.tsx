@@ -72,6 +72,7 @@ const CLASSIFICACAO_ICONS: Record<string, ComponentType<LucideProps>> = {
   PREVENTIVA: ClipboardCheck,
   CORRETIVA: Wrench,
   EMERGENCIAL: AlertTriangle,
+  SINISTRO: ShieldAlert,
   OUTRA: Cog,
 };
 
@@ -82,6 +83,7 @@ function classificacaoLabel(classificacao: string | null): string {
     PREVENTIVA: "Preventiva",
     CORRETIVA: "Corretiva",
     EMERGENCIAL: "Emergencial",
+    SINISTRO: "Sinistro",
     OUTRA: "Outra",
   };
   return labels[key] ?? classificacao;

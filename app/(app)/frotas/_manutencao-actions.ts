@@ -10,7 +10,7 @@ import {
   type DestinoManutencao,
 } from "@/lib/services/veiculo-status";
 
-const TipoManutencaoSchema = z.enum(["PREVENTIVA", "CORRETIVA", "EMERGENCIAL", "OUTRA"]);
+const TipoManutencaoSchema = z.enum(["PREVENTIVA", "CORRETIVA", "EMERGENCIAL", "OUTRA", "SINISTRO"]);
 
 const DestinoManutencaoSchema = z
   .enum(["OFICINA", "LAVAGEM", "PREVENTIVA", "CORRETIVA", "ALINHAMENTO", "AR_CONDICIONADO", "TACOGRAFO", "OUTRO"])
@@ -85,7 +85,13 @@ export async function enviarManutencaoAction(
       oficina: parsed.data.oficina ?? null,
       prevRetorno: parsed.data.prev_retorno ?? null,
       observacao: parsed.data.observacao ?? null,
-      bloqueiaChecklist: parsed.data.tipo === "CORRETIVA" ? parsed.data.bloqueia_checklist ?? true : false,
+      // Corretiva e Sinistro são os únicos tipos que justificam bloquear o
+      // checklist — os demais (preventiva, emergencial, outra) não impedem o
+      // motorista de usar o veículo enquanto aguarda a manutenção.
+      bloqueiaChecklist:
+        parsed.data.tipo === "CORRETIVA" || parsed.data.tipo === "SINISTRO"
+          ? parsed.data.bloqueia_checklist ?? true
+          : false,
       destino: (parsed.data.destino as DestinoManutencao | null | undefined) ?? null,
       destino_detalhe: parsed.data.destino_detalhe ?? null,
       usuarioEmail: actor.email,
