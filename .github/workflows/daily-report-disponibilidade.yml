@@ -1,0 +1,53 @@
+name: Relatorio Disponibilidade de Frotas
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # 23:00 UTC = 19:00 Manaus (UTC-4, sem horario de verao)
+    # GitHub Actions cron pode atrasar ate ~15min, suficiente pra relatorio diario.
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+    # Permite disparar manualmente em Actions > Relatorio Disponibilidade de Frotas > Run workflow
+
+concurrency:
+  group: daily-report-disponibilidade
+  cancel-in-progress: false
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Chamar /api/email/send-scheduled
+        env:
+          ENDPOINT: https://gestaofrotas.azurewebsites.net/api/email/send-scheduled
+          SECRET: ${{ secrets.FROTAS_INTERNAL_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "::error::Secret FROTAS_INTERNAL_SECRET nao configurado no repo (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+          HTTP_CODE=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "$ENDPOINT" \
+            -H "x-internal-secret: $SECRET" \
+            --max-time 120)
+
+          echo "HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Endpoint retornou $HTTP_CODE"
+            cat response.json
+            exit 1
+          fi
+
+          ENVIADOS=$(jq -r '.enviados | length' response.json)
+          FALHAS=$(jq -r '.falhas | length' response.json)
+
+          if [ "$FALHAS" != "0" ]; then
+            echo "::warning::$FALHAS agenda(s) falharam no envio"
+            jq -r '.falhas[]' response.json
+          fi
+
+          echo "::notice::Agendas enviadas: $ENVIADOS"
