@@ -16,6 +16,7 @@ const FROTA_NAV: NavItem[] = [
   { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
   { href: "/frotas/disponibilidades", label: "Disponibilidade", icon: "Gauge" },
   { href: "/frotas/vendidos", label: "Vendidos", icon: "ShoppingCart" },
+  { href: "/frotas/ocultas", label: "Ocultas", icon: "EyeOff" },
 ];
 
 const PORTARIA_OPERACIONAL_NAV: NavItem[] = [
@@ -50,6 +51,7 @@ const ADMINISTRACAO_NAV: NavItem[] = [
   { href: "/administracao/usuarios", label: "Usuários", icon: "Users" },
   { href: "/administracao/motoristas", label: "Motoristas", icon: "Users" },
   { href: "/unidades", label: "Unidades", icon: "Building2" },
+  { href: "/administracao/setores", label: "Setores", icon: "MapPin" },
   { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
   { href: "/administracao/emails", label: "E-mails", icon: "FileText" },
 ];

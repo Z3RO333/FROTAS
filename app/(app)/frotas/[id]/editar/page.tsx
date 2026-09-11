@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { FrotaForm } from "@/components/frotas/frota-form";
-import { DeleteFrotaButton } from "@/components/frotas/delete-frota-button";
+import { FrotaStatusActions } from "@/components/frotas/frota-status-actions";
 import { getFrota } from "@/lib/repos/frotas";
 import { setoresDistintosCached } from "@/lib/repos/frotas-cache";
 import { requireGestorUser } from "@/lib/rbac";
@@ -32,7 +32,12 @@ export default async function EditarFrotaPage({
           <h1 className="text-3xl font-semibold tracking-tight">Editar frota</h1>
           <p className="text-sm text-muted-foreground">{frota.placa ?? frota.chassi}</p>
         </div>
-        <DeleteFrotaButton id={frota.id} label={frota.placa ?? frota.chassi ?? `#${frota.id}`} />
+        <FrotaStatusActions
+          id={frota.id}
+          label={frota.placa ?? frota.chassi ?? `#${frota.id}`}
+          ativo={frota.ativo}
+          vendido={frota.vendido}
+        />
       </div>
       <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alterações" setores={setores} />
     </div>

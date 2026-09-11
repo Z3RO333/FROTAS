@@ -113,6 +113,9 @@ export type FrotaFilters = {
   semKm?: boolean;
   idadeMin?: number;
   vendidos?: boolean;
+  // Frotas "ocultas" (softDeleteFrota: ativo=false) que não estão vendidas —
+  // hoje o único jeito de vê-las de novo é aqui, em /frotas/ocultas.
+  ocultas?: boolean;
   page?: number;
   pageSize?: number;
 };
@@ -351,6 +354,8 @@ function applySqlFilters(q: any, f: FrotaFilters): any {
   let next = q;
   if (f.vendidos || f.operacional === "baixado") {
     next = next.eq("vendido", true);
+  } else if (f.ocultas) {
+    next = next.eq("ativo", false).eq("vendido", false);
   } else {
     next = next.eq("vendido", false).eq("ativo", true);
   }
@@ -728,5 +733,48 @@ export async function softDeleteFrota(id: number, userEmail: string): Promise<vo
     .update({ ativo: false, atualizado_por: userEmail })
     .eq("id", id);
   if (error) throw new Error(`softDeleteFrota: ${error.message}`);
+  await appendHistorico(id, "ativo", "true", "false", userEmail).catch((e) =>
+    console.error("[frotas] falha ao registrar histórico de ocultação", e)
+  );
+  _analyticsCache.clear();
+}
+
+// "Ocultar" (softDeleteFrota) prometia reativação desde sempre — o botão já
+// dizia "pode ser reativada futuramente" — mas não existia como fazer isso.
+export async function reativarFrota(id: number, userEmail: string): Promise<void> {
+  const { error } = await supabaseManutencao
+    .from("veiculos")
+    .update({ ativo: true, atualizado_por: userEmail })
+    .eq("id", id);
+  if (error) throw new Error(`reativarFrota: ${error.message}`);
+  await appendHistorico(id, "ativo", "false", "true", userEmail).catch((e) =>
+    console.error("[frotas] falha ao registrar histórico de reativação", e)
+  );
+  _analyticsCache.clear();
+}
+
+export async function marcarFrotaVendida(id: number, userEmail: string): Promise<void> {
+  const { error } = await supabaseManutencao
+    .from("veiculos")
+    .update({ vendido: true, atualizado_por: userEmail })
+    .eq("id", id);
+  if (error) throw new Error(`marcarFrotaVendida: ${error.message}`);
+  await appendHistorico(id, "vendido", "false", "true", userEmail).catch((e) =>
+    console.error("[frotas] falha ao registrar histórico de venda", e)
+  );
+  _analyticsCache.clear();
+}
+
+// Desfaz uma marcação de venda feita por engano — mesma lógica de "reativar",
+// pra marcar como vendida nunca virar um beco sem volta na UI.
+export async function desfazerVendaFrota(id: number, userEmail: string): Promise<void> {
+  const { error } = await supabaseManutencao
+    .from("veiculos")
+    .update({ vendido: false, atualizado_por: userEmail })
+    .eq("id", id);
+  if (error) throw new Error(`desfazerVendaFrota: ${error.message}`);
+  await appendHistorico(id, "vendido", "true", "false", userEmail).catch((e) =>
+    console.error("[frotas] falha ao registrar histórico de desfazer venda", e)
+  );
   _analyticsCache.clear();
 }

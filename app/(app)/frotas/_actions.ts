@@ -4,7 +4,15 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { sendDisponibilidadeEmail, sendRelatorioIndividual, sendRelatorioPainelExecutivo } from "@/lib/email";
-import { createFrota, getFrota, softDeleteFrota, updateFrota } from "@/lib/repos/frotas";
+import {
+  createFrota,
+  desfazerVendaFrota,
+  getFrota,
+  marcarFrotaVendida,
+  reativarFrota,
+  softDeleteFrota,
+  updateFrota,
+} from "@/lib/repos/frotas";
 import { dashboardFrotasCached } from "@/lib/repos/frotas-cache";
 import {
   getDisponibilidadeGeral,
@@ -143,6 +151,7 @@ function revalidateFrotasCache() {
   updateTag("frotas:dashboard");
   revalidatePath("/frotas");
   revalidatePath("/frotas/vendidos");
+  revalidatePath("/frotas/ocultas");
   revalidatePath("/");
 }
 
@@ -226,6 +235,32 @@ export async function excluirFrotaAction(id: number) {
   await softDeleteFrota(id, email);
   revalidateFrotasCache();
   redirect("/frotas");
+}
+
+export async function reativarFrotaAction(id: number) {
+  const email = await requireFrotaEditor();
+  await reativarFrota(id, email);
+  revalidateFrotasCache();
+  revalidatePath("/frotas/ocultas");
+  revalidatePath(`/frotas/${id}/editar`);
+  redirect(`/frotas/${id}`);
+}
+
+export async function marcarVendidaAction(id: number) {
+  const email = await requireFrotaEditor();
+  await marcarFrotaVendida(id, email);
+  revalidateFrotasCache();
+  revalidatePath("/frotas/ocultas");
+  redirect("/frotas/vendidos");
+}
+
+export async function desfazerVendaAction(id: number) {
+  const email = await requireFrotaEditor();
+  await desfazerVendaFrota(id, email);
+  revalidateFrotasCache();
+  revalidatePath("/frotas/ocultas");
+  revalidatePath(`/frotas/${id}/editar`);
+  redirect(`/frotas/${id}`);
 }
 
 export async function enviarRelatorioGeralAction(formData: FormData): Promise<RelatorioActionResult> {
