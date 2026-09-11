@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ChangeEvent, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type ReactNode, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -59,6 +59,7 @@ type ChecklistDraft = {
   tipoCombustivel: string;
   litrosCombustivel: string;
   litrosArla: string;
+  frotaCarregada: string;
   savedAt: number;
 };
 
@@ -154,6 +155,7 @@ export function DriverChecklistForm({
   const [tipoCombustivel, setTipoCombustivel] = useState("");
   const [litrosCombustivel, setLitrosCombustivel] = useState("");
   const [litrosArla, setLitrosArla] = useState("");
+  const [frotaCarregada, setFrotaCarregada] = useState("");
   const [draftRecovered, setDraftRecovered] = useState(false);
   const draftReadyRef = useRef(false);
   const draftKey = `frotas:checklist-draft:v1:${draftOwner.toLowerCase()}`;
@@ -191,6 +193,7 @@ export function DriverChecklistForm({
           setTipoCombustivel(draft.tipoCombustivel ?? "");
           setLitrosCombustivel(draft.litrosCombustivel ?? "");
           setLitrosArla(draft.litrosArla ?? "");
+          setFrotaCarregada(draft.frotaCarregada ?? "");
           setDraftRecovered(true);
         }
       }
@@ -214,6 +217,7 @@ export function DriverChecklistForm({
       tipoCombustivel ||
       litrosCombustivel ||
       litrosArla ||
+      frotaCarregada ||
       Object.values(itemStatuses).some((status) => status !== "NAO_SE_APLICA") ||
       Object.values(itemObservacoes).some(Boolean)
     );
@@ -236,6 +240,7 @@ export function DriverChecklistForm({
           tipoCombustivel,
           litrosCombustivel,
           litrosArla,
+          frotaCarregada,
           savedAt: Date.now(),
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
@@ -247,6 +252,7 @@ export function DriverChecklistForm({
   }, [
     draftKey,
     frotaId,
+    frotaCarregada,
     itemObservacoes,
     itemStatuses,
     justificativaKm,
@@ -372,6 +378,10 @@ export function DriverChecklistForm({
       setStepErro(`“${criticalProblem.nome}” está com problema. Checklist crítico não pode ser enviado.`);
       return;
     }
+    if (frotaCarregada !== "sim" && frotaCarregada !== "nao") {
+      setStepErro("Informe se a frota está carregada.");
+      return;
+    }
     const pendente = CHECKLIST_ITEMS.find(
       (item) => item.obrigatorio && itemStatuses[item.codigo] === "NAO_SE_APLICA"
     );
@@ -450,6 +460,7 @@ export function DriverChecklistForm({
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />
+      <input type="hidden" name="frota_carregada" value={frotaCarregada} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
           key={item.codigo}
@@ -708,6 +719,34 @@ export function DriverChecklistForm({
               onChange={setNivelCombustivel}
             />
             <FuelLevelSelector label="Nível arla" value={nivelArla} onChange={setNivelArla} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>A frota está carregada? *</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <CarregadaChoice
+                name="_frota_carregada_ui"
+                value="sim"
+                checked={frotaCarregada === "sim"}
+                onChange={(v) => {
+                  setFrotaCarregada(v);
+                  setStepErro(null);
+                }}
+              >
+                Sim
+              </CarregadaChoice>
+              <CarregadaChoice
+                name="_frota_carregada_ui"
+                value="nao"
+                checked={frotaCarregada === "nao"}
+                onChange={(v) => {
+                  setFrotaCarregada(v);
+                  setStepErro(null);
+                }}
+              >
+                Não
+              </CarregadaChoice>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1189,6 +1228,38 @@ function OcrStatusCard({
       {ocrState.motivo && <p className="mt-1 text-xs opacity-80">{ocrState.motivo}</p>}
       <p className="mt-1.5 text-xs">Digite o KM manualmente no campo abaixo.</p>
     </div>
+  );
+}
+
+function CarregadaChoice({
+  name,
+  value,
+  checked,
+  onChange,
+  children,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  onChange?: (value: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex h-11 cursor-pointer items-center justify-center rounded-md border bg-white px-3 text-sm font-medium transition-colors has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 sm:h-10"
+      )}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={() => onChange?.(value)}
+        className="sr-only"
+      />
+      {children}
+    </label>
   );
 }
 

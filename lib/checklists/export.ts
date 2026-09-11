@@ -52,6 +52,7 @@ export function buildChecklistsExportWorkbook(
     "Horário",
     "KM informado",
     "Status geral",
+    "Frota carregada",
     "Observação",
     ...CHECKLIST_ITEMS.map((item) => item.nome),
   ];
@@ -74,6 +75,7 @@ export function buildChecklistsExportWorkbook(
       hora,
       c.km_informado ?? "",
       STATUS_GERAL_LABEL[c.status_geral] ?? c.status_geral,
+      c.frota_carregada == null ? "" : c.frota_carregada ? "Sim" : "Não",
       observacao,
       ...CHECKLIST_ITEMS.map((item) => {
         const registrado = porCodigo.get(item.codigo);

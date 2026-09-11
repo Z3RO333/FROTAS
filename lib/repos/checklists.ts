@@ -4,7 +4,7 @@ import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
 // Colunas necessárias para listagem — exclui ocr_*, foto_km_url, observacao_*, analise_*
 const COLS_CHECKLIST_LIST =
-  "id,frota_id,motorista_id,motorista_nome,data_checklist,km_informado,status_geral,criado_em";
+  "id,frota_id,motorista_id,motorista_nome,data_checklist,km_informado,status_geral,criado_em,frota_carregada";
 
 // A visão administrativa também exibe a observação informada pelo motorista.
 const COLS_CHECKLIST_ADMIN_LIST =
@@ -52,6 +52,7 @@ type ChecklistDbRow = {
   observacao_original: string | null;
   observacao_corrigida_ia: string | null;
   criado_em: string | null;
+  frota_carregada: boolean | null;
 };
 
 type PendenciaDbRow = {
@@ -97,6 +98,7 @@ export type ChecklistListRow = {
   observacao_original: string | null;
   observacao_corrigida_ia: string | null;
   criado_em: string | null;
+  frota_carregada: boolean | null;
 };
 
 export type ChecklistItemRow = {
@@ -187,6 +189,7 @@ export type CreateChecklistInput = {
   nivel_combustivel?: number | null;
   nivel_arla?: number | null;
   foto_comprovante_abastecimento_url?: string | null;
+  frota_carregada?: boolean | null;
 };
 
 export type CreateChecklistResult = {
@@ -1108,6 +1111,7 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
         status_geral: input.status_geral,
         observacao_original: input.observacao_original ?? null,
         observacao_corrigida_ia: input.observacao_corrigida_ia ?? null,
+        frota_carregada: input.frota_carregada ?? null,
       },
       p_itens: itensPayload,
       p_pendencias: pendenciasPayload,

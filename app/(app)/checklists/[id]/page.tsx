@@ -74,6 +74,9 @@ export default async function ChecklistDetailPage({ params }: { params: Promise<
           <span>{detalhe.placa ?? "Sem placa"}</span>
           {detalhe.modelo ? <span className="block text-xs font-normal text-slate-500">{detalhe.modelo}</span> : null}
         </SummaryCard>
+        <SummaryCard label="Frota carregada" icon={<Truck />}>
+          {detalhe.frota_carregada == null ? "Não informado" : detalhe.frota_carregada ? "Sim" : "Não"}
+        </SummaryCard>
       </section>
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">

@@ -33,6 +33,7 @@ export type ChecklistDetalhePortaria = {
   observacao_original: string | null;
   observacao_corrigida_ia: string | null;
   criado_em: string | null;
+  frota_carregada: boolean | null;
   itens: ChecklistItemRow[];
   fotos: FotoChecklist[];
   historico_hoje: HistoricoMovimentacao[];
@@ -49,7 +50,7 @@ export async function getChecklistDetalhePortaria(
     .select(`
       id, frota_id, motorista_id, motorista_nome,
       km_informado, foto_km_url, status_geral, observacao_original,
-      observacao_corrigida_ia, criado_em,
+      observacao_corrigida_ia, criado_em, frota_carregada,
       veiculos!inner(codigo_frota, placa, modelo, km_atual)
     `)
     .eq("id", checklistId)
@@ -132,6 +133,7 @@ export async function getChecklistDetalhePortaria(
     observacao_original: (c as { observacao_original?: string | null }).observacao_original ?? null,
     observacao_corrigida_ia: (c as { observacao_corrigida_ia?: string | null }).observacao_corrigida_ia ?? null,
     criado_em: (c as { criado_em?: string | null }).criado_em ?? null,
+    frota_carregada: (c as { frota_carregada?: boolean | null }).frota_carregada ?? null,
     itens,
     fotos,
     historico_hoje: (historicoResult.data ?? []).map((h) => ({

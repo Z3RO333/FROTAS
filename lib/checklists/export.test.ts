@@ -25,6 +25,7 @@ function checklist(overrides: Partial<ChecklistListRow> = {}): ChecklistListRow 
     observacao_original: null,
     observacao_corrigida_ia: null,
     criado_em: "2026-09-09T13:20:21.252923+00:00",
+    frota_carregada: null,
     ...overrides,
   };
 }
