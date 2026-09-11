@@ -82,6 +82,7 @@ export type FrotaManutencaoDisponibilidade = {
   local_atual: string | null;
   responsavel: string | null;
   previsao_retorno: string | null;
+  oficina: string | null;
 };
 
 function isIndisponivel(row: VeiculoDisponibilidadeRow): boolean {
@@ -127,6 +128,7 @@ export function mapFrotaManutencao(row: VeiculoDisponibilidadeRow, agora: number
     local_atual: row.manutencao_destino_detalhe ?? row.manutencao_oficina ?? row.manutencao_destino ?? row.local,
     responsavel: row.ultimo_motorista_nome ?? row.manutencao_iniciado_por,
     previsao_retorno: row.manutencao_prev_retorno,
+    oficina: row.manutencao_oficina,
   };
 }
 

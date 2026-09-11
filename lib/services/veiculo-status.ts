@@ -47,6 +47,13 @@ export type RetornarOperacaoInput = {
   usuarioEmail: string;
 };
 
+export type AtualizarManutencaoInput = {
+  frotaId: number;
+  oficina?: string | null;
+  prevRetorno?: string | null;
+  usuarioEmail: string;
+};
+
 export type DisponibilidadeResult = {
   disponivel: boolean;
   motivos: Array<{ tipo: "MANUTENCAO" | "CHECKLIST" | "VENDIDO" | "BAIXADA" | "STATUS"; descricao: string }>;
@@ -61,6 +68,7 @@ type FrotaSnapshot = {
   manutencao_motivo: string | null;
   manutencao_iniciado_em: string | null;
   manutencao_prev_retorno: string | null;
+  manutencao_oficina: string | null;
   manutencao_bloqueia_checklist: boolean | null;
 };
 
@@ -68,12 +76,62 @@ async function getSnapshot(frotaId: number): Promise<FrotaSnapshot | null> {
   const { data, error } = await supabaseManutencao
     .from("veiculos")
     .select(
-      "id,status,status_operacional,ativo,vendido,manutencao_motivo,manutencao_iniciado_em,manutencao_prev_retorno,manutencao_bloqueia_checklist"
+      "id,status,status_operacional,ativo,vendido,manutencao_motivo,manutencao_iniciado_em,manutencao_prev_retorno,manutencao_oficina,manutencao_bloqueia_checklist"
     )
     .eq("id", frotaId)
     .single();
   if (error || !data) return null;
   return data as FrotaSnapshot;
+}
+
+/** Atualiza dados que o fornecedor pode alterar durante uma manutenção aberta. */
+export async function atualizarManutencaoEmAndamento(
+  input: AtualizarManutencaoInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const frota = await getSnapshot(input.frotaId);
+  if (!frota) return { ok: false, error: "Frota não encontrada." };
+  if (frota.status !== "manutencao" && frota.status_operacional !== "EM_MANUTENCAO") {
+    return { ok: false, error: "Esta frota não está em manutenção." };
+  }
+
+  const oficina = input.oficina?.trim() || null;
+  const prevRetorno = input.prevRetorno?.trim() || null;
+  const previsaoAtual = frota.manutencao_prev_retorno?.slice(0, 10) ?? null;
+  if (oficina === frota.manutencao_oficina && prevRetorno === previsaoAtual) {
+    return { ok: false, error: "Nenhuma alteração foi informada." };
+  }
+
+  const { data: updated, error } = await supabaseManutencao
+    .from("veiculos")
+    .update({
+      manutencao_oficina: oficina,
+      manutencao_prev_retorno: prevRetorno,
+      atualizado_por: input.usuarioEmail,
+    })
+    .eq("id", input.frotaId)
+    .eq("status", "manutencao")
+    .select("id")
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!updated) return { ok: false, error: "A manutenção foi alterada por outro usuário. Atualize a tela." };
+
+  await recordEvent({
+    veiculo_id: input.frotaId,
+    tipo_evento: "MANUTENCAO_PRORROGADA",
+    origem: "disponibilidade",
+    titulo: "Dados da manutenção atualizados",
+    descricao: "Oficina ou previsão de retorno alterada.",
+    severidade: "MANUTENCAO",
+    payload: {
+      oficina_anterior: frota.manutencao_oficina,
+      oficina_nova: oficina,
+      previsao_anterior: frota.manutencao_prev_retorno,
+      previsao_nova: prevRetorno,
+    },
+    usuario_id: input.usuarioEmail,
+  });
+
+  return { ok: true };
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 } from "@/lib/repos/disponibilidade";
 import { sendDisponibilidadeEmail } from "@/lib/email";
 import { publicActionError } from "@/lib/public-error";
+import { atualizarManutencaoEmAndamento } from "@/lib/services/veiculo-status";
 
 const ALLOWED_EMAIL_DOMAIN = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -68,6 +69,53 @@ export async function enviarRelatorioDisponibilidadeCDAction(
 }
 
 const PATH = "/frotas/disponibilidades";
+
+const AtualizarManutencaoSchema = z.object({
+  frota_id: z.coerce.number().int().positive(),
+  oficina: z.string().trim().max(160, "Oficina muito longa.").optional().nullable(),
+  prev_retorno: z.union([
+    z.literal(""),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data de retorno inválida."),
+  ]).optional().nullable(),
+});
+
+export type AtualizarManutencaoActionState =
+  | { ok: true; mensagem: string }
+  | { ok: false; error: string };
+
+export async function atualizarManutencaoAction(
+  _prev: AtualizarManutencaoActionState,
+  formData: FormData
+): Promise<AtualizarManutencaoActionState> {
+  try {
+    const user = await requireAdminUser();
+    const parsed = AtualizarManutencaoSchema.parse({
+      frota_id: formData.get("frota_id"),
+      oficina: formData.get("oficina"),
+      prev_retorno: formData.get("prev_retorno"),
+    });
+    const result = await atualizarManutencaoEmAndamento({
+      frotaId: parsed.frota_id,
+      oficina: parsed.oficina,
+      prevRetorno: parsed.prev_retorno,
+      usuarioEmail: user.email,
+    });
+    if (!result.ok) return { ok: false, error: result.error };
+
+    revalidatePath(PATH);
+    revalidatePath(`/frotas/${parsed.frota_id}`);
+    revalidatePath("/frotas");
+    revalidatePath("/planejamento");
+    revalidatePath("/planejamento/paradas");
+    return { ok: true, mensagem: "Manutenção atualizada." };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    if (error instanceof z.ZodError) {
+      return { ok: false, error: error.issues[0]?.message ?? "Dados inválidos." };
+    }
+    return { ok: false, error: publicActionError(error, "Erro ao atualizar manutenção.") };
+  }
+}
 
 const ScheduleSchema = z.object({
   nome: z.string().trim().min(1, "Nome obrigatorio"),

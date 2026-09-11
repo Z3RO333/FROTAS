@@ -48,6 +48,7 @@ import {
   enviarRelatorioDisponibilidadeCDAction,
 } from "./_actions";
 import { CDFilterSelect } from "./_cd-filter";
+import { EditarManutencaoDialog } from "@/components/frotas/manutencao/editar-manutencao-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -212,9 +213,11 @@ export default async function FrotasDisponibilidadesPage({
                     <TableHead>Setor</TableHead>
                     <TableHead>Tipo OS</TableHead>
                     <TableHead>Descrição</TableHead>
+                    <TableHead>Oficina</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Início</TableHead>
                     <TableHead>Prev. saída</TableHead>
+                    <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -237,6 +240,7 @@ export default async function FrotasDisponibilidadesPage({
                       <TableCell className="max-w-[220px] truncate" title={frota.motivo ?? undefined}>
                         {frota.motivo ?? "-"}
                       </TableCell>
+                      <TableCell className="max-w-[180px] truncate" title={frota.oficina ?? undefined}>{frota.oficina ?? "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="border-orange-200 bg-orange-50 text-orange-700">
                           {frota.status}
@@ -244,6 +248,7 @@ export default async function FrotasDisponibilidadesPage({
                       </TableCell>
                       <TableCell>{formatDate(frota.data_envio)}</TableCell>
                       <TableCell>{formatDate(frota.previsao_retorno)}</TableCell>
+                      <TableCell className="text-right"><EditarManutencaoDialog frotaId={frota.id} frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`} oficina={frota.oficina} previsaoRetorno={frota.previsao_retorno} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
