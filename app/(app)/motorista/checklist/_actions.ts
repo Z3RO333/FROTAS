@@ -81,11 +81,6 @@ export async function enviarChecklistMotoristaAction(
     const kmDigitado = optionalInteger(formData.get("km_informado"));
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
-    const frotaCarregadaRaw = formData.get("frota_carregada");
-    if (frotaCarregadaRaw !== "sim" && frotaCarregadaRaw !== "nao") {
-      throw new Error("Informe se a frota está carregada.");
-    }
-    const frotaCarregada = frotaCarregadaRaw === "sim";
 
     const criticalProblem = CHECKLIST_ITEMS.find((item) =>
       isCriticalChecklistProblem(item, formData.get(`item_status_${item.codigo}`))
@@ -251,7 +246,6 @@ export async function enviarChecklistMotoristaAction(
       litros_arla: litrosArla,
       nivel_combustivel: nivelCombustivel,
       nivel_arla: nivelArla,
-      frota_carregada: frotaCarregada,
     });
 
     // A fila de inspeção alimenta a análise de IA. Falha aqui não bloqueia o motorista,
