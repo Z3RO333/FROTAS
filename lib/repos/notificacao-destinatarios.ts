@@ -1,6 +1,6 @@
 import { supabaseManutencao } from "@/lib/supabase-manutencao";
 
-export type NotificacaoEvento = "SOCORRO_GERAL" | "SOCORRO_AREA" | "SINISTRO_GERAL";
+export type NotificacaoEvento = "SOCORRO_GERAL" | "SOCORRO_AREA" | "SINISTRO_GERAL" | "REPARO_FROTA_GERAL";
 
 export type NotificacaoDestinatario = {
   id: number;

@@ -146,6 +146,18 @@ export async function requireSinistrosUser(): Promise<AppUser> {
   return user;
 }
 
+// Mesmo grupo de Sinistros: supervisor de portaria pra cima. Motorista, portaria
+// comum e aprovador não veem nem podem abrir esse módulo.
+export function canAccessReparoFrota(perfil: PerfilUsuario): boolean {
+  return canAccessAdmin(perfil) || perfil === "SUPERVISOR_PORTARIA";
+}
+
+export async function requireReparoFrotaUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canAccessReparoFrota(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
+  return user;
+}
+
 export async function requireMotoristaUser(): Promise<AppUser> {
   const user = await requireAppUser();
   if (!canAccessMotorista(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));

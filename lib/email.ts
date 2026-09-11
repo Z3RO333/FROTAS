@@ -5,11 +5,13 @@ import {
   renderRelatorioIndividual,
   renderRelatorioOperacionalDiario,
   renderRelatorioPainelExecutivo,
+  renderReparoFrotaNotification,
   renderSinistroNotification,
   renderSocorroNotification,
   type DashboardReportInput,
   type DisponibilidadeEmailInput,
   type RelatorioOperacionalDiarioInput,
+  type ReparoFrotaNotificationInput,
   type SinistroNotificationInput,
   type SocorroNotificationInput,
 } from "@/lib/email-templates";
@@ -358,6 +360,49 @@ export async function sendSocorroNotification(input: SocorroNotificationInput): 
     console.error("[socorro] erro ao enviar notificacao", msg);
     await safeLogEmail({
       tipo: "socorro",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.solicitanteEmail,
+      status: "erro",
+      erroMsg: msg,
+    });
+    throw new Error(msg);
+  }
+}
+
+export async function sendReparoFrotaNotification(input: ReparoFrotaNotificationInput): Promise<void> {
+  const geraisEmails = await getDestinatarios("REPARO_FROTA_GERAL");
+  const destinatarios = [...new Set(geraisEmails)].filter(Boolean);
+
+  if (destinatarios.length === 0) {
+    console.warn("[reparo-frota] nenhum destinatario configurado para notificacao");
+    return;
+  }
+
+  const urgente = input.prioridade === "ALTA" ? "[URGENTE] " : "";
+  const assunto = `${urgente}[REPARO FROTA] Nova solicitacao - Frota ${input.numeroFrota ?? "-"} - Prioridade: ${input.prioridade}`;
+
+  const html = renderReparoFrotaNotification(input);
+
+  try {
+    await mailClient().send({
+      from: FROM,
+      to: destinatarios,
+      subject: assunto,
+      html,
+    });
+    await safeLogEmail({
+      tipo: "reparo_frota",
+      destinatarios: destinatarios.join(","),
+      assunto,
+      enviadoPor: input.solicitanteEmail,
+      status: "enviado",
+    });
+  } catch (e) {
+    const msg = sendGridErrorMessage(e);
+    console.error("[reparo-frota] erro ao enviar notificacao", msg);
+    await safeLogEmail({
+      tipo: "reparo_frota",
       destinatarios: destinatarios.join(","),
       assunto,
       enviadoPor: input.solicitanteEmail,

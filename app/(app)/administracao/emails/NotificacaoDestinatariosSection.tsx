@@ -20,6 +20,7 @@ function buildRows(destinatarios: NotificacaoDestinatario[]): Row[] {
     { evento: "SOCORRO_GERAL" as const, chave: null, label: "Socorro — geral" },
     ...SETORES.map((setor) => ({ evento: "SOCORRO_AREA" as const, chave: setor, label: `Socorro — ${setor}` })),
     { evento: "SINISTRO_GERAL" as const, chave: null, label: "Sinistro — geral" },
+    { evento: "REPARO_FROTA_GERAL" as const, chave: null, label: "Reparo de Frota — geral" },
   ].map((r) => ({ ...r, destinatarios: byKey.get(`${r.evento}:${r.chave ?? ""}`) ?? [] }));
 }
 
@@ -83,10 +84,11 @@ export function NotificacaoDestinatariosSection({
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <CardTitle>Destinatários de eventos (Socorro / Sinistro)</CardTitle>
+            <CardTitle>Destinatários de eventos (Socorro / Sinistro / Reparo)</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Quem recebe o e-mail assim que um motorista registra um pedido de socorro ou um sinistro. O motorista
-              não escolhe nada disso — é só o admin quem configura aqui.
+              Quem recebe o e-mail assim que um motorista registra um pedido de socorro, um sinistro, ou um
+              supervisor solicita reparo de frota. Quem envia não escolhe nada disso — é só o admin quem
+              configura aqui.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">

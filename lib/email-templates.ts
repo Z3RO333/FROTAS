@@ -897,3 +897,76 @@ export function renderSocorroNotification(input: SocorroNotificationInput): stri
 
   return shell(body);
 }
+
+export type ReparoFrotaNotificationInput = {
+  ticketNumber: string;
+  solicitanteNome: string;
+  solicitanteEmail: string;
+  numeroFrota: string | null;
+  placa: string | null;
+  km: number;
+  litros: number | null;
+  motivoVerificacao: string;
+  localizacao: string;
+  frotaCarregada: boolean;
+  prioridade: "NORMAL" | "URGENTE" | "ALTA";
+};
+
+const PRIORIDADE_LABEL: Record<ReparoFrotaNotificationInput["prioridade"], string> = {
+  NORMAL: "Normal",
+  URGENTE: "Urgente",
+  ALTA: "Alta",
+};
+
+export function renderReparoFrotaNotification(input: ReparoFrotaNotificationInput): string {
+  const RED = "#dc2626";
+  const AMBER = "#d97706";
+  const now = new Date();
+  const dataHora = now.toLocaleString("pt-BR", { timeZone: "America/Manaus" });
+
+  const prioridadeColor =
+    input.prioridade === "ALTA" ? RED : input.prioridade === "URGENTE" ? AMBER : "#22c55e";
+
+  function infoRow(label: string, value: string, highlight?: string): string {
+    const style = highlight ? `font-weight:700;color:${highlight};` : "";
+    return `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid ${BORDER};font-size:13px;color:${MUTED};white-space:nowrap;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid ${BORDER};font-size:14px;${style}">${value}</td>
+      </tr>`;
+  }
+
+  const body = `
+    <tr>
+      <td style="background:${AMBER};border-radius:14px 14px 0 0;padding:24px 28px;color:#ffffff;">
+        <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">Reparo de Frota</div>
+        <div style="font-size:26px;font-weight:800;margin-top:4px;">Nova solicitação de reparo</div>
+        <div style="font-size:13px;margin-top:6px;opacity:.9;">Ticket: ${escapeHtml(input.ticketNumber)}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#ffffff;padding:20px 24px;border-radius:0 0 14px 14px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+          <tbody>
+            ${infoRow("Solicitante", `${escapeHtml(input.solicitanteNome)} (${escapeHtml(input.solicitanteEmail)})`)}
+            ${infoRow("Frota", `${escapeHtml(input.numeroFrota ?? "-")} / ${escapeHtml(input.placa ?? "-")}`)}
+            ${infoRow("KM", escapeHtml(String(input.km)))}
+            ${input.litros != null ? infoRow("Litros", escapeHtml(String(input.litros))) : ""}
+            ${infoRow("Onde está a frota", escapeHtml(input.localizacao))}
+            ${infoRow("Frota carregada?", input.frotaCarregada ? "SIM" : "Nao")}
+            ${infoRow("Prioridade", PRIORIDADE_LABEL[input.prioridade].toUpperCase(), prioridadeColor)}
+            ${infoRow("Data/Hora", dataHora)}
+          </tbody>
+        </table>
+        <div style="margin-top:16px;padding:14px;background:${SURFACE};border:1px solid ${BORDER};border-radius:8px;">
+          <div style="font-size:11px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;margin-bottom:6px;">Motivo da verificação</div>
+          <div style="font-size:14px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(input.motivoVerificacao)}</div>
+        </div>
+        <div style="margin-top:20px;text-align:center;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}/reparos-frota" style="display:inline-block;background:${BLUE};color:#ffffff;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px;text-decoration:none;">Abrir painel de reparos</a>
+        </div>
+      </td>
+    </tr>`;
+
+  return shell(body);
+}

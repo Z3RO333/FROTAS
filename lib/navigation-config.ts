@@ -11,6 +11,7 @@ const COCKPIT_NAV: NavItem[] = [
 
 const FROTA_NAV: NavItem[] = [
   { href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" },
+  { href: "/reparos-frota", label: "Reparo de Frota", icon: "Wrench" },
   { href: "/frotas", label: "Veículos", icon: "List" },
   { href: "/planejamento/paradas", label: "Frotas Paradas", icon: "AlertTriangle" },
   { href: "/frotas/disponibilidades", label: "Disponibilidade", icon: "Gauge" },
@@ -85,7 +86,13 @@ export function navigationForProfile(perfil: PerfilUsuario): NavSection[] {
   if (perfil === "SUPERVISOR_PORTARIA") {
     return [
       { title: "Portaria", items: PORTARIA_NAV },
-      { title: "Ocorrências", items: [{ href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" }] },
+      {
+        title: "Ocorrências",
+        items: [
+          { href: "/sinistros", label: "Sinistros", icon: "ShieldAlert" },
+          { href: "/reparos-frota", label: "Reparo de Frota", icon: "Wrench" },
+        ],
+      },
       // canAccessMotorista libera o /motorista inteiro para este perfil desde
       // c872638, mas o menu nunca ganhou o link — o supervisor conseguia abrir
       // /motorista/checklist só digitando a URL. MOTORISTA_NAV inteiro porque
