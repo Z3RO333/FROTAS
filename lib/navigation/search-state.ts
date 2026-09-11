@@ -22,3 +22,15 @@ export function safeReturnTo(value?: string | null): string | null {
   if (!value.startsWith("/") || value.startsWith("//")) return null;
   return value;
 }
+
+// Preserve only fleet-list destinations when returning from a mutation.
+export function frotaReturnTo(value?: string | null): string | null {
+  if (!value || /[\\\u0000-\u0020]/.test(value)) return null;
+  const pathname = value.split(/[?#]/, 1)[0];
+  return ["/frotas", "/frotas/vendidos", "/frotas/ocultas"].includes(pathname) ? value : null;
+}
+
+export function frotaDetailHref(id: number, returnTo?: string | null): string {
+  const destination = frotaReturnTo(returnTo);
+  return `/frotas/${id}${destination ? `?returnTo=${encodeURIComponent(destination)}` : ""}`;
+}

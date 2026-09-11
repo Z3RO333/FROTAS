@@ -1,3 +1,4 @@
+import { frotaReturnTo } from "@/lib/navigation/search-state";
 import { notFound } from "next/navigation";
 import { FrotaForm } from "@/components/frotas/frota-form";
 import { FrotaStatusActions } from "@/components/frotas/frota-status-actions";
@@ -10,10 +11,13 @@ export const dynamic = "force-dynamic";
 
 export default async function EditarFrotaPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 }) {
   const { id } = await params;
+  const returnTo = frotaReturnTo((await searchParams).returnTo);
   const frotaId = Number.parseInt(id, 10);
   if (Number.isNaN(frotaId)) notFound();
 
@@ -33,13 +37,14 @@ export default async function EditarFrotaPage({
           <p className="text-sm text-muted-foreground">{frota.placa ?? frota.chassi}</p>
         </div>
         <FrotaStatusActions
+          returnTo={returnTo}
           id={frota.id}
           label={frota.placa ?? frota.chassi ?? `#${frota.id}`}
           ativo={frota.ativo}
           vendido={frota.vendido}
         />
       </div>
-      <FrotaForm initial={frota} action={boundAction} submitLabel="Salvar alterações" setores={setores} />
+      <FrotaForm returnTo={returnTo} initial={frota} action={boundAction} submitLabel="Salvar alterações" setores={setores} />
     </div>
   );
 }

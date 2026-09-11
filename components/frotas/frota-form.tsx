@@ -1,5 +1,6 @@
 "use client";
 
+import { frotaDetailHref } from "@/lib/navigation/search-state";
 import { useActionState } from "react";
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
@@ -25,12 +26,13 @@ const FROTA_ACTION_INITIAL_STATE: FrotaActionState = {
 
 type Props = {
   initial?: Partial<Frota>;
+  returnTo?: string | null;
   action: (state: FrotaActionState, formData: FormData) => Promise<FrotaActionState>;
   submitLabel: string;
   setores: string[];
 };
 
-export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
+export function FrotaForm({ initial, action, submitLabel, setores, returnTo }: Props) {
   const [state, formAction] = useActionState(action, FROTA_ACTION_INITIAL_STATE);
   const isCreate = !initial?.id;
   const value = (name: string, fallback: React.InputHTMLAttributes<HTMLInputElement>["defaultValue"]) =>
@@ -50,6 +52,7 @@ export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
 
   return (
     <form key={state.attempt} action={formAction} className="grid max-w-3xl gap-4 md:grid-cols-2">
+      <input type="hidden" name="returnTo" value={returnTo ?? ""} />
       {state.error ? (
         <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900 md:col-span-2" role="alert">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -152,7 +155,7 @@ export function FrotaForm({ initial, action, submitLabel, setores }: Props) {
       <div className="flex gap-2 md:col-span-2">
         <SubmitButton label={submitLabel} />
         <Button type="button" variant="outline" asChild>
-          <Link href={initial?.id ? `/frotas/${initial.id}` : "/frotas"}>Cancelar</Link>
+          <Link href={initial?.id ? frotaDetailHref(initial.id, returnTo) : "/frotas"}>Cancelar</Link>
         </Button>
       </div>
     </form>

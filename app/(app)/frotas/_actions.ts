@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { frotaReturnTo, frotaDetailHref } from "@/lib/navigation/search-state";
 import { z } from "zod";
 import { sendDisponibilidadeEmail, sendRelatorioIndividual, sendRelatorioPainelExecutivo } from "@/lib/email";
 import {
@@ -212,7 +213,8 @@ export async function editarFrotaAction(
   }
   revalidatePath(`/frotas/${id}`);
   revalidateFrotasCache();
-  redirect(`/frotas/${id}`);
+  const returnTo = formData.get("returnTo");
+  redirect(frotaDetailHref(id, typeof returnTo === "string" ? returnTo : null));
 }
 
 export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
@@ -230,37 +232,37 @@ export async function atualizarLocalizacaoFrotaAction(formData: FormData) {
   revalidateFrotasCache();
 }
 
-export async function excluirFrotaAction(id: number) {
+export async function excluirFrotaAction(id: number, returnTo?: string | null) {
   const email = await requireFrotaEditor();
   await softDeleteFrota(id, email);
   revalidateFrotasCache();
-  redirect("/frotas");
+  redirect(frotaReturnTo(returnTo) ?? "/frotas");
 }
 
-export async function reativarFrotaAction(id: number) {
+export async function reativarFrotaAction(id: number, returnTo?: string | null) {
   const email = await requireFrotaEditor();
   await reativarFrota(id, email);
   revalidateFrotasCache();
   revalidatePath("/frotas/ocultas");
   revalidatePath(`/frotas/${id}/editar`);
-  redirect(`/frotas/${id}`);
+  redirect(frotaReturnTo(returnTo) ?? `/frotas/${id}`);
 }
 
-export async function marcarVendidaAction(id: number) {
+export async function marcarVendidaAction(id: number, returnTo?: string | null) {
   const email = await requireFrotaEditor();
   await marcarFrotaVendida(id, email);
   revalidateFrotasCache();
   revalidatePath("/frotas/ocultas");
-  redirect("/frotas/vendidos");
+  redirect(frotaReturnTo(returnTo) ?? "/frotas/vendidos");
 }
 
-export async function desfazerVendaAction(id: number) {
+export async function desfazerVendaAction(id: number, returnTo?: string | null) {
   const email = await requireFrotaEditor();
   await desfazerVendaFrota(id, email);
   revalidateFrotasCache();
   revalidatePath("/frotas/ocultas");
   revalidatePath(`/frotas/${id}/editar`);
-  redirect(`/frotas/${id}`);
+  redirect(frotaReturnTo(returnTo) ?? `/frotas/${id}`);
 }
 
 export async function enviarRelatorioGeralAction(formData: FormData): Promise<RelatorioActionResult> {

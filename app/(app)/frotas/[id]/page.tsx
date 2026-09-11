@@ -341,7 +341,7 @@ export default async function FrotaDetailPage({
                 variant="outline"
                 className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
               >
-                <Link href={`/frotas/${frota.id}/editar`}>
+                <Link href={`/frotas/${frota.id}/editar?returnTo=${encodeURIComponent(backHref)}`}>
                   <Edit className="mr-1 h-4 w-4" aria-hidden="true" />
                   Editar
                 </Link>

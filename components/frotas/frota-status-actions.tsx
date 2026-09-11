@@ -83,11 +83,13 @@ export function FrotaStatusActions({
   label,
   ativo,
   vendido,
+  returnTo,
 }: {
   id: number;
   label: string;
   ativo: boolean;
   vendido: boolean;
+  returnTo?: string | null;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -106,7 +108,7 @@ export function FrotaStatusActions({
               lista de vendidas.
             </>
           }
-          action={desfazerVendaAction.bind(null, id)}
+          action={desfazerVendaAction.bind(null, id, returnTo)}
           confirmLabel="Confirmar"
           confirmPendingLabel="Desfazendo..."
         />
@@ -125,7 +127,7 @@ export function FrotaStatusActions({
               <strong>Frotas vendidas</strong>. Pode ser desfeito depois.
             </>
           }
-          action={marcarVendidaAction.bind(null, id)}
+          action={marcarVendidaAction.bind(null, id, returnTo)}
           confirmLabel="Confirmar"
           confirmPendingLabel="Marcando..."
         />
@@ -146,7 +148,7 @@ export function FrotaStatusActions({
               O histórico é preservado e ela pode ser reativada em <strong>Frotas ocultas</strong>.
             </>
           }
-          action={excluirFrotaAction.bind(null, id)}
+          action={excluirFrotaAction.bind(null, id, returnTo)}
           confirmLabel="Confirmar"
           confirmPendingLabel="Ocultando..."
           confirmVariant="destructive"
@@ -166,7 +168,7 @@ export function FrotaStatusActions({
               operacionais.
             </>
           }
-          action={reativarFrotaAction.bind(null, id)}
+          action={reativarFrotaAction.bind(null, id, returnTo)}
           confirmLabel="Confirmar"
           confirmPendingLabel="Reativando..."
         />
