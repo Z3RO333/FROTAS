@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isActivePath } from "@/components/app-sidebar";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -10,9 +11,6 @@ const TABS = [
   { href: "/planejamento/manutencao", label: "Manutenção" },
   { href: "/frotas/disponibilidades", label: "Disponibilidade" },
   { href: "/planejamento/pneus", label: "Pneus" },
-  { href: "/planejamento/lavagem", label: "Lavagem" },
-  { href: "/planejamento/seguranca", label: "Kit Segurança" },
-  { href: "/planejamento/bateria", label: "Bateria" },
   { href: "/planejamento/estepes", label: "Estepes" },
 ];
 
@@ -22,7 +20,7 @@ export function PlanejamentoTabs() {
   return (
     <nav className="flex gap-1 overflow-x-auto border-b">
       {TABS.map((tab) => {
-        const active = tab.exact ? pathname === tab.href : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const active = tab.exact ? pathname === tab.href : isActivePath(pathname, tab.href);
         return (
           <Link
             key={tab.href}

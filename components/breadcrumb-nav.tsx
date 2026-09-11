@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
+import { isActivePath } from "@/components/app-sidebar";
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string };
@@ -17,7 +18,7 @@ export function BreadcrumbNav({ sections }: { sections: NavSection[] }) {
 
   const active = allItems
     .filter(
-      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+      (item) => isActivePath(pathname, item.href)
     )
     .sort((a, b) => b.href.length - a.href.length)[0];
 

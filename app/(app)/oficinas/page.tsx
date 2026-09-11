@@ -1,3 +1,4 @@
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { requireAppUser, canAccessManutencao } from "@/lib/rbac";
 import { listOficinas } from "@/lib/repos/manutencao/oficinas";
 import { redirect } from "next/navigation";
@@ -16,6 +17,7 @@ export default async function OficinasPage() {
 
   return (
     <div className="space-y-5">
+      <ServiceNavigation compact />
       <PageHeader
         eyebrow="Manutenção"
         title="Oficinas"

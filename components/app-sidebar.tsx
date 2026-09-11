@@ -79,10 +79,9 @@ export function AppSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const activeHref = findActiveHref(pathname, sections);
   const activeSectionTitle = sections.find((s) => s.items.some((i) => i.href === activeHref))?.title;
-  // Seções abertas no desktop — só a que contém a rota ativa começa aberta;
-  // as demais ficam disponíveis a um clique, sem poluir a tela toda de uma vez.
+  // Todas as seções começam abertas para manter as páginas visíveis.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(sections.map((s) => [s.title, s.title === activeSectionTitle]))
+    () => Object.fromEntries(sections.map((s) => [s.title, true]))
   );
 
   // Ao navegar para uma rota de outra seção (via link, não clique na sidebar),
@@ -312,6 +311,7 @@ function SidebarLink({
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
+  if (href === "/planejamento/manutencao" && ["/oficinas", "/planejamento/lavagem", "/planejamento/bateria", "/planejamento/seguranca"].some((path) => pathname === path || pathname.startsWith(`${path}/`))) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

@@ -208,9 +208,6 @@ export default async function ChecklistsAdminPage({
               <h2 className="font-semibold text-slate-950">Pendências recentes</h2>
               <p className="text-xs text-muted-foreground">Itens que exigem atenção</p>
             </div>
-            <Button asChild variant="ghost" size="sm" className="text-blue-700">
-              <Link href="/pendencias">Ver todas<ArrowRight aria-hidden="true" /></Link>
-            </Button>
           </div>
 
           {pendencias.length > 0 ? (

@@ -1,3 +1,4 @@
+import { ServiceNavigation } from "@/components/manutencao/service-navigation";
 import { AlertTriangle, CheckCircle2, Flame, ShieldAlert, Triangle, Wrench } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { ComponentType } from "react";
@@ -43,6 +44,7 @@ export default async function SegurancaPage() {
 
   return (
     <div className="space-y-6">
+      <ServiceNavigation compact />
       <PageHeader
         eyebrow="Manutenção"
         title="Kit de Segurança"

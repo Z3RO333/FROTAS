@@ -68,9 +68,9 @@ export function MobileNav({
   const pathname = usePathname();
   const activeHref = findActiveHref(pathname, sections);
   const activeSectionTitle = sections.find((s) => s.items.some((i) => i.href === activeHref))?.title;
-  // Só a seção com a rota ativa começa aberta — o resto fica um toque de distância.
+  // Todas as seções começam abertas para manter as páginas visíveis.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(sections.map((s) => [s.title, s.title === activeSectionTitle]))
+    () => Object.fromEntries(sections.map((s) => [s.title, true]))
   );
 
   useEffect(() => {

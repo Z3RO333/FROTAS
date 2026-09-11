@@ -6,7 +6,6 @@ export type { NavItem, NavSection };
 const COCKPIT_NAV: NavItem[] = [
   { href: "/", label: "Visão Geral", icon: "LayoutDashboard" },
   { href: "/planejamento", label: "Radar de Manutenção", icon: "Gauge" },
-  { href: "/pendencias", label: "Alertas", icon: "AlertTriangle" },
   { href: "/relatorios/checklists", label: "Relatórios IA", icon: "BarChart2" },
 ];
 
@@ -29,12 +28,6 @@ const MANUTENCAO_NAV: NavItem[] = [
   { href: "/manutencao/pecas", label: "Pedidos de peças", icon: "PackageSearch" },
   { href: "/manutencao/atividades", label: "Atividades", icon: "ClipboardCheck" },
   { href: "/manutencao/ordens", label: "Ordens", icon: "FileText" },
-  { href: "/manutencao/custos", label: "Custos", icon: "BarChart2" },
-  { href: "/oficinas", label: "Oficinas", icon: "MapPin" },
-  { href: "/planejamento/lavagem", label: "Lavagem", icon: "ClipboardCheck" },
-  { href: "/planejamento/bateria", label: "Bateria", icon: "Wrench" },
-  { href: "/planejamento/seguranca", label: "Kit Segurança", icon: "ShieldAlert" },
-  { href: "/planejamento/manutencao/tacografo", label: "Tacógrafo", icon: "ClipboardCheck" },
 ];
 
 const PNEUS_NAV: NavItem[] = [
@@ -50,7 +43,6 @@ const DOCUMENTOS_NAV: NavItem[] = [
 const ADMINISTRACAO_NAV: NavItem[] = [
   { href: "/administracao/usuarios", label: "Usuários", icon: "Users" },
   { href: "/administracao/motoristas", label: "Motoristas", icon: "Users" },
-  { href: "/unidades", label: "Unidades", icon: "Building2" },
   { href: "/administracao/setores", label: "Setores", icon: "MapPin" },
   { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
   { href: "/administracao/emails", label: "E-mails", icon: "FileText" },
