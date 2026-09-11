@@ -111,3 +111,70 @@ describe("sendOperationalScheduleReports — escopo de setor vazio", () => {
     expect(result.enviado).toBe(true);
   });
 });
+
+describe("sendOperationalScheduleReports — contextoAssunto", () => {
+  it("usa o nome do CD quando exatamente um CD está marcado, mesmo com vários setores", async () => {
+    getFrotasComSemChecklistNoDia.mockResolvedValue({ fizeram: [frota(110)], naoFizeram: [] });
+
+    await sendOperationalScheduleReports({
+      schedule: schedule({
+        cds_incluidos: ["CD Tarumã"],
+        setores_incluidos: ["CD TURISMO", "CD TURISMO - MERCADO", "CD TURISMO/Emprestada 2 meses"],
+      }),
+      calendarDate: "2026-09-11",
+      dataRef: new Date("2026-09-11T04:00:00Z"),
+    });
+
+    expect(sendRelatorioOperacionalDiario).toHaveBeenCalledWith(
+      expect.objectContaining({ contextoAssunto: "CD Tarumã" })
+    );
+  });
+
+  it("cai no resumo de setores quando nenhum CD ou mais de um CD está marcado", async () => {
+    getFrotasComSemChecklistNoDia.mockResolvedValue({ fizeram: [frota(110)], naoFizeram: [] });
+
+    await sendOperationalScheduleReports({
+      schedule: schedule({ cds_incluidos: [], setores_incluidos: ["CD TURISMO", "E-COMMERCE"] }),
+      calendarDate: "2026-09-11",
+      dataRef: new Date("2026-09-11T04:00:00Z"),
+    });
+
+    expect(sendRelatorioOperacionalDiario).toHaveBeenCalledWith(
+      expect.objectContaining({ contextoAssunto: "CD TURISMO + E-COMMERCE" })
+    );
+
+    vi.clearAllMocks();
+    sendRelatorioOperacionalDiario.mockResolvedValue({ ok: true });
+    getFrotasComSemChecklistNoDia.mockResolvedValue({ fizeram: [frota(110)], naoFizeram: [] });
+
+    await sendOperationalScheduleReports({
+      schedule: schedule({
+        cds_incluidos: ["CD Tarumã", "CD Manaus"],
+        setores_incluidos: ["CD TURISMO"],
+      }),
+      calendarDate: "2026-09-11",
+      dataRef: new Date("2026-09-11T04:00:00Z"),
+    });
+
+    expect(sendRelatorioOperacionalDiario).toHaveBeenCalledWith(
+      expect.objectContaining({ contextoAssunto: "CD TURISMO" })
+    );
+  });
+
+  it("não usa contexto de CD para o relatório geral (sem setores marcados)", async () => {
+    getFrotasComSemChecklistNoDia.mockResolvedValue({ fizeram: [frota(110)], naoFizeram: [] });
+
+    await sendOperationalScheduleReports({
+      schedule: schedule({ cds_incluidos: ["CD Tarumã"], setores_incluidos: [] }),
+      calendarDate: "2026-09-11",
+      dataRef: new Date("2026-09-11T04:00:00Z"),
+    });
+
+    // cds_incluidos não filtra o conteúdo (só setores_incluidos filtra) — sem
+    // setor vinculado é o disparo geral, e rotular como "CD Tarumã" mentiria
+    // sobre o escopo real do envio (que cobre todas as frotas, não só o CD).
+    expect(sendRelatorioOperacionalDiario).toHaveBeenCalledWith(
+      expect.objectContaining({ contextoAssunto: undefined })
+    );
+  });
+});

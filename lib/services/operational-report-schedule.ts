@@ -32,6 +32,11 @@ export async function sendOperationalScheduleReports({
 }): Promise<OperationalScheduleSendResult[]> {
   const audiences = getOperationalScheduleAudiences(schedule);
   const results: OperationalScheduleSendResult[] = [];
+  // Quando a agenda marca um único CD, o assunto usa o nome do CD em vez da
+  // lista de setores — "CD Manaus" é mais claro do que os nomes de setor
+  // amontoados (ou resumidos em "e mais N"), mesmo que os setores marcados
+  // não representem 100% das frotas daquele CD.
+  const cdUnico = schedule.cds_incluidos.length === 1 ? schedule.cds_incluidos[0] : null;
 
   for (const audience of audiences) {
     if (audience.destinatarios.length === 0) {
@@ -89,7 +94,10 @@ export async function sendOperationalScheduleReports({
       enviadoPor,
       scheduleId: schedule.id,
       anexarResumoPdf: audience.setores === null,
-      contextoAssunto: audience.setores ? resumoSetoresAssunto(audience.setores) : undefined,
+      // cds_incluidos não filtra o conteúdo deste relatório (só setores_incluidos
+      // filtra) — então só rotula pelo CD quando a agenda de fato tem setores
+      // marcados; senão a etiqueta "CD X" mentiria sobre um envio geral.
+      contextoAssunto: audience.setores ? (cdUnico ?? resumoSetoresAssunto(audience.setores)) : undefined,
       input: {
         totalChecklists,
         totalApontamentos,
