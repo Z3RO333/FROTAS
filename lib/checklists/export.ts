@@ -8,7 +8,7 @@ import type { ChecklistItemRow, ChecklistListRow } from "@/lib/repos/checklists"
 const STATUS_GERAL_LABEL: Record<ChecklistStatusGeral, string> = {
   APROVADO: "Aprovado",
   COM_OBSERVACAO: "Com observação",
-  NAO_APTO: "Com não conformidade",
+  NAO_APTO: "Não conformidades",
   CRITICO: "Não conformidade crítica",
 };
 

@@ -76,9 +76,9 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                       aria-label={`Abrir checklist da frota ${checklist.frota_geral ?? checklist.placa ?? checklist.frota_id}`}
                       className={cn(
                         "group cursor-pointer border-t align-middle transition-colors hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500",
-                        checklist.status_geral === "CRITICO" || checklist.status_geral === "NAO_APTO"
+                        checklist.status_geral === "CRITICO"
                           ? "bg-red-50/35"
-                          : checklist.status_geral === "COM_OBSERVACAO"
+                          : checklist.status_geral === "COM_OBSERVACAO" || checklist.status_geral === "NAO_APTO"
                             ? "bg-amber-50/30"
                             : "bg-white"
                       )}
@@ -94,7 +94,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                         "whitespace-nowrap border-l-4 px-4 py-3 font-medium tabular-nums text-slate-600",
                         checklist.status_geral === "APROVADO"
                           ? "border-l-emerald-400"
-                          : checklist.status_geral === "COM_OBSERVACAO"
+                          : checklist.status_geral === "COM_OBSERVACAO" || checklist.status_geral === "NAO_APTO"
                             ? "border-l-amber-400"
                             : "border-l-red-500"
                       )}>
@@ -153,7 +153,7 @@ export function AdminChecklistsTable({ groups }: { groups: Group[] }) {
                     "w-full rounded-xl border border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                     checklist.status_geral === "APROVADO"
                       ? "border-l-emerald-400"
-                      : checklist.status_geral === "COM_OBSERVACAO"
+                      : checklist.status_geral === "COM_OBSERVACAO" || checklist.status_geral === "NAO_APTO"
                         ? "border-l-amber-400"
                         : "border-l-red-500"
                   )}

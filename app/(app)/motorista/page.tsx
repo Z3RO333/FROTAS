@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { listDriverChecklists } from "@/lib/repos/checklists";
 import { listAtividadesPendentesPorMotorista } from "@/lib/repos/atividades-manutencao";
 import { requireAppUser } from "@/lib/rbac";
+import { formatStatus } from "@/lib/design/tokens";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -124,7 +125,7 @@ export default async function MotoristaHomePage() {
                   </div>
                   <div className="text-sm text-muted-foreground">KM {formatNumber(checklist.km_informado)}</div>
                 </div>
-                <Badge variant="outline">{checklist.status_geral}</Badge>
+                <Badge variant="outline">{formatStatus(checklist.status_geral)}</Badge>
               </Link>
             ))
           ) : (

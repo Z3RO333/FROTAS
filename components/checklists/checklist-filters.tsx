@@ -162,7 +162,7 @@ export function ChecklistFilters({
                   : status === "COM_OBSERVACAO"
                     ? "Com observação"
                     : status === "NAO_APTO"
-                      ? "Não apto"
+                      ? "Não conformidades"
                       : status === "CRITICO"
                         ? "Crítico"
                         : "Todos os status"}
@@ -172,7 +172,7 @@ export function ChecklistFilters({
               <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="APROVADO">Aprovado</SelectItem>
               <SelectItem value="COM_OBSERVACAO">Com observação</SelectItem>
-              <SelectItem value="NAO_APTO">Não apto</SelectItem>
+              <SelectItem value="NAO_APTO">Não conformidades</SelectItem>
               <SelectItem value="CRITICO">Crítico</SelectItem>
             </SelectContent>
           </Select>

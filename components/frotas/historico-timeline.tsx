@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatStatus } from "@/lib/design/tokens";
 import type { HistoricoEntry } from "@/lib/repos/historico";
 import { formatDate } from "@/lib/utils";
 
@@ -100,9 +101,9 @@ function labelTipo(tipo: string) {
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toUpperCase();
   const className =
-    normalized.includes("CRIT") || normalized.includes("BLOQUE") || normalized.includes("NAO_APTO")
+    normalized.includes("CRIT") || normalized.includes("BLOQUE")
       ? "border-transparent bg-red-600 text-white hover:bg-red-600"
-      : normalized.includes("PEND")
+      : normalized.includes("PEND") || normalized.includes("NAO_APTO")
         ? "border-transparent bg-amber-500 text-white hover:bg-amber-500"
         : normalized.includes("APROV") || normalized.includes("VALID") || normalized.includes("SAIDA")
           ? "border-transparent bg-emerald-600 text-white hover:bg-emerald-600"
@@ -110,7 +111,7 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <Badge variant={className ? "default" : "outline"} className={className}>
-      {status}
+      {formatStatus(status)}
     </Badge>
   );
 }

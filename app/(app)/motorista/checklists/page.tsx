@@ -2,6 +2,7 @@ import { CalendarClock, Gauge, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { listDriverChecklists } from "@/lib/repos/checklists";
 import { requireAppUser } from "@/lib/rbac";
+import { formatStatus } from "@/lib/design/tokens";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export default async function MeusChecklistsPage() {
                   </div>
                 </div>
                 <Badge variant="outline" className={STATUS_CLASS[checklist.status_geral] ?? ""}>
-                  {checklist.status_geral}
+                  {formatStatus(checklist.status_geral)}
                 </Badge>
               </div>
               {checklist.observacao_corrigida_ia ? (

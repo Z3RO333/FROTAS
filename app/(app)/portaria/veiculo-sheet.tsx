@@ -68,7 +68,7 @@ const STATUS_GERAL_CLASS: Record<string, string> = {
 const STATUS_GERAL_LABEL: Record<string, string> = {
   APROVADO: "Aprovado",
   COM_OBSERVACAO: "Com observação",
-  NAO_APTO: "Com não conformidade",
+  NAO_APTO: "Não conformidades",
   CRITICO: "Não conformidade crítica",
 };
 

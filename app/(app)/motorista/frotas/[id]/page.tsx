@@ -93,6 +93,6 @@ function statusLabel(status: string): string {
   if (status === "APROVADO") return "Aprovado";
   if (status === "COM_OBSERVACAO") return "Com observação";
   if (status === "CRITICO") return "Crítico";
-  if (status === "NAO_APTO") return "Não apto";
+  if (status === "NAO_APTO") return "Não conformidades";
   return status;
 }

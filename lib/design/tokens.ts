@@ -101,7 +101,7 @@ const STATUS_TO_SEVERITY: Record<string, SeverityKey> = {
   ALTA: "CRITICO",
   MEDIA: "ATENCAO",
   BAIXA: "INFO",
-  NAO_APTO: "CRITICO",
+  NAO_APTO: "ATENCAO",
   EM_MANUTENCAO: "MANUTENCAO",
   MANUTENCAO: "MANUTENCAO",
   BLOQUEIO_SUGERIDO: "BLOQUEIO",
@@ -117,5 +117,7 @@ export function severityFromStatus(status: string | null | undefined): SeverityK
 
 export function formatStatus(status: string | null | undefined): string {
   if (!status) return "—";
+  const normalized = status.trim().toUpperCase().replace(/\s+/g, "_");
+  if (normalized === "NAO_APTO") return "Não conformidades";
   return status.trim().replace(/_/g, " ");
 }
