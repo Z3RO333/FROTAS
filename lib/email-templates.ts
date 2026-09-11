@@ -707,6 +707,7 @@ export type SocorroNotificationInput = {
   descricao: string;
   numeroFrota: string | null;
   precisaGuincho: boolean;
+  frotaCarregada: boolean;
 };
 
 export type SinistroTerceiroInfo = {
@@ -879,6 +880,7 @@ export function renderSocorroNotification(input: SocorroNotificationInput): stri
             ${infoRow("Area", escapeHtml(input.setor))}
             ${infoRow("Endereco", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
             ${input.numeroFrota ? infoRow("Frota", escapeHtml(input.numeroFrota)) : ""}
+            ${input.numeroFrota ? infoRow("Frota carregada?", input.frotaCarregada ? "SIM" : "Nao") : ""}
             ${infoRow("Precisa de guincho?", guinchoLabel, guinchoColor)}
             ${infoRow("Data/Hora", dataHora)}
           </tbody>

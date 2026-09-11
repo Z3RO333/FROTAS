@@ -598,6 +598,11 @@ function SinistrosList({ rows }: { rows: SinistroRow[] }) {
                 Guincho
               </Badge>
             )}
+            {sinistro.frota_carregada != null && (
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                Frota {sinistro.frota_carregada ? "carregada" : "vazia"}
+              </Badge>
+            )}
           </div>
         </div>
       ))}

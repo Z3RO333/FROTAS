@@ -26,6 +26,7 @@ export type CreateSinistroInput = {
   media_paths: string[];
   telefone_solicitante?: string | null;
   precisa_guincho?: boolean | null;
+  frota_carregada?: boolean | null;
 };
 
 export type SinistroRow = {
@@ -50,6 +51,7 @@ export type SinistroRow = {
   criado_em: string;
   telefone_solicitante: string | null;
   precisa_guincho: boolean | null;
+  frota_carregada: boolean | null;
   responsavel_atendimento: string | null;
   atendimento_concluido_em: string | null;
 };
@@ -81,6 +83,7 @@ export async function createSinistro(input: CreateSinistroInput): Promise<{ id: 
       status: isSocorro ? "ABERTO" : "PENDENTE",
       telefone_solicitante: input.telefone_solicitante ?? null,
       precisa_guincho: input.precisa_guincho ?? null,
+      frota_carregada: input.frota_carregada ?? null,
     })
     .select("id")
     .single();
@@ -104,7 +107,7 @@ export async function getSinistroBySubmissionId(
 }
 
 const COLS_SINISTRO_LIST =
-  "id,ticket_number,tipo_sinistro,frota_id,numero_frota,placa,motorista_id,motorista_nome,data_incidente,endereco,setor,descricao,houve_feridos,samu_bombeiros_presente,terceiros_quantidade,terceiros,media_paths,status,criado_em,telefone_solicitante,precisa_guincho,responsavel_atendimento,atendimento_concluido_em";
+  "id,ticket_number,tipo_sinistro,frota_id,numero_frota,placa,motorista_id,motorista_nome,data_incidente,endereco,setor,descricao,houve_feridos,samu_bombeiros_presente,terceiros_quantidade,terceiros,media_paths,status,criado_em,telefone_solicitante,precisa_guincho,frota_carregada,responsavel_atendimento,atendimento_concluido_em";
 
 export async function listDriverSinistros(email: string, limit = 50): Promise<SinistroRow[]> {
   const { data, error } = await supabaseManutencao

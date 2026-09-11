@@ -64,6 +64,7 @@ export function SocorroForm({
   const [setor, setSetor] = useState("");
   const [descricao, setDescricao] = useState("");
   const [precisaGuincho, setPrecisaGuincho] = useState("");
+  const [frotaCarregada, setFrotaCarregada] = useState("");
   const [mediaCount, setMediaCount] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
@@ -95,6 +96,7 @@ export function SocorroForm({
     // reaplica o valor certo (cadastro da frota é a fonte de verdade).
     setDescricao(restoredDraft.descricao);
     setPrecisaGuincho(restoredDraft.precisaGuincho ?? "");
+    setFrotaCarregada(restoredDraft.frotaCarregada ?? "");
     restoreLocation({
       endereco: restoredDraft.endereco,
       latitude: restoredDraft.latitude,
@@ -121,11 +123,12 @@ export function SocorroForm({
           setor,
           descricao,
           precisaGuincho: asChoice(precisaGuincho),
+          frotaCarregada: asChoice(frotaCarregada),
         })
       );
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [draftChecked, frotaId, endereco, latitude, longitude, setor, descricao, precisaGuincho, saveDraft]);
+  }, [draftChecked, frotaId, endereco, latitude, longitude, setor, descricao, precisaGuincho, frotaCarregada, saveDraft]);
 
   const filteredFrotas = useMemo(() => {
     const q = frotaQuery.trim().toLowerCase();
@@ -161,6 +164,11 @@ export function SocorroForm({
     if (!precisaGuincho) {
       event.preventDefault();
       setFormError("Informe se precisa de guincho.");
+      return;
+    }
+    if (!frotaCarregada) {
+      event.preventDefault();
+      setFormError("Informe se a frota está carregada.");
       return;
     }
     setFormError(null);
@@ -347,6 +355,18 @@ export function SocorroForm({
               Sim
             </Choice>
             <Choice name="precisa_guincho" value="nao" checked={precisaGuincho === "nao"} onChange={setPrecisaGuincho}>
+              Nao
+            </Choice>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>A frota está carregada? *</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Choice name="frota_carregada" value="sim" checked={frotaCarregada === "sim"} onChange={setFrotaCarregada}>
+              Sim
+            </Choice>
+            <Choice name="frota_carregada" value="nao" checked={frotaCarregada === "nao"} onChange={setFrotaCarregada}>
               Nao
             </Choice>
           </div>

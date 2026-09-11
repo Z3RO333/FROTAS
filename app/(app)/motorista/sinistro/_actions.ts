@@ -83,6 +83,7 @@ export async function enviarSinistroMotoristaAction(
       const setor = requiredText(formData, "setor", "Selecione o setor.");
       const telefone = requiredText(formData, "telefone_solicitante", "Informe o telefone para contato.").replace(/\D/g, "");
       const precisaGuincho = BoolStringSchema.parse(formData.get("precisa_guincho")) === "sim";
+      const frotaCarregada = BoolStringSchema.parse(formData.get("frota_carregada")) === "sim";
 
       const rawFrotaId = optionalNumber(formData, "frota_id");
       let socorroFrotaId: number | null = null;
@@ -117,6 +118,7 @@ export async function enviarSinistroMotoristaAction(
         media_paths: uploadedPaths,
         telefone_solicitante: telefone,
         precisa_guincho: precisaGuincho,
+        frota_carregada: frotaCarregada,
       });
 
       sendSocorroNotification({
@@ -131,6 +133,7 @@ export async function enviarSinistroMotoristaAction(
         descricao,
         numeroFrota,
         precisaGuincho,
+        frotaCarregada,
       }).catch((err) => console.warn("[socorro] falha ao enviar notificacao por e-mail", err));
     } else {
       const frotaId = z.coerce.number().int().positive("Selecione uma frota.").parse(formData.get("frota_id"));

@@ -22,6 +22,7 @@ export const sinistroDraftSchema = z.object({
   houveFeridos: z.enum(["sim", "nao"]).optional(),
   samuBombeiros: z.enum(["sim", "nao"]).optional(),
   precisaGuincho: z.enum(["sim", "nao"]).optional(),
+  frotaCarregada: z.enum(["sim", "nao"]).optional(),
 });
 
 export type SinistroDraft = z.infer<typeof sinistroDraftSchema>;

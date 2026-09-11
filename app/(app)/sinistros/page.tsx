@@ -134,6 +134,11 @@ function SinistroCard({ sinistro }: { sinistro: SinistroAdminRow }) {
                 Guincho necessario
               </Badge>
             ) : null}
+            {isSocorro && sinistro.numero_frota && sinistro.frota_carregada != null ? (
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                Frota {sinistro.frota_carregada ? "carregada" : "vazia"}
+              </Badge>
+            ) : null}
           </div>
 
           <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
