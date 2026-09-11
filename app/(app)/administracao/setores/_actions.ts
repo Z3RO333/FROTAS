@@ -9,8 +9,6 @@ export type RenomearSetorActionState =
   | { ok: true; mensagem: string }
   | { ok: false; error: string };
 
-export const RENOMEAR_SETOR_INITIAL_STATE: RenomearSetorActionState = { ok: true, mensagem: "" };
-
 // redirect() dentro de requireGestorUser() lança um erro especial (digest
 // "NEXT_REDIRECT") que o Next.js espera propagar sem interferência — sem
 // este guard, o catch abaixo engolia o redirect (sessão vencida/perfil sem

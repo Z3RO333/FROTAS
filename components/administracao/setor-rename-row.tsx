@@ -4,11 +4,17 @@ import { Fragment, useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Check, Loader2, Pencil, X } from "lucide-react";
 import {
-  RENOMEAR_SETOR_INITIAL_STATE,
   renomearSetorAction,
+  type RenomearSetorActionState,
 } from "@/app/(app)/administracao/setores/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+// Fica aqui, não no arquivo "use server": um módulo de Server Actions só pode
+// exportar funções assíncronas — exportar essa constante de lá derrubava a
+// avaliação do módulo inteiro ("A 'use server' file can only export async
+// functions, found object") e estourava a página por completo.
+const RENOMEAR_SETOR_INITIAL_STATE: RenomearSetorActionState = { ok: true, mensagem: "" };
 
 function SaveButton() {
   const { pending } = useFormStatus();
