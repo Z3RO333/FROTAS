@@ -36,6 +36,7 @@ export async function renomearSetorAction(
 
     updateTag("frotas:filters");
     revalidatePath("/administracao/setores");
+    revalidatePath("/administracao/unificacoes/setores");
     revalidatePath("/frotas");
     revalidatePath("/frotas/vendidos");
     revalidatePath("/frotas/ocultas");

@@ -43,7 +43,7 @@ const DOCUMENTOS_NAV: NavItem[] = [
 const ADMINISTRACAO_NAV: NavItem[] = [
   { href: "/administracao/usuarios", label: "Usuários", icon: "Users" },
   { href: "/administracao/motoristas", label: "Motoristas", icon: "Users" },
-  { href: "/administracao/setores", label: "Setores", icon: "MapPin" },
+  { href: "/administracao/unificacoes", label: "Unificações", icon: "MapPin" },
   { href: "/equipamentos", label: "Equipamentos", icon: "Settings" },
   { href: "/administracao/emails", label: "E-mails", icon: "FileText" },
 ];

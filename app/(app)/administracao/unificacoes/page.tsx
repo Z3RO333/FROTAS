@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default async function SetoresPage() {
+export default function UnificacoesPage() {
   redirect("/administracao/unificacoes/setores");
 }
