@@ -11,6 +11,20 @@ export type RenomearSetorActionState =
 
 export const RENOMEAR_SETOR_INITIAL_STATE: RenomearSetorActionState = { ok: true, mensagem: "" };
 
+// redirect() dentro de requireGestorUser() lança um erro especial (digest
+// "NEXT_REDIRECT") que o Next.js espera propagar sem interferência — sem
+// este guard, o catch abaixo engolia o redirect (sessão vencida/perfil sem
+// permissão) e devolvia um estado normal, deixando o Next.js numa
+// inconsistência que estourava a error boundary da página inteira.
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+  );
+}
+
 export async function renomearSetorAction(
   _prev: RenomearSetorActionState,
   formData: FormData
@@ -35,6 +49,7 @@ export async function renomearSetorAction(
       mensagem: `${resultado.frotasAtualizadas} frota(s) atualizada(s) para "${destino}"${agendasMsg}.`,
     };
   } catch (error) {
+    if (isRedirectError(error)) throw error;
     return { ok: false, error: publicActionError(error, "Erro ao renomear setor.") };
   }
 }
