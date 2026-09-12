@@ -8,6 +8,7 @@ import { sendDisponibilidadeEmail, sendRelatorioIndividual, sendRelatorioPainelE
 import {
   createFrota,
   desfazerVendaFrota,
+  findFrotaAtivaConflitante,
   getFrota,
   marcarFrotaVendida,
   reativarFrota,
@@ -83,7 +84,42 @@ export type FrotaActionState = {
   field?: "frota_geral" | "placa" | "modelo" | "chassi" | "renavam" | "ano_fabricacao" | "localizacao" | "setor" | "km_atual" | "qtd_pneus" | "observacoes";
   values: Record<string, string>;
   attempt: number;
+  // Preenchido quando a placa/chassi/renavam informado já existe em outra frota ATIVA
+  // (frotas ocultas não bloqueiam mais — ver migration 20260912100000). O form oferece
+  // a opção de ocultar a frota conflitante e reenviar com confirmarOcultarFrotaId.
+  conflict?: { frotaId: number; label: string; campo: "placa" | "chassi" | "renavam" } | null;
 };
+
+const DUPLICATE_IDENTIFIER_MESSAGES: readonly [string, "placa" | "chassi" | "renavam"][] = [
+  ["Placa já cadastrada", "placa"],
+  ["Chassi já cadastrado", "chassi"],
+  ["RENAVAM já cadastrado", "renavam"],
+];
+
+function duplicateIdentifierField(error: unknown): "placa" | "chassi" | "renavam" | null {
+  const message = error instanceof Error ? error.message : "";
+  for (const [needle, campo] of DUPLICATE_IDENTIFIER_MESSAGES) {
+    if (message.includes(needle)) return campo;
+  }
+  return null;
+}
+
+// Quando o banco recusa por duplicidade, tenta identificar a frota ATIVA conflitante
+// para oferecer "ocultar e continuar" em vez de só bloquear. Se não achar (ex.: a
+// frota conflitante foi ocultada entre a tentativa e a consulta), cai no erro genérico.
+async function resolveDuplicateConflict(
+  error: unknown,
+  values: Record<string, string>,
+  excludeId?: number
+): Promise<Pick<FrotaActionState, "conflict"> | null> {
+  const campo = duplicateIdentifierField(error);
+  if (!campo) return null;
+  const valor = values[campo];
+  if (!valor) return null;
+  const conflitante = await findFrotaAtivaConflitante(campo, valor, excludeId);
+  if (!conflitante) return null;
+  return { conflict: { frotaId: conflitante.id, label: conflitante.label, campo } };
+}
 
 // Relatórios: qualquer perfil administrativo (ADMIN/GESTOR/MANUTENCAO/DEV)
 async function requireUser(): Promise<string> {
@@ -177,12 +213,20 @@ export async function criarFrotaAction(
 ): Promise<FrotaActionState> {
   const email = await requireFrotaEditor();
   const values = formStringValues(formData);
+  const confirmarOcultarFrotaId = formData.get("confirmarOcultarFrotaId");
   let id: number;
   try {
+    if (typeof confirmarOcultarFrotaId === "string" && confirmarOcultarFrotaId) {
+      await softDeleteFrota(Number(confirmarOcultarFrotaId), email);
+    }
     const parsed = FrotaCreateSchema.parse(formObject(formData));
     id = await createFrota(parsed, email);
   } catch (error) {
     console.error("Erro ao cadastrar frota", error);
+    const conflict = await resolveDuplicateConflict(error, values).catch(() => null);
+    if (conflict) {
+      return { ...conflict, error: null, values, attempt: previousState.attempt + 1 };
+    }
     return {
       ...frotaFormError(error),
       values,
@@ -200,11 +244,19 @@ export async function editarFrotaAction(
 ): Promise<FrotaActionState> {
   const email = await requireFrotaEditor();
   const values = formStringValues(formData);
+  const confirmarOcultarFrotaId = formData.get("confirmarOcultarFrotaId");
   try {
+    if (typeof confirmarOcultarFrotaId === "string" && confirmarOcultarFrotaId) {
+      await softDeleteFrota(Number(confirmarOcultarFrotaId), email);
+    }
     const parsed = FrotaSchema.partial().parse(formObject(formData));
     await updateFrota(id, parsed, email);
   } catch (error) {
     console.error(`Erro ao editar frota ${id}`, error);
+    const conflict = await resolveDuplicateConflict(error, values, id).catch(() => null);
+    if (conflict) {
+      return { ...conflict, error: null, values, attempt: previousState.attempt + 1 };
+    }
     return {
       ...frotaFormError(error),
       values,

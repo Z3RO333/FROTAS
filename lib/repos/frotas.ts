@@ -461,6 +461,37 @@ export async function getFrota(id: number): Promise<Frota | null> {
   return data ? fromVeiculo(data as VeiculoRow) : null;
 }
 
+function normalizeIdentificador(value: string | null | undefined): string {
+  return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export type FrotaConflito = { id: number; label: string };
+
+// Usado quando a trigger do banco recusa um cadastro/edição por placa/chassi/renavam
+// duplicado: identifica a frota ATIVA conflitante (frotas ocultas não bloqueiam mais,
+// ver migration 20260912100000) para oferecer ao usuário a opção de ocultá-la.
+export async function findFrotaAtivaConflitante(
+  campo: "placa" | "chassi" | "renavam",
+  valor: string,
+  excludeId?: number
+): Promise<FrotaConflito | null> {
+  const alvo = normalizeIdentificador(valor);
+  if (!alvo) return null;
+  let query = supabaseManutencao
+    .from("veiculos")
+    .select("id,codigo_frota,placa,chassi,renavam")
+    .eq("ativo", true)
+    .not(campo, "is", null);
+  if (excludeId !== undefined) query = query.neq("id", excludeId);
+  const { data, error } = await query;
+  if (error) throw new Error(`findFrotaAtivaConflitante: ${error.message}`);
+  const match = (data ?? []).find(
+    (row) => normalizeIdentificador(row[campo] as string | null) === alvo
+  );
+  if (!match) return null;
+  return { id: Number(match.id), label: match.codigo_frota || match.placa || `#${match.id}` };
+}
+
 export type KpisFiltro = {
   total: number;
   disponiveis: number;

@@ -5,7 +5,7 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn((url: string) => { throw new
 vi.mock("@/lib/rbac", () => ({ requireGestorUser: vi.fn().mockResolvedValue({ email: "gestor@bemol.com.br" }) }));
 vi.mock("@/lib/repos/frotas", () => ({
   softDeleteFrota: vi.fn(), marcarFrotaVendida: vi.fn(), reativarFrota: vi.fn(),
-  desfazerVendaFrota: vi.fn(), updateFrota: vi.fn(),
+  desfazerVendaFrota: vi.fn(), updateFrota: vi.fn(), findFrotaAtivaConflitante: vi.fn(),
 }));
 vi.mock("@/lib/email", () => ({}));
 vi.mock("@/lib/repos/frotas-cache", () => ({}));
@@ -13,7 +13,7 @@ vi.mock("@/lib/repos/disponibilidade", () => ({}));
 vi.mock("@/lib/repos/planejamento", () => ({}));
 
 import { excluirFrotaAction, marcarVendidaAction, reativarFrotaAction, desfazerVendaAction, editarFrotaAction } from "./_actions";
-import { softDeleteFrota } from "@/lib/repos/frotas";
+import { softDeleteFrota, updateFrota, findFrotaAtivaConflitante } from "@/lib/repos/frotas";
 import { frotaDetailHref, frotaReturnTo } from "@/lib/navigation/search-state";
 
 beforeEach(() => vi.clearAllMocks());
@@ -48,5 +48,45 @@ describe("retorno para a lista filtrada após alterar uma frota", () => {
   it("não redireciona como sucesso quando a alteração falha", async () => {
     vi.mocked(softDeleteFrota).mockRejectedValueOnce(new Error("Falha ao salvar"));
     await expect(excluirFrotaAction(42, "/frotas" + filters)).rejects.toThrow("Falha ao salvar");
+  });
+});
+
+describe("conflito de placa/chassi/renavam com frota ativa", () => {
+  it("oferece ocultar a frota ativa conflitante em vez de só bloquear", async () => {
+    vi.mocked(updateFrota).mockRejectedValueOnce(new Error("updateFrota: Placa já cadastrada em outra frota"));
+    vi.mocked(findFrotaAtivaConflitante).mockResolvedValueOnce({ id: 7, label: "FROTA-007" });
+
+    const form = new FormData();
+    form.set("placa", "ABC1234");
+    const result = await editarFrotaAction(42, { error: null, values: {}, attempt: 0 }, form);
+
+    expect(findFrotaAtivaConflitante).toHaveBeenCalledWith("placa", "ABC1234", 42);
+    expect(result.error).toBeNull();
+    expect(result.conflict).toEqual({ frotaId: 7, label: "FROTA-007", campo: "placa" });
+  });
+
+  it("cai no erro genérico quando não encontra frota ativa conflitante", async () => {
+    vi.mocked(updateFrota).mockRejectedValueOnce(new Error("updateFrota: Placa já cadastrada em outra frota"));
+    vi.mocked(findFrotaAtivaConflitante).mockResolvedValueOnce(null);
+
+    const form = new FormData();
+    form.set("placa", "ABC1234");
+    const result = await editarFrotaAction(42, { error: null, values: {}, attempt: 0 }, form);
+
+    expect(result.conflict).toBeUndefined();
+    expect(result.error).toBe("Esta placa já está cadastrada em outra frota.");
+  });
+
+  it("oculta a frota conflitante antes de salvar quando confirmado", async () => {
+    const form = new FormData();
+    form.set("modelo", "VOLVO");
+    form.set("confirmarOcultarFrotaId", "7");
+    form.set("returnTo", "/frotas");
+    await expect(editarFrotaAction(42, { error: null, values: {}, attempt: 0 }, form)).rejects.toThrow("REDIRECT:");
+
+    expect(softDeleteFrota).toHaveBeenCalledWith(7, "gestor@bemol.com.br");
+    expect(vi.mocked(softDeleteFrota).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(updateFrota).mock.invocationCallOrder[0]
+    );
   });
 });

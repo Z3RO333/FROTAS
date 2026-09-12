@@ -18,6 +18,12 @@ const OPCOES_QTD_PNEUS = Object.entries(TIPO_POR_QTD_PNEUS)
   .map(([qtd, tipo]) => ({ qtd: Number(qtd), label: NOME_LAYOUT_PNEUS[tipo] }))
   .sort((a, b) => a.qtd - b.qtd);
 
+const LABEL_CAMPO: Record<"placa" | "chassi" | "renavam", string> = {
+  placa: "placa",
+  chassi: "chassi",
+  renavam: "renavam",
+};
+
 const FROTA_ACTION_INITIAL_STATE: FrotaActionState = {
   error: null,
   values: {},
@@ -59,6 +65,21 @@ export function FrotaForm({ initial, action, submitLabel, setores, returnTo }: P
           <div>
             <p className="font-semibold">Não foi possível salvar a frota</p>
             <p>{state.error}</p>
+          </div>
+        </div>
+      ) : null}
+      {state.conflict ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 md:col-span-2" role="alert">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="flex-1 space-y-2">
+            <p className="font-semibold">Já existe uma frota ativa com esse {LABEL_CAMPO[state.conflict.campo]}</p>
+            <p>
+              A frota <span className="font-medium">{state.conflict.label}</span> já usa esse {LABEL_CAMPO[state.conflict.campo]}. Deseja ocultar
+              essa frota e continuar salvando?
+            </p>
+            <Button type="submit" name="confirmarOcultarFrotaId" value={state.conflict.frotaId} variant="outline" size="sm">
+              Ocultar frota {state.conflict.label} e continuar
+            </Button>
           </div>
         </div>
       ) : null}
