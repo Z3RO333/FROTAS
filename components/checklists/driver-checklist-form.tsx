@@ -42,7 +42,7 @@ type OcrState = {
   error?: string;
 };
 
-const STEPS = ["Selecionar veículo", "Realizar checklist", "Registrar hodômetro"] as const;
+const STEPS = ["Selecionar veículo", "Realizar checklist", "Câmera", "Registrar hodômetro"] as const;
 const TIPOS_COMBUSTIVEL = ["DIESEL_S10", "DIESEL_S500", "GASOLINA", "ETANOL", "GNV", "ARLA"] as const;
 const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
@@ -53,6 +53,7 @@ type ChecklistDraft = {
   kmValue: string;
   itemStatuses: Record<string, ChecklistItemStatus>;
   itemObservacoes: Record<string, string>;
+  possuiCamera: boolean | null;
   nivelCombustivel: number;
   nivelArla: number;
   justificativaKm: string;
@@ -111,6 +112,7 @@ export function DriverChecklistForm({
 }) {
   const router = useRouter();
   const fotoKmFileRef = useRef<File | null>(null);
+  const fotoCameraFileRef = useRef<File | null>(null);
   const submissionIdRef = useRef<string | null>(null);
 
   const actionWithPhotoInjection = useCallback(
@@ -120,6 +122,10 @@ export function DriverChecklistForm({
       const file = fotoKmFileRef.current;
       if (file) {
         formData.set("foto_km", file);
+      }
+      const fotoCamera = fotoCameraFileRef.current;
+      if (fotoCamera) {
+        formData.set("foto_camera", fotoCamera);
       }
       return enviarChecklistMotoristaAction(prevState, formData);
     },
@@ -149,6 +155,8 @@ export function DriverChecklistForm({
   );
   const [itemFotoNomes, setItemFotoNomes] = useState<Record<string, string>>({});
   const [fotoKmPreview, setFotoKmPreview] = useState<string | null>(null);
+  const [possuiCamera, setPossuiCamera] = useState<boolean | null>(null);
+  const [fotoCameraPreview, setFotoCameraPreview] = useState<string | null>(null);
   const [agora, setAgora] = useState(agoraInicial);
   const [justificativaKm, setJustificativaKm] = useState("");
   const [tipoCombustivel, setTipoCombustivel] = useState("");
@@ -181,10 +189,11 @@ export function DriverChecklistForm({
         const frotaExiste = frotas.some((frota) => String(frota.id) === draft.frotaId);
         if (draft.version === 1 && draft.frotaId && frotaExiste) {
           setFrotaId(draft.frotaId);
-          setStep(Math.max(0, Math.min(2, Number(draft.step) || 0)));
+          setStep(Math.max(0, Math.min(STEPS.length - 1, Number(draft.step) || 0)));
           setKmValue(draft.kmValue ?? "");
           setItemStatuses({ ...initialItemStatuses(), ...(draft.itemStatuses ?? {}) });
           setItemObservacoes({ ...initialItemObservacoes(), ...(draft.itemObservacoes ?? {}) });
+          setPossuiCamera(draft.possuiCamera ?? null);
           setNivelCombustivel(Number(draft.nivelCombustivel) || 0);
           setNivelArla(Number(draft.nivelArla) || 0);
           setJustificativaKm(draft.justificativaKm ?? "");
@@ -214,6 +223,7 @@ export function DriverChecklistForm({
       tipoCombustivel ||
       litrosCombustivel ||
       litrosArla ||
+      possuiCamera !== null ||
       Object.values(itemStatuses).some((status) => status !== "NAO_SE_APLICA") ||
       Object.values(itemObservacoes).some(Boolean)
     );
@@ -230,6 +240,7 @@ export function DriverChecklistForm({
           kmValue,
           itemStatuses,
           itemObservacoes,
+          possuiCamera,
           nivelCombustivel,
           nivelArla,
           justificativaKm,
@@ -255,6 +266,7 @@ export function DriverChecklistForm({
     litrosCombustivel,
     nivelArla,
     nivelCombustivel,
+    possuiCamera,
     step,
     tipoCombustivel,
   ]);
@@ -270,6 +282,12 @@ export function DriverChecklistForm({
       if (fotoKmPreview) URL.revokeObjectURL(fotoKmPreview);
     };
   }, [fotoKmPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (fotoCameraPreview) URL.revokeObjectURL(fotoCameraPreview);
+    };
+  }, [fotoCameraPreview]);
 
   const filteredFrotas = useMemo(
     () => filtrarFrotasPorNumeroEPlaca(frotas, frotaQuery, placaQuery),
@@ -367,7 +385,7 @@ export function DriverChecklistForm({
     isCriticalChecklistProblem(item, itemStatuses[item.codigo])
   );
 
-  function avancarParaStep2() {
+  function avancarParaCamera() {
     if (criticalProblem) {
       setStepErro(`“${criticalProblem.nome}” está com problema. Checklist crítico não pode ser enviado.`);
       return;
@@ -390,10 +408,55 @@ export function DriverChecklistForm({
     setStep(2);
   }
 
+  function clearFotoCamera() {
+    if (fotoCameraPreview) URL.revokeObjectURL(fotoCameraPreview);
+    setFotoCameraPreview(null);
+    fotoCameraFileRef.current = null;
+  }
+
+  function setPossuiCameraValue(value: boolean) {
+    setPossuiCamera(value);
+    setStepErro(null);
+    if (!value) clearFotoCamera();
+  }
+
+  function handleFotoCameraChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    clearFotoCamera();
+    if (!file || file.size === 0) return;
+    fotoCameraFileRef.current = file;
+    setFotoCameraPreview(URL.createObjectURL(file));
+    setStepErro(null);
+  }
+
+  function avancarParaHodometro() {
+    if (possuiCamera === null) {
+      setStepErro("Informe se o veículo possui câmera instalada.");
+      return;
+    }
+    if (possuiCamera && !fotoCameraFileRef.current) {
+      setStepErro("Anexe uma foto da câmera instalada antes de prosseguir.");
+      return;
+    }
+    setStepErro(null);
+    setStep(3);
+  }
+
   function handlePreSubmit(e: { preventDefault(): void }) {
     if (criticalProblem) {
       e.preventDefault();
       setStepErro(`“${criticalProblem.nome}” está com problema. Checklist crítico não pode ser enviado.`);
+      return;
+    }
+    if (possuiCamera === null) {
+      e.preventDefault();
+      setStepErro("Informe se o veículo possui câmera instalada.");
+      return;
+    }
+    if (possuiCamera && !fotoCameraFileRef.current) {
+      e.preventDefault();
+      setStepErro("Anexe uma foto da câmera instalada antes de enviar.");
       return;
     }
     if (!fotoKmFileRef.current) {
@@ -450,6 +513,7 @@ export function DriverChecklistForm({
       <input type="hidden" name="frota_id" value={frotaId} />
       <input type="hidden" name="nivel_combustivel" value={nivelCombustivel} />
       <input type="hidden" name="nivel_arla" value={nivelArla} />
+      <input type="hidden" name="possui_camera" value={possuiCamera === null ? "" : String(possuiCamera)} />
       {CHECKLIST_ITEMS.map((item) => (
         <input
           key={item.codigo}
@@ -857,7 +921,7 @@ export function DriverChecklistForm({
           <Button type="button" variant="outline" onClick={() => { setStep(0); setStepErro(null); }}>
             Voltar
           </Button>
-          <Button type="button" onClick={avancarParaStep2} disabled={Boolean(criticalProblem)}>
+          <Button type="button" onClick={avancarParaCamera} disabled={Boolean(criticalProblem)}>
             {criticalProblem ? "Checklist bloqueado" : "Prosseguir"}
             <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
           </Button>
@@ -865,6 +929,118 @@ export function DriverChecklistForm({
       </section>
 
       <section hidden={step !== 2} className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-medium">O veículo possui câmera instalada?</p>
+            <p className="mt-0.5 text-xs opacity-80">
+              Se houver câmera, é obrigatório anexar uma foto dela instalada no veículo.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-md border bg-white p-5 shadow-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              aria-pressed={possuiCamera === true}
+              onClick={() => setPossuiCameraValue(true)}
+              className={`h-11 rounded-md border text-sm font-medium transition-colors sm:h-10 ${
+                possuiCamera === true
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Sim
+            </button>
+            <button
+              type="button"
+              aria-pressed={possuiCamera === false}
+              onClick={() => setPossuiCameraValue(false)}
+              className={`h-11 rounded-md border text-sm font-medium transition-colors sm:h-10 ${
+                possuiCamera === false
+                  ? "border-slate-500 bg-slate-100 text-slate-800"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Não
+            </button>
+          </div>
+
+          {possuiCamera === true ? (
+            <div className="space-y-2">
+              <Label>Foto da câmera instalada</Label>
+              <div className={cn(
+                "relative flex flex-col items-center justify-center overflow-hidden rounded-md border border-dashed bg-slate-50 text-center text-sm text-muted-foreground",
+                fotoCameraPreview ? "min-h-0 border-blue-200 p-0" : "min-h-36 p-4"
+              )}>
+                {fotoCameraPreview ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={fotoCameraPreview}
+                    alt="Preview da câmera instalada"
+                    className="max-h-72 w-full rounded-md bg-slate-100 object-contain"
+                  />
+                ) : (
+                  <>
+                    <Camera className="mb-2 h-6 w-6 text-blue-600" aria-hidden="true" />
+                    Tire uma foto ou escolha uma imagem já salva
+                  </>
+                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label
+                  htmlFor="foto_camera_camera"
+                  className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md bg-blue-600 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                >
+                  <Camera className="h-4 w-4" aria-hidden="true" />
+                  Tirar foto
+                </label>
+                <input
+                  id="foto_camera_camera"
+                  type="file"
+                  accept={IMAGE_ACCEPT}
+                  capture="environment"
+                  className="sr-only"
+                  onChange={handleFotoCameraChange}
+                />
+                <label
+                  htmlFor="foto_camera_galeria"
+                  className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-slate-50"
+                >
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                  Escolher da galeria
+                </label>
+                <input
+                  id="foto_camera_galeria"
+                  type="file"
+                  accept={IMAGE_ACCEPT}
+                  className="sr-only"
+                  onChange={handleFotoCameraChange}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {stepErro && step === 2 && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
+            {stepErro}
+          </div>
+        )}
+
+        <div className="flex justify-between">
+          <Button type="button" variant="outline" onClick={() => { setStep(1); setStepErro(null); }}>
+            Voltar
+          </Button>
+          <Button type="button" onClick={avancarParaHodometro}>
+            Prosseguir
+            <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </section>
+
+      <section hidden={step !== 3} className="space-y-4">
         <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div className="space-y-1">
@@ -1038,14 +1214,14 @@ export function DriverChecklistForm({
           </div>
         </div>
 
-        {stepErro && step === 2 && (
+        {stepErro && step === 3 && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
             {stepErro}
           </div>
         )}
 
         <div className="flex justify-between">
-          <Button type="button" variant="outline" onClick={() => { setStep(1); setStepErro(null); }}>
+          <Button type="button" variant="outline" onClick={() => { setStep(2); setStepErro(null); }}>
             Voltar
           </Button>
           <SubmitButton

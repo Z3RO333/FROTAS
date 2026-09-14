@@ -35,6 +35,13 @@ const TipoCombustivelSchema = z
   .optional()
   .nullable();
 
+function parseBoolean(value: FormDataEntryValue | null): boolean | null {
+  if (typeof value !== "string") return null;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
+}
+
 function optionalText(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -81,6 +88,15 @@ export async function enviarChecklistMotoristaAction(
     const kmDigitado = optionalInteger(formData.get("km_informado"));
     const justificativaKm = optionalText(formData.get("justificativa_km"));
     const observacaoOriginal = optionalText(formData.get("observacao_original"));
+
+    const possuiCamera = parseBoolean(formData.get("possui_camera"));
+    if (possuiCamera === null) {
+      throw new Error("Informe se o veículo possui câmera instalada.");
+    }
+    const fotoCamera = await validateImage(fileFromForm(formData.get("foto_camera")), "Foto da câmera instalada");
+    if (possuiCamera && !fotoCamera) {
+      throw new Error("Anexe uma foto da câmera instalada.");
+    }
 
     const criticalProblem = CHECKLIST_ITEMS.find((item) =>
       isCriticalChecklistProblem(item, formData.get(`item_status_${item.codigo}`))
@@ -166,7 +182,7 @@ export async function enviarChecklistMotoristaAction(
     );
 
     validateAggregateFileSize(
-      [fotoKm, ...itensDraft.map((item) => item.foto)],
+      [fotoKm, fotoCamera, ...itensDraft.map((item) => item.foto)],
       32 * 1024 * 1024,
       "Checklist"
     );
@@ -190,6 +206,14 @@ export async function enviarChecklistMotoristaAction(
     const fotoKmUrl = await uploadChecklistImage(fotoKm, { frotaId, sourceType: "hodometro" });
     uploadedPaths.push(fotoKmUrl);
     inspections.push({ source_type: "hodometro", storage_path: fotoKmUrl });
+
+    const fotoCameraUrl = fotoCamera
+      ? await uploadChecklistImage(fotoCamera, { frotaId, sourceType: "camera" })
+      : null;
+    if (fotoCameraUrl) {
+      uploadedPaths.push(fotoCameraUrl);
+      inspections.push({ source_type: "camera", storage_path: fotoCameraUrl });
+    }
 
     // Uploads de itens em paralelo — antes era sequencial (somava ~500ms por foto)
     const itensComUpload = await Promise.all(
@@ -234,6 +258,8 @@ export async function enviarChecklistMotoristaAction(
         kmDigitado != null ||
         Boolean(leituraKm.km_lido === kmInformado && statusLeituraServidor === "LEITURA_SEGURA"),
       foto_km_url: fotoKmUrl,
+      possui_camera: possuiCamera,
+      foto_camera_url: fotoCameraUrl,
       status_geral: statusGeral,
       observacao_original: observacaoOriginal,
       observacao_corrigida_ia: observacaoCorrigida,

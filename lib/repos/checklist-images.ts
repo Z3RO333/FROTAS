@@ -4,7 +4,7 @@ import { sanitizeImageForStorage } from "@/lib/upload-validation";
 
 export const CHECKLIST_IMAGES_BUCKET = "checklist-images";
 
-export type ChecklistImageSourceType = "hodometro" | "item" | "abastecimento";
+export type ChecklistImageSourceType = "hodometro" | "item" | "abastecimento" | "camera";
 export type ChecklistVisionStatus = "queued" | "processing" | "processed" | "failed";
 
 export type ChecklistImageInspection = {
@@ -210,6 +210,8 @@ function labelFromSource(sourceType: ChecklistImageSourceType): string {
       return "Foto do hodometro";
     case "abastecimento":
       return "Foto do comprovante";
+    case "camera":
+      return "Foto da câmera instalada";
     case "item":
     default:
       return "Foto do item";

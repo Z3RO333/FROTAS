@@ -176,6 +176,8 @@ export type CreateChecklistInput = {
   ocr_confianca?: number | null;
   km_confirmado: boolean;
   foto_km_url?: string | null;
+  possui_camera: boolean;
+  foto_camera_url?: string | null;
   status_geral: ChecklistStatusGeral;
   observacao_original?: string | null;
   observacao_corrigida_ia?: string | null;
@@ -1105,6 +1107,8 @@ export async function createChecklist(input: CreateChecklistInput): Promise<Crea
         ocr_confianca: input.ocr_confianca ?? null,
         km_confirmado: input.km_confirmado,
         foto_km_url: input.foto_km_url ?? null,
+        possui_camera: input.possui_camera,
+        foto_camera_url: input.foto_camera_url ?? null,
         status_geral: input.status_geral,
         observacao_original: input.observacao_original ?? null,
         observacao_corrigida_ia: input.observacao_corrigida_ia ?? null,
