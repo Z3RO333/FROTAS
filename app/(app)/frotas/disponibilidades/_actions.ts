@@ -72,6 +72,7 @@ const PATH = "/frotas/disponibilidades";
 
 const AtualizarManutencaoSchema = z.object({
   frota_id: z.coerce.number().int().positive(),
+  motivo: z.string().trim().min(1, "Informe o motivo.").max(500, "Motivo muito longo."),
   oficina: z.string().trim().max(160, "Oficina muito longa.").optional().nullable(),
   prev_retorno: z.union([
     z.literal(""),
@@ -91,11 +92,13 @@ export async function atualizarManutencaoAction(
     const user = await requireAdminUser();
     const parsed = AtualizarManutencaoSchema.parse({
       frota_id: formData.get("frota_id"),
+      motivo: formData.get("motivo"),
       oficina: formData.get("oficina"),
       prev_retorno: formData.get("prev_retorno"),
     });
     const result = await atualizarManutencaoEmAndamento({
       frotaId: parsed.frota_id,
+      motivo: parsed.motivo,
       oficina: parsed.oficina,
       prevRetorno: parsed.prev_retorno,
       usuarioEmail: user.email,

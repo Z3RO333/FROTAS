@@ -248,7 +248,7 @@ export default async function FrotasDisponibilidadesPage({
                       </TableCell>
                       <TableCell>{formatDate(frota.data_envio)}</TableCell>
                       <TableCell>{formatDate(frota.previsao_retorno)}</TableCell>
-                      <TableCell className="text-right"><EditarManutencaoDialog frotaId={frota.id} frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`} oficina={frota.oficina} previsaoRetorno={frota.previsao_retorno} /></TableCell>
+                      <TableCell className="text-right"><EditarManutencaoDialog frotaId={frota.id} frotaLabel={frota.frota_geral ?? frota.placa ?? `#${frota.id}`} motivo={frota.motivo} oficina={frota.oficina} previsaoRetorno={frota.previsao_retorno} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

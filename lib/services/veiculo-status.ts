@@ -49,6 +49,7 @@ export type RetornarOperacaoInput = {
 
 export type AtualizarManutencaoInput = {
   frotaId: number;
+  motivo: string;
   oficina?: string | null;
   prevRetorno?: string | null;
   usuarioEmail: string;
@@ -94,16 +95,18 @@ export async function atualizarManutencaoEmAndamento(
     return { ok: false, error: "Esta frota não está em manutenção." };
   }
 
+  const motivo = input.motivo.trim();
   const oficina = input.oficina?.trim() || null;
   const prevRetorno = input.prevRetorno?.trim() || null;
   const previsaoAtual = frota.manutencao_prev_retorno?.slice(0, 10) ?? null;
-  if (oficina === frota.manutencao_oficina && prevRetorno === previsaoAtual) {
+  if (motivo === (frota.manutencao_motivo ?? "") && oficina === frota.manutencao_oficina && prevRetorno === previsaoAtual) {
     return { ok: false, error: "Nenhuma alteração foi informada." };
   }
 
   const { data: updated, error } = await supabaseManutencao
     .from("veiculos")
     .update({
+      manutencao_motivo: motivo,
       manutencao_oficina: oficina,
       manutencao_prev_retorno: prevRetorno,
       atualizado_por: input.usuarioEmail,
@@ -120,9 +123,11 @@ export async function atualizarManutencaoEmAndamento(
     tipo_evento: "MANUTENCAO_PRORROGADA",
     origem: "disponibilidade",
     titulo: "Dados da manutenção atualizados",
-    descricao: "Oficina ou previsão de retorno alterada.",
+    descricao: "Motivo, oficina ou previsão de retorno alterada.",
     severidade: "MANUTENCAO",
     payload: {
+      motivo_anterior: frota.manutencao_motivo,
+      motivo_novo: motivo,
       oficina_anterior: frota.manutencao_oficina,
       oficina_nova: oficina,
       previsao_anterior: frota.manutencao_prev_retorno,

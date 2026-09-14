@@ -16,9 +16,10 @@ function SaveButton() {
   return <Button type="submit" disabled={pending}>{pending ? "Salvando..." : "Salvar alterações"}</Button>;
 }
 
-export function EditarManutencaoDialog({ frotaId, frotaLabel, oficina, previsaoRetorno }: {
+export function EditarManutencaoDialog({ frotaId, frotaLabel, motivo, oficina, previsaoRetorno }: {
   frotaId: number;
   frotaLabel: string;
+  motivo: string | null;
   oficina: string | null;
   previsaoRetorno: string | null;
 }) {
@@ -32,9 +33,21 @@ export function EditarManutencaoDialog({ frotaId, frotaLabel, oficina, previsaoR
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild><Button type="button" size="sm" variant="outline"><Pencil className="h-3.5 w-3.5" />Editar</Button></DialogTrigger>
     <DialogContent className="sm:max-w-md">
-      <DialogHeader><DialogTitle>Editar manutenção</DialogTitle><DialogDescription>Atualize a oficina ou a previsão de retorno da frota {frotaLabel}.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Editar manutenção</DialogTitle><DialogDescription>Atualize o motivo, a oficina ou a previsão de retorno da frota {frotaLabel}.</DialogDescription></DialogHeader>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="frota_id" value={frotaId} />
+        <div className="space-y-1.5">
+          <Label htmlFor={`motivo-${frotaId}`}>Motivo</Label>
+          <textarea
+            id={`motivo-${frotaId}`}
+            name="motivo"
+            defaultValue={motivo ?? ""}
+            placeholder="Descreva o motivo da manutenção"
+            maxLength={500}
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
         <div className="space-y-1.5"><Label htmlFor={`oficina-${frotaId}`}>Oficina / prestador</Label><Input id={`oficina-${frotaId}`} name="oficina" defaultValue={oficina ?? ""} placeholder="Informe a nova oficina" maxLength={160} /></div>
         <div className="space-y-1.5"><Label htmlFor={`previsao-${frotaId}`}>Previsão de retorno</Label><Input id={`previsao-${frotaId}`} name="prev_retorno" type="date" defaultValue={previsaoRetorno?.slice(0, 10) ?? ""} /></div>
         {!state.ok && <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{state.error}</p>}
