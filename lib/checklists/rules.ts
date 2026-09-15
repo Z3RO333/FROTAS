@@ -35,12 +35,12 @@ export const KM_VARIACAO_INCOMUM = 1500;
  * OCR falhou, o motorista digitou por cima e o KM caiu ~242.000 — como o teto
  * só olhava saltos para cima, a queda passou liberada só com texto livre.
  *
- * 50.000 km cobre com folga a redistribuição de frota em turno longo (o caso
- * real que motivou remover o teto anterior, de 20.000). O mesmo limite é
+ * 100.000 km cobre com folga a redistribuição de frota em turno longo (o
+ * caso real que motivou remover o teto anterior, de 20.000). O mesmo limite é
  * repetido no trigger trg_valida_teto_km_por_turno, última barreira antes da
  * escrita — este aqui existe para dar mensagem decente ao motorista.
  */
-export const KM_SALTO_IMPOSSIVEL = 50_000;
+export const KM_SALTO_IMPOSSIVEL = 100_000;
 
 export function validateKm(
   kmInformado: number,

@@ -64,7 +64,7 @@ describe("validateKm", () => {
     expect(validateKm(233_362, null)).toEqual({ ok: true, diff: null });
   });
 
-  it("expõe o teto de 50.000 km por turno", () => {
-    expect(KM_SALTO_IMPOSSIVEL).toBe(50_000);
+  it("expõe o teto de 100.000 km por turno", () => {
+    expect(KM_SALTO_IMPOSSIVEL).toBe(100_000);
   });
 });
