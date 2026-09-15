@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { AlertTriangle, Camera, ExternalLink, LifeBuoy, MapPin, Phone, ShieldAlert, Truck, UserRound } from "lucide-react";
+import { AlertTriangle, Camera, ExternalLink, LifeBuoy, MapPin, Phone, Search, ShieldAlert, Truck, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { SocorroStatusForm } from "@/components/sinistros/socorro-status-form";
 import { SinistroStatusForm } from "@/components/sinistros/sinistro-status-form";
 import { createSignedSinistroImageUrl } from "@/lib/repos/sinistro-images";
@@ -29,19 +30,28 @@ const SOCORRO_STATUS_COLORS: Record<string, string> = {
   CANCELADO: "border-red-200 bg-red-50 text-red-700",
 };
 
+function matchesQuery(row: SinistroRow, query: string): boolean {
+  const alvo = [row.ticket_number, row.numero_frota, row.placa, row.motorista_nome, row.motorista_id]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return alvo.includes(query);
+}
+
 export default async function SinistrosAdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tipo?: string }>;
+  searchParams: Promise<{ tipo?: string; q?: string }>;
 }) {
   await requireSinistrosUser();
-  const { tipo: filtroTipo } = await searchParams;
+  const { tipo: filtroTipo, q } = await searchParams;
+  const busca = q?.trim() ?? "";
 
   const [kpis, rows] = await Promise.all([sinistrosDashboardKpis(), listAdminSinistros(200)]);
 
-  const filteredRows = filtroTipo && filtroTipo !== "todos"
-    ? rows.filter((row) => row.tipo_sinistro === filtroTipo)
-    : rows;
+  const filteredRows = rows
+    .filter((row) => !filtroTipo || filtroTipo === "todos" || row.tipo_sinistro === filtroTipo)
+    .filter((row) => !busca || matchesQuery(row, busca.toLowerCase()));
 
   const sinistros: SinistroAdminRow[] = await Promise.all(
     filteredRows.map(async (row) => ({
@@ -73,28 +83,50 @@ export default async function SinistrosAdminPage({
         <Kpi title="Com fotos" value={kpis.com_fotos} icon={<Camera className="h-4 w-4" />} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {[
-          { value: "todos", label: "Todos" },
-          { value: "veiculo", label: "Veiculo" },
-          { value: "casa", label: "Casa" },
-          { value: "socorro", label: "Socorro" },
-        ].map((opt) => {
-          const active = (filtroTipo ?? "todos") === opt.value;
-          return (
-            <Link
-              key={opt.value}
-              href={opt.value === "todos" ? "/sinistros" : `/sinistros?tipo=${opt.value}`}
-              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                active
-                  ? "border-blue-600 bg-blue-600 text-white"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              {opt.label}
-            </Link>
-          );
-        })}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: "todos", label: "Todos" },
+            { value: "veiculo", label: "Veiculo" },
+            { value: "casa", label: "Casa" },
+            { value: "socorro", label: "Socorro" },
+          ].map((opt) => {
+            const active = (filtroTipo ?? "todos") === opt.value;
+            const params = new URLSearchParams();
+            if (opt.value !== "todos") params.set("tipo", opt.value);
+            if (busca) params.set("q", busca);
+            const qs = params.toString();
+            return (
+              <Link
+                key={opt.value}
+                href={qs ? `/sinistros?${qs}` : "/sinistros"}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {opt.label}
+              </Link>
+            );
+          })}
+        </div>
+
+        <form action="/sinistros" className="flex w-full items-center gap-2 sm:w-72">
+          {filtroTipo && filtroTipo !== "todos" ? (
+            <input type="hidden" name="tipo" value={filtroTipo} />
+          ) : null}
+          <div className="relative w-full">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              type="search"
+              name="q"
+              defaultValue={busca}
+              placeholder="Buscar por código, frota ou motorista..."
+              className="pl-9"
+            />
+          </div>
+        </form>
       </div>
 
       <div className="grid gap-4">
