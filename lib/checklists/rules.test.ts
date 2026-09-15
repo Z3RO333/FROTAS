@@ -41,6 +41,25 @@ describe("validateKm", () => {
     expect(validateKm(anterior + KM_SALTO_IMPOSSIVEL, anterior, "redistribuição de frota").ok).toBe(true);
   });
 
+  it("recusa o caso real da frota 232 (queda grande de KM, mesmo com justificativa)", () => {
+    // OCR falhou, motorista digitou 45.886 no lugar de continuar de 287.780
+    const validation = validateKm(45_886, 287_780, "confirmado no painel");
+    expect(validation.ok).toBe(false);
+    expect(validation.reason).toBe("SALTO_IMPOSSIVEL");
+  });
+
+  it("sinaliza SALTO_IMPOSSIVEL para queda acima do teto, com ou sem justificativa", () => {
+    const anterior = 100_000;
+    const km = anterior - KM_SALTO_IMPOSSIVEL - 1;
+    expect(validateKm(km, anterior).reason).toBe("SALTO_IMPOSSIVEL");
+    expect(validateKm(km, anterior, "justifica").reason).toBe("SALTO_IMPOSSIVEL");
+  });
+
+  it("aceita, com justificativa, queda de KM dentro do teto", () => {
+    const anterior = 100_000;
+    expect(validateKm(anterior - KM_SALTO_IMPOSSIVEL, anterior, "hodômetro trocado").ok).toBe(true);
+  });
+
   it("não aplica o teto quando não há KM anterior (primeiro registro)", () => {
     expect(validateKm(233_362, null)).toEqual({ ok: true, diff: null });
   });

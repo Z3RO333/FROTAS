@@ -470,6 +470,19 @@ export function DriverChecklistForm({
       setStepErro("Informe a quilometragem atual do veículo antes de enviar.");
       return;
     }
+    // Acima do teto (pra cima ou pra baixo) o envio é recusado mesmo com
+    // justificativa: nesse patamar o número é dígito a mais/a menos, não
+    // viagem nem queda real de hodômetro. O servidor e o trigger repetem a
+    // regra — aqui é só para o motorista não perder o upload das fotos.
+    if (selected?.km_atual != null && Math.abs(km - selected.km_atual) > KM_SALTO_IMPOSSIVEL) {
+      e.preventDefault();
+      const diff = km - selected.km_atual;
+      const direcao = diff >= 0 ? "acima" : "abaixo";
+      setStepErro(
+        `KM informado (${formatNumber(km)}) está ${formatNumber(Math.abs(diff))} km ${direcao} do último registrado (${formatNumber(selected.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
+      );
+      return;
+    }
     // KM divergente sem justificativa também é bloqueado pelo servidor, mas avisar antes evita
     // o motorista perder o upload de todas as fotos.
     if (selected?.km_atual != null && km < selected.km_atual) {
@@ -481,17 +494,6 @@ export function DriverChecklistForm({
         );
         return;
       }
-    }
-    // Acima do teto o envio é recusado mesmo com justificativa: nesse patamar
-    // o número é dígito a mais, não viagem. O servidor e o trigger repetem a
-    // regra — aqui é só para o motorista não perder o upload das fotos.
-    if (selected?.km_atual != null && km - selected.km_atual > KM_SALTO_IMPOSSIVEL) {
-      e.preventDefault();
-      const diff = km - selected.km_atual;
-      setStepErro(
-        `KM informado (${formatNumber(km)}) está ${formatNumber(diff)} km acima do último registrado (${formatNumber(selected.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
-      );
-      return;
     }
     // Salto acima do incomum, mas dentro do teto: segue liberado com justificativa.
     if (selected?.km_atual != null && km - selected.km_atual > KM_VARIACAO_INCOMUM) {

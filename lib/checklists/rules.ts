@@ -21,15 +21,19 @@ export type KmValidation = {
 export const KM_VARIACAO_INCOMUM = 1500;
 
 /**
- * Teto absoluto de variação por turno. Diferente de KM_VARIACAO_INCOMUM, este
- * limite NÃO é liberado por justificativa: acima dele o número é erro de
- * digitação, não uma viagem longa.
+ * Teto absoluto de variação por turno, nos dois sentidos. Diferente de
+ * KM_VARIACAO_INCOMUM, este limite NÃO é liberado por justificativa: acima
+ * dele o número é erro de digitação, não uma viagem longa (nem uma queda real
+ * de hodômetro).
  *
  * Enquanto a justificativa em texto livre liberava qualquer valor, ela era um
  * cheque em branco: foi assim que a frota 112 gravou 233.363.362 km e a frota
  * 108 gravou 18.921.414 (hodômetro real 189.214). Em ambos os casos o campo
  * vinha pré-preenchido com a leitura da IA e os dígitos concatenaram — e o
  * valor sobrescrevia o km_atual do veículo, invalidando toda leitura seguinte.
+ * O mesmo mecanismo corrompeu a frota 232 na direção oposta: uma leitura de
+ * OCR falhou, o motorista digitou por cima e o KM caiu ~242.000 — como o teto
+ * só olhava saltos para cima, a queda passou liberada só com texto livre.
  *
  * 50.000 km cobre com folga a redistribuição de frota em turno longo (o caso
  * real que motivou remover o teto anterior, de 20.000). O mesmo limite é
@@ -46,9 +50,10 @@ export function validateKm(
   if (ultimoKm == null) return { ok: true, diff: null };
 
   const diff = kmInformado - ultimoKm;
-  // Acima do teto o envio é recusado mesmo com justificativa — nenhum texto
-  // transforma um dígito a mais em viagem.
-  if (diff > KM_SALTO_IMPOSSIVEL) {
+  // Acima do teto (pra cima ou pra baixo) o envio é recusado mesmo com
+  // justificativa — nenhum texto transforma um dígito a mais (ou a menos)
+  // em viagem real.
+  if (Math.abs(diff) > KM_SALTO_IMPOSSIVEL) {
     return { ok: false, reason: "SALTO_IMPOSSIVEL", diff };
   }
   if (diff < 0 && !justificativa?.trim()) {

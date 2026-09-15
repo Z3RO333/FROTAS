@@ -160,9 +160,11 @@ export async function enviarChecklistMotoristaAction(
     const kmValidation = validateKm(kmInformado, frota.km_atual, justificativaKm);
     if (!kmValidation.ok) {
       if (kmValidation.reason === "SALTO_IMPOSSIVEL") {
-        // Sem escape por justificativa: acima do teto é erro de digitação.
+        // Sem escape por justificativa: acima do teto (pra cima ou pra baixo) é erro de digitação.
+        const diff = kmValidation.diff ?? 0;
+        const direcao = diff >= 0 ? "acima" : "abaixo";
         throw new Error(
-          `KM informado (${formatNumber(kmInformado)}) está ${formatNumber(kmValidation.diff ?? 0)} km acima do último registrado (${formatNumber(frota.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
+          `KM informado (${formatNumber(kmInformado)}) está ${formatNumber(Math.abs(diff))} km ${direcao} do último registrado (${formatNumber(frota.km_atual)}). Confira os dígitos do hodômetro — esse valor não pode ser enviado.`
         );
       }
       throw new Error(
