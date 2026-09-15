@@ -765,7 +765,11 @@ function handleActionResult(
   options: { success: string; onSuccess: () => void }
 ) {
   if (result.ok) {
-    toast.success(options.success);
+    if (result.warning) {
+      toast.warning(result.warning, { duration: 10_000 });
+    } else {
+      toast.success(options.success);
+    }
     options.onSuccess();
   } else {
     toast.error(result.error);

@@ -6,6 +6,7 @@ function reading(overrides: Partial<CrlvReading> = {}): CrlvReading {
   return {
     data_vencimento: "2026-05-15",
     data_emissao: null,
+    placa: null,
     confianca: 0.95,
     leitura_segura: true,
     motivo: null,

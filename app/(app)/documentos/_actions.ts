@@ -16,8 +16,9 @@ import {
 } from "@/lib/repos/manutencao/documents";
 import { validateAggregateFileSize, validatePdfFile } from "@/lib/upload-validation";
 import { publicActionError } from "@/lib/public-error";
-import { readCrlvVencimento } from "@/lib/ai/crlv-ocr";
+import { readCrlvVencimento, type CrlvReading } from "@/lib/ai/crlv-ocr";
 import { resolveCrlvVencimento } from "@/lib/ai/resolve-crlv-vencimento";
+import { verificarPlacaCrlv } from "@/lib/ai/resolve-crlv-placa";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const optionalDate = z
@@ -36,7 +37,18 @@ const DocumentSchema = z.object({
   crlv_vencimento: optionalDate,
 });
 
-export type DocumentActionResult = { ok: true } | { ok: false; error: string };
+export type DocumentActionResult = { ok: true; warning?: string } | { ok: false; error: string };
+
+// Só avisa (nunca bloqueia): a placa lida no CRLV com confiança suficiente
+// diverge da placa informada no formulário. Mesmo padrão de "IA nunca é
+// motivo de recusa" já usado pro vencimento — aqui vira um aviso pro usuário
+// conferir se anexou o documento certo, não um erro que trava o envio.
+function placaDivergenteWarning(reading: CrlvReading | null, placaFormulario: string): string | undefined {
+  if (!reading) return undefined;
+  const { divergente, placaLida } = verificarPlacaCrlv(reading, placaFormulario);
+  if (!divergente || !placaLida) return undefined;
+  return `Atenção: a placa lida no CRLV (${placaLida}) parece diferente da placa informada (${placaFormulario}). Confira se anexou o documento certo.`;
+}
 
 export async function createDocumentAction(formData: FormData): Promise<DocumentActionResult> {
   const user = await requireAppUser();
@@ -54,17 +66,16 @@ export async function createDocumentAction(formData: FormData): Promise<Document
     await validatePdfFile(dutFile, "DUT");
     await validatePdfFile(crlvFile, "CRLV");
 
-    const crlvResolved = crlvFile
-      ? resolveCrlvVencimento(
-          await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())),
-          input.crlv_vencimento
-        )
+    const crlvReading = crlvFile ? await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())) : null;
+    const crlvResolved = crlvReading
+      ? resolveCrlvVencimento(crlvReading, input.crlv_vencimento)
       : {
           crlv_vencimento: input.crlv_vencimento,
           crlv_vencimento_origem: input.crlv_vencimento ? ("MANUAL" as const) : null,
           crlv_vencimento_confianca: null,
           crlv_revisar_manualmente: false,
         };
+    const warning = placaDivergenteWarning(crlvReading, input.placa);
 
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
@@ -95,7 +106,7 @@ export async function createDocumentAction(formData: FormData): Promise<Document
         console.error("[documents] documento atualizado, mas arquivo antigo ficou órfão", cleanupError);
       });
       revalidatePath("/documentos");
-      return { ok: true };
+      return { ok: true, warning };
     }
 
     const uploadedPaths: string[] = [];
@@ -124,7 +135,7 @@ export async function createDocumentAction(formData: FormData): Promise<Document
     }
 
     revalidatePath("/documentos");
-    return { ok: true };
+    return { ok: true, warning };
   } catch (error) {
     return { ok: false, error: getActionErrorMessage(error) };
   }
@@ -148,11 +159,9 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
     const manualDateChanged =
       input.crlv_vencimento !== undefined && input.crlv_vencimento !== current.crlv_vencimento;
 
-    const crlvResolved = crlvFile
-      ? resolveCrlvVencimento(
-          await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())),
-          input.crlv_vencimento ?? current.crlv_vencimento
-        )
+    const crlvReading = crlvFile ? await readCrlvVencimento(Buffer.from(await crlvFile.arrayBuffer())) : null;
+    const crlvResolved = crlvReading
+      ? resolveCrlvVencimento(crlvReading, input.crlv_vencimento ?? current.crlv_vencimento)
       : manualDateChanged
         ? {
             crlv_vencimento: input.crlv_vencimento ?? null,
@@ -161,6 +170,7 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
             crlv_revisar_manualmente: false,
           }
         : undefined;
+    const warning = placaDivergenteWarning(crlvReading, input.placa ?? current.placa);
 
     validateAggregateFileSize([dutFile, crlvFile], 20 * 1024 * 1024, "Documentos");
 
@@ -188,7 +198,7 @@ export async function updateDocumentAction(id: string, formData: FormData): Prom
     });
 
     revalidatePath("/documentos");
-    return { ok: true };
+    return { ok: true, warning };
   } catch (error) {
     return { ok: false, error: getActionErrorMessage(error) };
   }

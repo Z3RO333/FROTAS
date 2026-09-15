@@ -7,6 +7,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const CrlvReadingSchema = z.object({
   data_vencimento: z.string().regex(DATE_RE).nullable(),
   data_emissao: z.string().regex(DATE_RE).nullable(),
+  placa: z.string().nullable(),
   confianca: z.number().min(0).max(1),
   leitura_segura: z.boolean(),
   motivo: z.string().nullable(),
@@ -17,12 +18,13 @@ export type CrlvReading = z.infer<typeof CrlvReadingSchema>;
 const FALLBACK_READING: CrlvReading = {
   data_vencimento: null,
   data_emissao: null,
+  placa: null,
   confianca: 0,
   leitura_segura: false,
   motivo: "IA não conseguiu ler o documento. Confira manualmente.",
 };
 
-const CONFIDENCE_THRESHOLD = 0.7;
+export const CONFIDENCE_THRESHOLD = 0.7;
 
 // Aplica o mesmo limiar de confiança do hodômetro (lib/ai/odometer.ts): a IA
 // pode dizer "leitura_segura=true" mas com confiança baixa, ou vice-versa —
@@ -35,10 +37,11 @@ export function applyConfidenceThreshold(reading: CrlvReading): CrlvReading {
 
 const SYSTEM_PROMPT = `Você é um especialista em ler CRLV (Certificado de Registro e Licenciamento de Veículo) brasileiro, incluindo o modelo digital CRLV-e.
 
-TAREFA: Extrair duas datas do documento — NÃO faça nenhuma conta de calendário, apenas leia o que está escrito.
+TAREFA: Extrair duas datas e a placa do veículo do documento — NÃO faça nenhuma conta de calendário, apenas leia o que está escrito.
 
 1. data_vencimento: a DATA DE VENCIMENTO/VALIDADE do licenciamento, só se aparecer explicitamente rotulada como "Válido até", "Data Máxima de Licenciamento" ou "Vencimento". O campo "Exercício" NÃO é vencimento — é só o ano de referência do licenciamento; se só existir "Exercício", retorne data_vencimento=null.
 2. data_emissao: a data de emissão/assinatura do documento pelo DETRAN, geralmente no rodapé ("Documento emitido por DETRAN ... em DD/MM/AAAA"). Retorne null se não encontrar.
+3. placa: a PLACA do veículo, campo "Placa" no documento (padrão antigo ABC1234 ou Mercosul ABC1D23). Retorne exatamente como está escrita, sem espaços/traços. Retorne null se não encontrar ou não conseguir ler com segurança.
 
 REGRAS:
 • Ignore data de nascimento do proprietário ou de outros documentos na mesma página.
@@ -54,6 +57,7 @@ Retorne APENAS um JSON válido (sem texto extra) seguindo este schema:
 {
   "data_vencimento": "YYYY-MM-DD" | null,
   "data_emissao": "YYYY-MM-DD" | null,
+  "placa": string | null,
   "confianca": number (0.0 a 1.0),
   "leitura_segura": boolean,
   "motivo": string | null
@@ -108,7 +112,7 @@ export async function readCrlvVencimento(pdfBuffer: Buffer): Promise<CrlvReading
         {
           role: "user",
           content: [
-            { type: "text", text: "Leia este CRLV e extraia a data de vencimento do licenciamento." },
+            { type: "text", text: "Leia este CRLV e extraia a data de vencimento do licenciamento e a placa do veículo." },
             { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
           ],
         },

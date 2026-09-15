@@ -6,6 +6,7 @@ describe("CrlvReadingSchema", () => {
     const result = CrlvReadingSchema.safeParse({
       data_vencimento: "2026-05-15",
       data_emissao: null,
+      placa: "ABC1D23",
       confianca: 0.95,
       leitura_segura: true,
       motivo: null,
@@ -17,6 +18,7 @@ describe("CrlvReadingSchema", () => {
     const result = CrlvReadingSchema.safeParse({
       data_vencimento: "15/05/2026",
       data_emissao: null,
+      placa: "ABC1D23",
       confianca: 0.95,
       leitura_segura: true,
       motivo: null,
@@ -28,6 +30,7 @@ describe("CrlvReadingSchema", () => {
     const result = CrlvReadingSchema.safeParse({
       data_vencimento: null,
       data_emissao: null,
+      placa: null,
       confianca: 0.2,
       leitura_segura: false,
       motivo: "Documento ilegível",
@@ -39,6 +42,7 @@ describe("CrlvReadingSchema", () => {
     const result = CrlvReadingSchema.safeParse({
       data_vencimento: "2026-05-15",
       data_emissao: null,
+      placa: "ABC1D23",
       confianca: 1.5,
       leitura_segura: true,
       motivo: null,
@@ -49,17 +53,17 @@ describe("CrlvReadingSchema", () => {
 
 describe("applyConfidenceThreshold", () => {
   it("mantém leitura_segura quando confiança >= 0.7 e há data", () => {
-    const reading = { data_vencimento: "2026-05-15", data_emissao: null, confianca: 0.9, leitura_segura: true, motivo: null };
+    const reading = { data_vencimento: "2026-05-15", data_emissao: null, placa: null, confianca: 0.9, leitura_segura: true, motivo: null };
     expect(applyConfidenceThreshold(reading).leitura_segura).toBe(true);
   });
 
   it("derruba leitura_segura quando confiança < 0.7, mesmo que a IA tenha marcado true", () => {
-    const reading = { data_vencimento: "2026-05-15", data_emissao: null, confianca: 0.5, leitura_segura: true, motivo: null };
+    const reading = { data_vencimento: "2026-05-15", data_emissao: null, placa: null, confianca: 0.5, leitura_segura: true, motivo: null };
     expect(applyConfidenceThreshold(reading).leitura_segura).toBe(false);
   });
 
   it("derruba leitura_segura quando não há data_vencimento", () => {
-    const reading = { data_vencimento: null, data_emissao: null, confianca: 0.95, leitura_segura: true, motivo: null };
+    const reading = { data_vencimento: null, data_emissao: null, placa: null, confianca: 0.95, leitura_segura: true, motivo: null };
     expect(applyConfidenceThreshold(reading).leitura_segura).toBe(false);
   });
 });
