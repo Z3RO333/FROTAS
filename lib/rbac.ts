@@ -214,4 +214,16 @@ export async function requireUserManager(): Promise<AppUser> {
   return user;
 }
 
+// Página de logs de segurança (login/tentativas) — não fica linkada em nenhum
+// menu; a proteção real é esta checagem, não a URL não ser divulgada.
+export function canAccessSecurityLogs(perfil: PerfilUsuario): boolean {
+  return perfil === "ADMIN" || perfil === "DEV";
+}
+
+export async function requireSecurityLogsUser(): Promise<AppUser> {
+  const user = await requireAppUser();
+  if (!canAccessSecurityLogs(user.perfil)) redirect(redirectForOperationalProfile(user.perfil));
+  return user;
+}
+
 export { PERFIS_USUARIO };

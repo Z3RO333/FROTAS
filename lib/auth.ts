@@ -1,9 +1,23 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import Credentials from "next-auth/providers/credentials";
+import { headers } from "next/headers";
 import { normalizeUserDisplayName } from "@/lib/user";
 import { requiredEnv } from "@/lib/env";
 import { verificarCredenciaisTerceiro } from "@/lib/repos/usuarios";
+import { recordSecurityEvent } from "@/lib/repos/security-events";
+
+async function requestMeta(): Promise<{ ip: string | null; userAgent: string | null }> {
+  try {
+    const h = await headers();
+    const forwardedFor = h.get("x-forwarded-for");
+    const ip = forwardedFor ? forwardedFor.split(",")[0]?.trim() || null : h.get("x-real-ip");
+    return { ip, userAgent: h.get("user-agent") };
+  } catch {
+    // headers() fora de um contexto de requisição (ex.: alguns pontos do fluxo OAuth) — não bloqueia o login.
+    return { ip: null, userAgent: null };
+  }
+}
 
 const allowedDomain = (process.env.ALLOWED_EMAIL_DOMAIN || "bemol.com.br").toLowerCase();
 const authBaseUrl = process.env.AUTH_URL || process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
@@ -50,10 +64,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
         const senha = typeof credentials?.senha === "string" ? credentials.senha : "";
-        if (!email || !senha) return null;
+        const { ip, userAgent } = await requestMeta();
+        if (!email || !senha) {
+          await recordSecurityEvent({
+            tipo_evento: "LOGIN_FALHA",
+            email: email || null,
+            provider: "motorista-terceiro",
+            motivo: "Campos em branco",
+            ip_address: ip,
+            user_agent: userAgent,
+          });
+          return null;
+        }
 
         const usuario = await verificarCredenciaisTerceiro(email, senha);
-        if (!usuario) return null;
+        if (!usuario) {
+          await recordSecurityEvent({
+            tipo_evento: "LOGIN_FALHA",
+            email,
+            provider: "motorista-terceiro",
+            motivo: "Credenciais inválidas",
+            ip_address: ip,
+            user_agent: userAgent,
+          });
+          return null;
+        }
 
         return { id: usuario.id, email: usuario.email, name: usuario.nome ?? usuario.email };
       },
@@ -66,7 +101,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // pelo filtro de domínio corporativo, que só se aplica ao login via Microsoft.
       if (account?.provider === "motorista-terceiro") return true;
       const email = profileEmail(user, profile);
-      return isAllowedCorporateEmail(email);
+      const allowed = isAllowedCorporateEmail(email);
+      if (!allowed) {
+        const { ip, userAgent } = await requestMeta();
+        await recordSecurityEvent({
+          tipo_evento: "LOGIN_BLOQUEADO_DOMINIO",
+          email: email || null,
+          provider: account?.provider ?? "microsoft-entra-id",
+          motivo: "E-mail fora do domínio corporativo permitido",
+          ip_address: ip,
+          user_agent: userAgent,
+        });
+      }
+      return allowed;
     },
     async jwt({ token, user, profile }) {
       const email = profileEmail(user, profile);
@@ -80,6 +127,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.name = normalizeUserDisplayName(token.name, token.email);
       }
       return session;
+    },
+  },
+  events: {
+    // Só dispara quando o login é de fato confirmado (nos dois providers) —
+    // falha de senha e bloqueio por domínio já são logados em authorize()/signIn acima.
+    async signIn({ user, profile, account }) {
+      const email = account?.provider === "motorista-terceiro" ? user?.email ?? "" : profileEmail(user, profile);
+      const { ip, userAgent } = await requestMeta();
+      await recordSecurityEvent({
+        tipo_evento: "LOGIN_SUCESSO",
+        email: email || null,
+        provider: account?.provider ?? null,
+        ip_address: ip,
+        user_agent: userAgent,
+      });
     },
   },
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 }, // 8 horas (jornada de trabalho)
