@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChecklistFilters } from "@/components/checklists/checklist-filters";
 import { AdminChecklistsTable } from "@/components/checklists/admin-checklists-table";
+import { PageSizeSelect } from "@/components/checklists/page-size-select";
 import { SeverityBadge, StatusBadge } from "@/components/ui/status-badge";
 import {
   checklistDashboardKpis,
@@ -37,6 +38,7 @@ import { cn, formatDate, formatNumber } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const CHECKLIST_STATUSES: ChecklistStatusGeral[] = ["APROVADO", "COM_OBSERVACAO", "NAO_APTO", "CRITICO"];
+const PAGE_SIZE_OPTIONS = [50, 100, 150, 200];
 
 export default async function ChecklistsAdminPage({
   searchParams,
@@ -64,11 +66,14 @@ export default async function ChecklistsAdminPage({
     status,
   };
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
-  const offset = (page - 1) * ADMIN_CHECKLISTS_PAGE_SIZE;
+  const pageSize = PAGE_SIZE_OPTIONS.includes(Number(sp.pageSize))
+    ? Number(sp.pageSize)
+    : ADMIN_CHECKLISTS_PAGE_SIZE;
+  const offset = (page - 1) * pageSize;
   const temFiltroLocal = Boolean(filtros.localizacao || filtros.setor);
   const [kpis, checklists, pendenciasRaw, setores, localKpis] = await Promise.all([
     checklistDashboardKpis(filtros),
-    listAdminChecklists(ADMIN_CHECKLISTS_PAGE_SIZE, filtros, offset),
+    listAdminChecklists(pageSize, filtros, offset),
     listOpenPendencias(15, filtros),
     setoresDistintos(),
     temFiltroLocal ? checklistLocationKpis(filtros) : Promise.resolve(null),
@@ -76,7 +81,7 @@ export default async function ChecklistsAdminPage({
   const pendencias = dedupePendencias(pendenciasRaw).slice(0, 5);
   const localizacoes: string[] = [...CDS_OPERACIONAIS];
   const checklistGroups = groupChecklistsByDate(checklists);
-  const hasNextPage = checklists.length === ADMIN_CHECKLISTS_PAGE_SIZE;
+  const hasNextPage = checklists.length === pageSize;
   // Proxy sem consulta extra: se a primeira página já vem vazia, não há nada
   // no filtro atual para exportar (se page > 1, existe ao menos algum registro).
   const semResultados = checklists.length === 0 && page === 1;
@@ -162,6 +167,7 @@ export default async function ChecklistsAdminPage({
             </div>
             <div className="flex items-center gap-2">
               {status ? <StatusBadge status={status} size="md" /> : null}
+              <PageSizeSelect value={pageSize} />
               <Button asChild variant="outline" size="sm" className="gap-1.5" disabled={semResultados}>
                 {semResultados ? (
                   <span>
