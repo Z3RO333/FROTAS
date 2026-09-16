@@ -188,6 +188,7 @@ export async function enviarSinistroMotoristaAction(
           motoristaEmail: user.email,
           numeroFrota: frota.frota_geral ?? null,
           placa: frota.placa ?? null,
+          setor,
           endereco,
           latitude: optionalNumber(formData, "latitude"),
           longitude: optionalNumber(formData, "longitude"),

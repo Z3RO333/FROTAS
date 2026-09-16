@@ -723,6 +723,7 @@ export type SinistroNotificationInput = {
   motoristaEmail: string;
   numeroFrota: string | null;
   placa: string | null;
+  setor: string | null;
   endereco: string;
   latitude: number | null;
   longitude: number | null;
@@ -809,6 +810,7 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
           <tbody>
             ${infoRow("Motorista", `${escapeHtml(input.motoristaNome)} (${escapeHtml(input.motoristaEmail)})`)}
             ${input.numeroFrota ? infoRow("Frota", escapeHtml(input.numeroFrota) + (input.placa ? ` - ${escapeHtml(input.placa)}` : "")) : ""}
+            ${input.setor ? infoRow("Setor", escapeHtml(input.setor)) : ""}
             ${infoRow("Endereco", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
             ${infoRow("Houve feridos?", input.houveFeridos ? "SIM" : "Nao", input.houveFeridos ? RED : GREEN)}
             ${input.houveFeridos ? infoRow("SAMU/Bombeiros presente?", input.samuBombeirosPresente ? "SIM" : "Nao") : ""}
