@@ -811,9 +811,9 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
             ${infoRow("Motorista", `${escapeHtml(input.motoristaNome)} (${escapeHtml(input.motoristaEmail)})`)}
             ${input.numeroFrota ? infoRow("Frota", escapeHtml(input.numeroFrota) + (input.placa ? ` - ${escapeHtml(input.placa)}` : "")) : ""}
             ${input.setor ? infoRow("Setor", escapeHtml(input.setor)) : ""}
-            ${infoRow("Endereco", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
-            ${infoRow("Houve feridos?", input.houveFeridos ? "SIM" : "Nao", input.houveFeridos ? RED : GREEN)}
-            ${input.houveFeridos ? infoRow("SAMU/Bombeiros presente?", input.samuBombeirosPresente ? "SIM" : "Nao") : ""}
+            ${infoRow("Endereço", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
+            ${infoRow("Houve feridos?", input.houveFeridos ? "SIM" : "Não", input.houveFeridos ? RED : GREEN)}
+            ${input.houveFeridos ? infoRow("SAMU/Bombeiros presente?", input.samuBombeirosPresente ? "SIM" : "Não") : ""}
             ${infoRow("Data/Hora", dataHora)}
           </tbody>
         </table>
@@ -848,7 +848,7 @@ export function renderSocorroNotification(input: SocorroNotificationInput): stri
   const now = new Date();
   const dataHora = now.toLocaleString("pt-BR", { timeZone: "America/Manaus" });
 
-  const guinchoLabel = input.precisaGuincho ? "SIM" : "Nao";
+  const guinchoLabel = input.precisaGuincho ? "SIM" : "Não";
   const guinchoColor = input.precisaGuincho ? RED : "#22c55e";
 
   const mapsLink =
@@ -869,7 +869,7 @@ export function renderSocorroNotification(input: SocorroNotificationInput): stri
     <tr>
       <td style="background:${AMBER};border-radius:14px 14px 0 0;padding:24px 28px;color:#ffffff;">
         <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;">Socorro Frota</div>
-        <div style="font-size:26px;font-weight:800;margin-top:4px;">Nova solicitacao de socorro</div>
+        <div style="font-size:26px;font-weight:800;margin-top:4px;">Nova solicitação de socorro</div>
         <div style="font-size:13px;margin-top:6px;opacity:.9;">Ticket: ${escapeHtml(input.ticketNumber)}</div>
       </td>
     </tr>
@@ -879,10 +879,10 @@ export function renderSocorroNotification(input: SocorroNotificationInput): stri
           <tbody>
             ${infoRow("Solicitante", `${escapeHtml(input.solicitanteNome)} (${escapeHtml(input.solicitanteEmail)})`)}
             ${infoRow("Telefone", escapeHtml(input.telefone))}
-            ${infoRow("Area", escapeHtml(input.setor))}
-            ${infoRow("Endereco", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
+            ${infoRow("Área", escapeHtml(input.setor))}
+            ${infoRow("Endereço", escapeHtml(input.endereco) + (mapsLink ? `<br>${mapsLink}` : ""))}
             ${input.numeroFrota ? infoRow("Frota", escapeHtml(input.numeroFrota)) : ""}
-            ${input.numeroFrota ? infoRow("Frota carregada?", input.frotaCarregada ? "SIM" : "Nao") : ""}
+            ${input.numeroFrota ? infoRow("Frota carregada?", input.frotaCarregada ? "SIM" : "Não") : ""}
             ${infoRow("Precisa de guincho?", guinchoLabel, guinchoColor)}
             ${infoRow("Data/Hora", dataHora)}
           </tbody>
