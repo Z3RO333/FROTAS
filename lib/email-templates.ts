@@ -714,6 +714,7 @@ export type SinistroTerceiroInfo = {
   nome: string;
   telefone: string;
   cpf: string;
+  endereco: string;
 };
 
 export type SinistroNotificationInput = {
@@ -764,10 +765,12 @@ export function renderSinistroNotification(input: SinistroNotificationInput): st
             (terceiro, index) => `
         <div style="margin-top:${index === 0 ? "8" : "12"}px;padding:12px 14px;background:${SURFACE};border-left:3px solid ${BLUE_2};border-radius:6px;">
           <div style="font-size:12px;font-weight:700;color:${BLUE};margin-bottom:6px;">Terceiro ${index + 1}</div>
+          <div style="font-size:11px;letter-spacing:.04em;color:${MUTED};text-transform:uppercase;margin-bottom:4px;">Dados do cliente</div>
           <div style="font-size:13px;line-height:1.6;">
             <strong>Nome:</strong> ${escapeHtml(terceiro.nome)}<br>
             <strong>CPF:</strong> ${escapeHtml(terceiro.cpf)}<br>
-            <strong>Telefone:</strong> ${escapeHtml(terceiro.telefone)}
+            <strong>Telefone:</strong> ${escapeHtml(terceiro.telefone)}<br>
+            <strong>Endereço:</strong> ${escapeHtml(terceiro.endereco)}
           </div>
         </div>`
           )

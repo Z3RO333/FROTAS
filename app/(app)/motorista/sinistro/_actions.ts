@@ -149,9 +149,10 @@ export async function enviarSinistroMotoristaAction(
         const nome = requiredText(formData, `${prefix}_nome`, `Preencha o nome do terceiro ${index + 1}.`);
         const telefone = requiredText(formData, `${prefix}_telefone`, `Preencha o telefone do terceiro ${index + 1}.`).replace(/\D/g, "");
         const cpf = requiredText(formData, `${prefix}_cpf`, `Preencha o CPF do terceiro ${index + 1}.`).replace(/\D/g, "");
+        const endereco = requiredText(formData, `${prefix}_endereco`, `Preencha o endereço do terceiro ${index + 1}.`);
         if (!isValidTelefoneBR(telefone)) throw new Error(`Telefone do terceiro ${index + 1} é inválido.`);
         if (!isValidCPF(cpf)) throw new Error(`CPF do terceiro ${index + 1} é inválido.`);
-        return { nome, telefone, cpf };
+        return { nome, telefone, cpf, endereco };
       });
 
       const frota = await getFrota(frotaId);

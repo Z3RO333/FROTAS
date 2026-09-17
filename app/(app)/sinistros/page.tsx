@@ -258,8 +258,9 @@ function Terceiros({ terceiros }: { terceiros: SinistroRow["terceiros"] }) {
         {terceiros.map((terceiro, index) => (
           <div key={`${terceiro.cpf}-${index}`} className="rounded-md border bg-white p-3 text-sm">
             <p className="font-medium">{terceiro.nome}</p>
-            <p className="text-muted-foreground">Telefone: {terceiro.telefone || "-"}</p>
             <p className="text-muted-foreground">CPF: {terceiro.cpf || "-"}</p>
+            <p className="text-muted-foreground">Telefone: {terceiro.telefone || "-"}</p>
+            <p className="text-muted-foreground">Endereço: {terceiro.endereco || "-"}</p>
           </div>
         ))}
       </div>

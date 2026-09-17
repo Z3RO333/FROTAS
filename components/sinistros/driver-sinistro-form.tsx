@@ -36,7 +36,7 @@ function parseStepParam(value: string | null): SinistroStepId {
 }
 
 export type SinistroTipo = "veiculo" | "casa" | "socorro";
-type TerceiroDraft = { nome: string; telefone: string; cpf: string };
+type TerceiroDraft = { nome: string; telefone: string; cpf: string; endereco: string };
 
 export const SETORES = [
   "Exposicao",
@@ -221,7 +221,7 @@ export function DriverSinistroForm({
   const selected = frotas.find((frota) => String(frota.id) === frotaId) ?? null;
 
   function addTerceiro() {
-    setTerceiros((prev) => [...prev, { nome: "", telefone: "", cpf: "" }].slice(0, 10));
+    setTerceiros((prev) => [...prev, { nome: "", telefone: "", cpf: "", endereco: "" }].slice(0, 10));
   }
 
   function removeTerceiro(index: number) {
@@ -229,7 +229,7 @@ export function DriverSinistroForm({
   }
 
   function updateTerceiro(index: number, field: keyof TerceiroDraft, value: string) {
-    const cleanValue = field === "nome" ? value : value.replace(/\D/g, "");
+    const cleanValue = field === "telefone" || field === "cpf" ? value.replace(/\D/g, "") : value;
     setTerceiros((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: cleanValue } : item)));
   }
 
@@ -272,6 +272,7 @@ export function DriverSinistroForm({
         if (!terceiro.nome.trim()) return `Preencha o nome do terceiro ${i + 1}.`;
         if (!isValidTelefoneBR(terceiro.telefone)) return `Telefone do terceiro ${i + 1} inválido.`;
         if (!isValidCPF(terceiro.cpf)) return `CPF do terceiro ${i + 1} inválido.`;
+        if (!terceiro.endereco.trim()) return `Preencha o endereço do terceiro ${i + 1}.`;
       }
     }
     return null;
@@ -512,7 +513,7 @@ export function DriverSinistroForm({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Terceiros afetados</h2>
-            <p className="text-sm text-muted-foreground">Adicione nome, telefone e CPF quando houver terceiro.</p>
+            <p className="text-sm text-muted-foreground">Adicione nome, CPF, telefone e endereço quando houver terceiro.</p>
           </div>
           <Button type="button" variant="outline" onClick={addTerceiro}>
             <Plus className="h-4 w-4" />
@@ -540,20 +541,6 @@ export function DriverSinistroForm({
                     placeholder="Nome completo"
                   />
                   <div className="space-y-1">
-                    <input type="hidden" name={`terceiro_${index}_telefone`} value={terceiro.telefone} />
-                    <Input
-                      value={formatTelefoneBR(terceiro.telefone)}
-                      onChange={(e) => updateTerceiro(index, "telefone", e.target.value)}
-                      placeholder="Telefone"
-                      inputMode="numeric"
-                      maxLength={15}
-                      aria-invalid={terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone)}
-                    />
-                    {terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone) ? (
-                      <p className="text-xs font-medium text-red-700">Telefone inválido.</p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-1">
                     <input type="hidden" name={`terceiro_${index}_cpf`} value={terceiro.cpf} />
                     <Input
                       value={formatCPF(terceiro.cpf)}
@@ -567,6 +554,27 @@ export function DriverSinistroForm({
                       <p className="text-xs font-medium text-red-700">CPF inválido.</p>
                     ) : null}
                   </div>
+                  <div className="space-y-1">
+                    <input type="hidden" name={`terceiro_${index}_telefone`} value={terceiro.telefone} />
+                    <Input
+                      value={formatTelefoneBR(terceiro.telefone)}
+                      onChange={(e) => updateTerceiro(index, "telefone", e.target.value)}
+                      placeholder="Telefone"
+                      inputMode="numeric"
+                      maxLength={15}
+                      aria-invalid={terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone)}
+                    />
+                    {terceiro.telefone.length > 0 && !isValidTelefoneBR(terceiro.telefone) ? (
+                      <p className="text-xs font-medium text-red-700">Telefone inválido.</p>
+                    ) : null}
+                  </div>
+                  <Input
+                    name={`terceiro_${index}_endereco`}
+                    value={terceiro.endereco}
+                    onChange={(e) => updateTerceiro(index, "endereco", e.target.value)}
+                    placeholder="Endereço"
+                    className="sm:col-span-3"
+                  />
                 </div>
               </div>
             ))}

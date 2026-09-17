@@ -4,6 +4,7 @@ export type TerceiroSinistroInput = {
   nome: string;
   telefone: string;
   cpf: string;
+  endereco: string;
 };
 
 export type CreateSinistroInput = {
